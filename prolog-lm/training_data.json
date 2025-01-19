@@ -1,0 +1,22 @@
+[
+    {
+        "prolog_database": "parent(john, mary).\nparent(mary, alice).\nancestor(X, Y) :- parent(X, Y).\nancestor(X, Y) :- parent(X, Z), ancestor(Z, Y).\n",
+        "query": "parent(X).",
+        "output": ""
+    },
+    {
+        "prolog_database": "parent(john, mary).\nparent(mary, alice).\nancestor(X, Y) :- parent(X, Y).\nancestor(X, Y) :- parent(X, Z), ancestor(Z, Y).\n",
+        "query": "parent(X).",
+        "output": ""
+    },
+    {
+        "prolog_database": "parent(john, mary).\nparent(mary, alice).\nancestor(X, Y) :- parent(X, Y).\nancestor(X, Y) :- parent(X, Z), ancestor(Z, Y).\n",
+        "query": "ancestor(X).",
+        "output": ""
+    },
+    {
+        "prolog_database": "parent(john, mary).\nparent(mary, alice).\nancestor(X, Y) :- parent(X, Y).\nancestor(X, Y) :- parent(X, Z), ancestor(Z, Y).\n",
+        "query": "ancestor(X).",
+        "output": ""
+    }
+]
