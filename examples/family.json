@@ -1,0 +1,114 @@
+[
+  {
+    "type": "fact",
+    "term": {
+      "type": "compound",
+      "functor": "parent",
+      "args": [
+        {"type": "atom", "value": "john"},
+        {"type": "atom", "value": "mary"}
+      ]
+    }
+  },
+  {
+    "type": "fact",
+    "term": {
+      "type": "compound",
+      "functor": "parent",
+      "args": [
+        {"type": "atom", "value": "mary"},
+        {"type": "atom", "value": "alice"}
+      ]
+    }
+  },
+  {
+    "type": "fact",
+    "term": {
+      "type": "compound",
+      "functor": "parent",
+      "args": [
+        {"type": "atom", "value": "alice"},
+        {"type": "atom", "value": "bob"}
+      ]
+    }
+  },
+  {
+    "type": "rule",
+    "head": {
+      "type": "compound",
+      "functor": "grandparent",
+      "args": [
+        {"type": "variable", "name": "X"},
+        {"type": "variable", "name": "Y"}
+      ]
+    },
+    "body": [
+      {
+        "type": "compound",
+        "functor": "parent",
+        "args": [
+          {"type": "variable", "name": "X"},
+          {"type": "variable", "name": "Z"}
+        ]
+      },
+      {
+        "type": "compound",
+        "functor": "parent",
+        "args": [
+          {"type": "variable", "name": "Z"},
+          {"type": "variable", "name": "Y"}
+        ]
+      }
+    ]
+  },
+  {
+    "type": "rule",
+    "head": {
+      "type": "compound",
+      "functor": "ancestor",
+      "args": [
+        {"type": "variable", "name": "X"},
+        {"type": "variable", "name": "Y"}
+      ]
+    },
+    "body": [
+      {
+        "type": "compound",
+        "functor": "parent",
+        "args": [
+          {"type": "variable", "name": "X"},
+          {"type": "variable", "name": "Y"}
+        ]
+      }
+    ]
+  },
+  {
+    "type": "rule",
+    "head": {
+      "type": "compound",
+      "functor": "ancestor",
+      "args": [
+        {"type": "variable", "name": "X"},
+        {"type": "variable", "name": "Y"}
+      ]
+    },
+    "body": [
+      {
+        "type": "compound",
+        "functor": "parent",
+        "args": [
+          {"type": "variable", "name": "X"},
+          {"type": "variable", "name": "Z"}
+        ]
+      },
+      {
+        "type": "compound",
+        "functor": "ancestor",
+        "args": [
+          {"type": "variable", "name": "Z"},
+          {"type": "variable", "name": "Y"}
+        ]
+      }
+    ]
+  }
+]
