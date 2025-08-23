@@ -1,0 +1,97 @@
+site_name: JLOG - Logic Programming with LLM Integration
+site_description: A modern Prolog-like language that learns as it reasons
+site_author: JLOG Contributors
+site_url: https://github.com/queelius/jlog
+repo_url: https://github.com/queelius/jlog
+repo_name: jlog
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_toc_entry: false
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.snippets
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Tutorial: getting-started/tutorial.md
+  - User Guide:
+    - Core Concepts: guide/concepts.md
+    - S-Expression Syntax: guide/syntax.md
+    - Knowledge Bases: guide/knowledge.md
+    - Queries: guide/queries.md
+    - LLM Integration: guide/llm.md
+  - Python API:
+    - Fluent Interface: api/pythonic.md
+    - REPL: api/repl.md
+    - Engine: api/engine.md
+  - Integrations:
+    - REST API: integrations/rest.md
+    - Jupyter: integrations/jupyter.md
+    - VS Code: integrations/vscode.md
+    - MCP: integrations/mcp.md
+  - API Reference:
+    - Terms: reference/terms.md
+    - Unification: reference/unification.md
+    - LLM Providers: reference/llm.md
+  - Examples:
+    - Family Trees: examples/family.md
+    - Academic Records: examples/academic.md
+    - Zero-Shot Learning: examples/zero-shot.md
+  - Contributing: contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/queelius/jlog
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/jlog/

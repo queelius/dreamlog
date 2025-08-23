@@ -1,0 +1,36 @@
+# DreamLog Configuration for Ollama
+# 
+# This configures DreamLog to use Ollama running on your local network
+
+# LLM Provider Configuration
+provider:
+  provider: ollama  # Using Ollama as the LLM provider
+  
+  # Your Ollama server
+  base_url: http://192.168.0.225:11434
+  
+  # Model to use - qwen3:4b is fast and decent
+  # You can also try: phi4-mini-reasoning:latest, gemma3:4b, qwen3:1.7b
+  model: qwen3:4b
+  
+  # Generation parameters
+  temperature: 0.3  # Lower = more deterministic
+  max_tokens: 500
+  timeout: 30
+
+# Context Sampling for LLM
+sampling:
+  max_facts: 20      # How many facts to include in context
+  max_rules: 15      # How many rules to include in context
+  strategy: related  # Sample related facts/rules (vs random)
+  include_stats: true
+
+# Query Evaluation Settings
+query:
+  max_depth: 100
+  max_iterations: 1000
+  trace_enabled: false
+  cache_enabled: true
+
+# Logging
+log_level: INFO

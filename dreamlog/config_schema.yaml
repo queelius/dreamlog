@@ -1,0 +1,296 @@
+# DreamLog Configuration Schema
+# Complete configuration options for DreamLog with defaults
+
+# Core DreamLog settings
+dreamlog:
+  # Knowledge base settings
+  kb:
+    max_facts: 10000
+    max_rules: 1000
+    indexing: true
+    
+  # Query evaluation
+  evaluation:
+    max_depth: 20
+    timeout_seconds: 30
+    cache_results: true
+
+# LLM Provider Configuration
+llm:
+  # Provider selection
+  provider: ollama  # openai, anthropic, ollama, mock
+  
+  # Provider-specific settings
+  ollama:
+    base_url: http://localhost:11434
+    model: llama2
+    temperature: 0.1
+    max_tokens: 500
+  
+  openai:
+    api_key: ${OPENAI_API_KEY}  # From environment
+    model: gpt-3.5-turbo
+    temperature: 0.1
+    max_tokens: 500
+    
+  # LLM hook settings
+  hook:
+    enabled: true
+    max_generations_per_session: 10
+    cache_enabled: true
+    debug: false
+    
+  # Sampling settings for context
+  sampling:
+    max_facts: 20
+    max_rules: 10
+    strategy: related  # related, random, recent
+
+# RAG System Configuration
+rag:
+  # Embedding provider
+  embedding:
+    provider: ollama  # openai, ollama, ngram
+    cache: true
+    cache_size: 1000
+    
+    # Provider-specific settings
+    ollama:
+      base_url: http://localhost:11434
+      model: nomic-embed-text
+    
+    openai:
+      api_key: ${OPENAI_API_KEY}
+      model: text-embedding-3-small
+      base_url: https://api.openai.com/v1
+    
+    ngram:
+      char_ngram_range: [2, 4]
+      word_ngram_range: [1, 2]
+      vector_size: 512
+      use_idf: true
+  
+  # Example RAG database
+  examples:
+    enabled: true
+    db_path: ~/.dreamlog/example_rag.json
+    auto_save: true
+    
+    # Retrieval settings
+    retrieval:
+      k: 8  # Number of examples to retrieve
+      threshold: 0.0  # Minimum similarity
+      temperature: 1.0  # Sampling temperature
+      use_confidence: true  # Weight by success rate
+      
+    # Learning settings
+    learning:
+      min_uses_for_confidence: 3
+      prune_threshold: 0.2  # Remove if success rate below this
+      prune_min_uses: 5  # Only prune after this many uses
+  
+  # Prompt template RAG
+  templates:
+    enabled: true
+    db_path: ~/.dreamlog/template_rag.json
+    retrieval:
+      k: 3
+      temperature: 0.7
+      use_confidence: true
+  
+  # Negative examples
+  negative_examples:
+    enabled: true
+    db_path: ~/.dreamlog/negative_rag.json
+    generate_variations: true
+    max_variations_per_failure: 5
+    include_in_prompts: true
+    max_in_prompt: 3
+  
+  # Meta-learning tracking
+  meta_learning:
+    enabled: true
+    tracking_path: ~/.dreamlog/meta_patterns.json
+    pattern_buffer_size: 10000
+    min_examples_per_pattern: 10
+
+# Dream Cycle Configuration
+dream_cycle:
+  enabled: true
+  
+  # Scheduling
+  schedule:
+    mode: periodic  # periodic, idle, manual, continuous
+    period_minutes: 60
+    idle_threshold_seconds: 300
+    max_duration_seconds: 600
+    checkpoint_interval: 60
+  
+  # Experience replay
+  experience_replay:
+    enabled: true
+    batch_size: 32
+    replay_buffer_size: 1000
+    prioritized: true  # Prioritize uncertain examples
+  
+  # Evaluation during dreams
+  evaluation:
+    # LLM as judge
+    llm_judge:
+      enabled: true
+      providers: [ollama]  # Can use multiple
+      num_judges: 3  # For consensus
+      consensus_threshold: 0.7
+      allow_unsure: true
+      max_evaluations_per_cycle: 100
+    
+    # Automatic evaluation
+    automatic:
+      enabled: true
+      check_contradictions: true
+      check_infinite_loops: true
+      check_coherence: true
+      timeout: 10
+    
+    # Success thresholds
+    thresholds:
+      success: 0.7
+      failure: 0.3
+      high_confidence: 0.9
+  
+  # Knowledge compression
+  compression:
+    enabled: true
+    min_rules_to_compress: 3
+    validation_required: true
+    use_llm: true
+    
+  # Knowledge reorganization
+  reorganization:
+    enabled: true
+    find_abstractions: true
+    find_redundancy: true
+    create_hierarchies: true
+
+# User Feedback Configuration
+user_feedback:
+  # Collection settings
+  collection:
+    enabled: false  # Set to true in interactive mode
+    optional: true  # Don't force feedback
+    prompt_style: minimal  # minimal, detailed, educational
+    save_to_file: ~/.dreamlog/user_feedback.json
+  
+  # Active learning
+  active_learning:
+    enabled: false
+    intrusiveness: low  # off, low, medium, high, adaptive
+    questions_per_session:
+      low: 1
+      medium: 3
+      high: 5
+    
+    # When to ask
+    triggers:
+      high_uncertainty: true
+      evaluator_disagreement: true
+      novel_patterns: true
+      after_success: true
+      during_idle: true
+    
+    # Thresholds
+    uncertainty_threshold: 0.4
+    disagreement_threshold: 0.3
+    novelty_threshold: 0.2
+  
+  # Ground truth management
+  ground_truth:
+    trust_scores:
+      user: 1.0
+      llm_judge: 0.6
+      automatic: 0.3
+      inferred: 0.1
+    
+    drift_detection:
+      enabled: true
+      check_interval: 100  # Check every N queries
+      drift_threshold: 0.2  # Alert if >20% disagreement
+      auto_recalibrate: true
+
+# Success Evaluation Pipeline
+success_evaluation:
+  # Pipeline configuration
+  pipeline:
+    use_automatic: true
+    use_llm_judge: true
+    use_user_feedback: false
+    confidence_threshold: 0.7
+    
+    # Weights for combining scores
+    weights:
+      automatic: 0.2
+      llm: 0.5
+      user: 1.0  # User always overrides
+  
+  # Test-based validation
+  test_validation:
+    enabled: false
+    test_suite_path: ~/.dreamlog/tests.json
+    pass_threshold: 0.8
+
+# Experimental Features
+experiments:
+  # RAG experiments
+  rag:
+    use_context_embeddings: true
+    use_clustering: false
+    use_hybrid_retrieval: false
+    adaptive_temperature: true
+  
+  # Learning experiments
+  learning:
+    curriculum_learning: false
+    adversarial_examples: false
+    transfer_learning: false
+    ensemble_methods: false
+  
+  # Meta-learning experiments
+  meta:
+    prompt_evolution: false
+    example_augmentation: false
+    cross_domain_transfer: false
+
+# Logging and Monitoring
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  file: ~/.dreamlog/dreamlog.log
+  max_size_mb: 100
+  backup_count: 5
+  
+  # Metrics tracking
+  metrics:
+    enabled: true
+    file: ~/.dreamlog/metrics.json
+    track_queries: true
+    track_learning: true
+    track_performance: true
+
+# Performance Tuning
+performance:
+  # Caching
+  cache:
+    query_cache_size: 100
+    embedding_cache_size: 1000
+    unification_cache: true
+  
+  # Parallelization
+  parallel:
+    max_workers: 4
+    batch_embeddings: true
+    parallel_evaluation: false
+  
+  # Resource limits
+  limits:
+    max_memory_mb: 1000
+    max_query_time: 30
+    max_llm_calls_per_query: 5

@@ -1,0 +1,24 @@
+You are generating knowledge for a Prolog-like logic programming system.
+
+QUERY CONTEXT:
+Term being queried: ${term}
+Functor: ${functor} (arity ${arity})
+
+EXISTING KNOWLEDGE BASE:
+${knowledge_base}
+
+Based on the existing facts and rules shown above, generate new knowledge to define "${term}".
+
+Your response should:
+- Be consistent with existing facts and rules
+- Follow the naming conventions and patterns shown
+- Use the same entities/constants that already exist when relevant
+- Not contradict existing knowledge
+
+FORMAT YOUR RESPONSE AS A JSON ARRAY:
+- Facts: ["fact", ["predicate", "arg1", "arg2"]]
+- Rules: ["rule", ["head", "X", "Y"], [["body1", "X", "Z"], ["body2", "Z", "Y"]]]
+
+Variables must be uppercase (X, Y, Z), constants lowercase.
+
+JSON array response:
