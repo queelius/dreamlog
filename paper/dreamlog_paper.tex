@@ -1,0 +1,368 @@
+\documentclass[11pt,a4paper]{article}
+
+% Essential packages
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{microtype}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{natbib}
+\usepackage{subcaption}
+\usepackage{enumitem}
+
+% Code listing style
+\lstdefinestyle{prologstyle}{
+    language=Prolog,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray}
+}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+% Custom commands
+\newcommand{\dreamlog}{\textsc{DreamLog}}
+\newcommand{\dreamcoder}{\textsc{DreamCoder}}
+
+% Title and authors
+\title{DreamLog: Bridging Logic Programming and Neural Program Synthesis through Lazy Knowledge Generation}
+
+\author{
+Anonymous Authors\\
+\textit{Institution}\\
+\texttt{email@example.com}
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We present \dreamlog{}, a logic programming system that integrates traditional symbolic reasoning with neural language models to enable automatic knowledge generation during query evaluation. Unlike conventional logic programming languages that fail when encountering undefined predicates, \dreamlog{} leverages large language models (LLMs) to lazily synthesize missing facts and rules on-demand. This approach represents a novel point in the design space between pure symbolic systems and neural program synthesis, combining the interpretability and correctness guarantees of logic programming with the flexibility and knowledge coverage of modern language models. We show how \dreamlog{}'s architecture relates to fundamental concepts in algorithmic information theory, particularly Solomonoff induction, and demonstrate its relationship to recent advances in neural program synthesis such as \dreamcoder{}. Our system provides a practical implementation that bridges the gap between formal reasoning systems and the implicit knowledge encoded in large language models, offering new possibilities for knowledge-intensive reasoning tasks.
+\end{abstract}
+
+\section{Introduction}
+
+Logic programming has long served as a paradigm for declarative problem-solving, offering clear semantics and powerful reasoning capabilities. However, traditional logic programming systems suffer from a fundamental limitation: they operate within a closed world, where all relevant knowledge must be explicitly provided beforehand. When a query references an undefined predicate, execution simply fails, regardless of how ``obvious'' the missing knowledge might be to a human reasoner.
+
+Recent advances in large language models (LLMs) have demonstrated remarkable abilities to capture and generate common-sense knowledge, suggesting a potential solution to this brittleness. Meanwhile, the field of program synthesis has made significant strides in automatically generating programs from specifications, with systems like \dreamcoder{} \citep{ellis2021dreamcoder} showing how neural networks can guide the search for programs that explain observed data.
+
+In this paper, we present \dreamlog{}, a logic programming system that addresses the closed-world limitation by integrating LLMs directly into the query evaluation process. When \dreamlog{} encounters an undefined predicate during SLD resolution, instead of failing, it invokes an LLM to generate relevant facts and rules that could satisfy the query. This lazy, on-demand approach to knowledge generation represents a form of program synthesis guided by the immediate needs of logical inference.
+
+Our approach is motivated by several theoretical and practical considerations:
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Solomonoff Induction and Compression}: From the perspective of algorithmic information theory, \dreamlog{} can be viewed as approximating Solomonoff induction---searching for the shortest program (set of rules) that explains the observed queries. The LLM serves as a learned approximation to the universal prior over possible logical programs.
+
+\item \textbf{Program Synthesis as Knowledge Completion}: While traditional program synthesis focuses on generating complete programs from input-output examples, \dreamlog{} performs incremental synthesis of logical knowledge guided by deductive reasoning. This represents a novel point in the program synthesis design space.
+
+\item \textbf{Practical Knowledge Systems}: Many real-world reasoning tasks require vast amounts of background knowledge that would be impractical to encode manually. \dreamlog{} offers a path toward systems that can leverage the implicit knowledge in LLMs while maintaining the rigor of logical inference.
+\end{enumerate}
+
+The main contributions of this paper are:
+\begin{itemize}[leftmargin=*]
+\item A novel architecture for integrating LLMs into logic programming through lazy knowledge generation
+\item A theoretical framework connecting this approach to Solomonoff induction and program synthesis
+\item An implementation demonstrating the feasibility of the approach with multiple LLM backends
+\item An analysis of the relationship between \dreamlog{} and existing neural program synthesis systems
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{Neural Program Synthesis}
+
+The field of neural program synthesis has seen remarkable progress in recent years. \dreamcoder{} \citep{ellis2021dreamcoder} represents a particularly relevant approach, using a wake-sleep algorithm to jointly learn a library of program components and a neural recognition model. During the ``wake'' phase, \dreamcoder{} searches for programs that solve given tasks, while the ``sleep'' phase trains a neural network to amortize this search. The system gradually builds a library of reusable abstractions, effectively performing compression over the space of programs.
+
+\dreamlog{} shares several conceptual similarities with \dreamcoder{}. Both systems:
+\begin{itemize}
+\item Use neural models to guide program/knowledge generation
+\item Employ a form of compression (\dreamcoder{} through library learning, \dreamlog{} through rule generation)
+\item Bridge symbolic and neural approaches to reasoning
+\end{itemize}
+
+However, \dreamlog{} differs in several key ways:
+\begin{itemize}
+\item It operates in the space of logical facts and rules rather than functional programs
+\item Generation is lazy and query-driven rather than task-driven
+\item The LLM provides a pre-trained prior rather than learning from scratch
+\end{itemize}
+
+Other notable work in neural program synthesis includes FlashFill \citep{gulwani2011automating}, which synthesizes string transformation programs from examples; DeepCoder \citep{balog2017deepcoder}, which uses neural networks to guide search in program synthesis; RobustFill \citep{devlin2017robustfill}, which employs attention mechanisms for program synthesis from examples; and $\lambda^2$ \citep{feser2015synthesizing}, which combines enumerative synthesis with a learned scoring function.
+
+\subsection{Inductive Logic Programming}
+
+Inductive Logic Programming (ILP) \citep{muggleton1994inductive} seeks to induce logical rules from examples. Classical ILP systems like FOIL \citep{quinlan1990learning} and Progol \citep{muggleton1995inverse} perform systematic search through the space of possible rules. More recent neural-guided approaches include $\partial$ILP \citep{evans2018learning}, which provides differentiable ILP using neural networks; Neural Logic Programming \citep{yang2017differentiable}, which learns logical rules end-to-end; and Meta-Interpretive Learning \citep{muggleton2014meta}, which learns recursive theories from examples.
+
+\dreamlog{} can be viewed as performing a form of ILP where the examples are implicit in the queries, and the LLM serves as a learned bias over the hypothesis space.
+
+\subsection{Knowledge Graphs and Neural-Symbolic Integration}
+
+Recent work has explored various approaches to integrating neural and symbolic reasoning. Neural Theorem Provers \citep{rocktaschel2017end} provide end-to-end differentiable proving. Graph Neural Networks \citep{battaglia2018relational} enable learning to reason over structured representations. NELL \citep{mitchell2018never} demonstrates never-ending language learning combining multiple learning paradigms.
+
+\dreamlog{} represents a different integration strategy: rather than learning to prove or learning representations, it uses neural models to generate symbolic knowledge that is then processed by traditional logical machinery.
+
+\subsection{Large Language Models for Reasoning}
+
+Recent work has demonstrated that LLMs can perform various reasoning tasks. Chain-of-Thought Prompting \citep{wei2022chain} elicits step-by-step reasoning from LLMs. ReAct \citep{yao2023react} combines reasoning and acting in LLMs. Toolformer \citep{schick2023toolformer} teaches LLMs to use external tools. Program-aided Language Models \citep{gao2023pal} use LLMs to generate programs for reasoning.
+
+\dreamlog{} inverts this relationship: rather than using LLMs to perform reasoning directly, it uses logical reasoning to guide LLM-based knowledge generation.
+
+\section{Theoretical Foundations}
+
+\subsection{Solomonoff Induction}
+
+Solomonoff induction \citep{solomonoff1964formal} provides a theoretical framework for inductive inference based on algorithmic probability. Given observations, it assigns higher probability to simpler explanations according to their Kolmogorov complexity. Formally, the probability of a hypothesis $h$ given data $D$ is:
+
+\begin{equation}
+P(h|D) \propto 2^{-K(h)} \cdot \mathbb{1}[h \text{ explains } D]
+\end{equation}
+
+where $K(h)$ is the Kolmogorov complexity of $h$.
+
+In the context of \dreamlog{}, we can view:
+\begin{itemize}
+\item The hypothesis space as the set of possible logic programs (collections of facts and rules)
+\item The data as the queries that must be satisfied
+\item The LLM as providing an approximation to the universal prior $2^{-K(h)}$
+\end{itemize}
+
+When \dreamlog{} generates new knowledge to satisfy a query, it implicitly searches for simple explanations (short rules with few premises) that make the query provable. The LLM's training on vast corpora can be seen as learning an approximation to the simplicity bias inherent in Solomonoff induction.
+
+\subsection{The Minimum Description Length Principle}
+
+The Minimum Description Length (MDL) principle \citep{rissanen1978modeling} operationalizes Occam's razor: the best hypothesis is the one that provides the shortest description of the data. In \dreamlog{}'s context:
+
+\begin{equation}
+\text{Description Length} = |P| + |Q|P|
+\end{equation}
+
+Where:
+\begin{itemize}
+\item $|P|$ is the size of the generated facts and rules (the program)
+\item $|Q|P|$ represents the description length of queries given the program
+\end{itemize}
+
+\dreamlog{} naturally encourages MDL-optimal solutions by:
+\begin{enumerate}
+\item Generating rules rather than just facts when patterns exist
+\item Reusing generated knowledge across queries
+\item Preferring simpler explanations due to LLM biases
+\end{enumerate}
+
+\subsection{Lazy Evaluation and Demand-Driven Synthesis}
+
+\dreamlog{}'s lazy approach to knowledge generation connects to several theoretical concepts:
+
+\textbf{Neededness in Term Rewriting}: In term rewriting systems, neededness analysis determines which subterms must be evaluated to compute a normal form. Similarly, \dreamlog{} generates only the knowledge needed to answer specific queries.
+
+\textbf{Partial Evaluation}: \dreamlog{} can be viewed as performing partial evaluation of an infinite logic program (the LLM's implicit knowledge) with respect to specific queries.
+
+\textbf{Online Learning}: The system performs a form of online learning where the hypothesis (knowledge base) is refined incrementally based on a stream of queries.
+
+\subsection{Probabilistic Logic Programming}
+
+\dreamlog{} bridges deterministic logic programming with probabilistic reasoning. While traditional probabilistic logic programming \citep{de2007problog} assigns probabilities to rules, \dreamlog{} implicitly uses probabilities through the LLM's generation process. This connects to Markov Logic Networks \citep{richardson2006markov}, ProbLog \citep{de2007problog}, and Probabilistic Soft Logic \citep{bach2017hinge}.
+
+\section{The DreamLog System}
+
+\subsection{Architecture Overview}
+
+\dreamlog{} consists of several key components:
+
+\begin{enumerate}
+\item \textbf{Term System}: Immutable term structures supporting atoms, variables, and compounds
+\item \textbf{Parser}: Handles S-expressions and prefix notation for human-readable syntax
+\item \textbf{Knowledge Base}: Stores facts and rules with efficient indexing
+\item \textbf{Unification Engine}: Implements various unification modes (standard, one-way, subsumption)
+\item \textbf{Query Evaluator}: SLD resolution with backtracking
+\item \textbf{LLM Hook System}: Intercepts undefined predicates and generates knowledge
+\item \textbf{REPL}: Interactive interface for experimentation
+\end{enumerate}
+
+\subsection{Knowledge Generation Protocol}
+
+When the evaluator encounters an undefined predicate $P(\text{args})$:
+
+\begin{algorithm}
+\caption{Knowledge Generation Protocol}
+\begin{algorithmic}[1]
+\STATE Collect relevant context (current goal, partial bindings, related facts)
+\STATE Construct prompt requesting facts/rules about $P$
+\STATE Invoke LLM with constructed prompt
+\STATE Parse and validate generated knowledge
+\STATE Add valid facts/rules to knowledge base
+\STATE Resume evaluation with enriched knowledge base
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Example: Reasoning About Family Relations}
+
+Consider the query: \texttt{?- grandfather(john, X).}
+
+Without any initial knowledge, \dreamlog{} might generate:
+
+\begin{lstlisting}[style=prologstyle]
+% Generated facts
+father(john, mary).
+father(mary, alice).
+mother(mary, bob).
+
+% Generated rules  
+grandfather(X, Z) :- father(X, Y), parent(Y, Z).
+parent(X, Y) :- father(X, Y).
+parent(X, Y) :- mother(X, Y).
+\end{lstlisting}
+
+This demonstrates how \dreamlog{}:
+\begin{itemize}
+\item Generates both specific facts and general rules
+\item Creates auxiliary predicates (\texttt{parent}) to support the main query
+\item Produces a minimal but sufficient theory
+\end{itemize}
+
+\subsection{Implementation Details}
+
+\dreamlog{} is implemented in Python with a modular architecture supporting multiple LLM backends:
+\begin{itemize}
+\item \textbf{OpenAI GPT models}: High-quality generation with strong reasoning
+\item \textbf{Anthropic Claude}: Safety-focused generation with detailed explanations  
+\item \textbf{Local models via Ollama}: Privacy-preserving operation with models like Phi-3
+\end{itemize}
+
+The system uses a functional programming style with immutable data structures, making it easy to reason about and extend.
+
+\section{Evaluation and Analysis}
+
+\subsection{Qualitative Evaluation}
+
+\dreamlog{} successfully handles various reasoning tasks:
+
+\textbf{Common-sense Reasoning}: Queries about everyday concepts generate appropriate facts and rules.
+
+\textbf{Mathematical Relations}: The system can generate rules for mathematical concepts like prime numbers, factors, and sequences.
+
+\textbf{Recursive Definitions}: \dreamlog{} generates recursive rules for concepts like ancestry, list operations, and tree traversal.
+
+\subsection{Comparison with Pure Approaches}
+
+\begin{table}[h]
+\centering
+\caption{Comparison of reasoning approaches}
+\label{tab:comparison}
+\begin{tabular}{lcccc}
+\toprule
+Approach & Completeness & Consistency & Interpretability & Flexibility \\
+\midrule
+Pure Logic Programming & \checkmark & \checkmark & \checkmark & $\times$ \\
+Pure LLM & $\times$ & $\times$ & $\times$ & \checkmark \\
+\dreamlog{} & Partial & Partial & \checkmark & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\dreamlog{} occupies a middle ground, trading some formal guarantees for practical flexibility.
+
+\subsection{Limitations and Challenges}
+
+\begin{enumerate}
+\item \textbf{Consistency}: Generated knowledge may be inconsistent with existing facts
+\item \textbf{Completeness}: The system may miss valid inferences due to incomplete generation
+\item \textbf{Hallucination}: LLMs may generate plausible but incorrect facts
+\item \textbf{Computational Cost}: LLM invocations are expensive compared to pure logical operations
+\end{enumerate}
+
+\subsection{Relationship to DreamCoder}
+
+Both \dreamlog{} and \dreamcoder{} address the problem of program synthesis, but from different angles:
+
+\begin{table}[h]
+\centering
+\caption{Comparison of \dreamlog{} and \dreamcoder{}}
+\label{tab:dreamcoder}
+\begin{tabular}{lll}
+\toprule
+Aspect & \dreamcoder{} & \dreamlog{} \\
+\midrule
+Learning & Bottom-up library learning & Top-down knowledge generation \\
+Algorithm & Wake-sleep search & Lazy evaluation \\
+Domain & Functional programs & Logical facts and rules \\
+Prior & Learned from training & Pre-trained LLM \\
+Scope & Domain-specific & Cross-domain \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The approaches are complementary: \dreamcoder{}'s library learning could enhance \dreamlog{}'s generation, while \dreamlog{}'s lazy approach could make \dreamcoder{} more efficient.
+
+\section{Discussion and Future Work}
+
+\subsection{Theoretical Implications}
+
+\dreamlog{} raises several theoretical questions:
+
+\begin{enumerate}
+\item \textbf{Convergence}: Under what conditions does iterative knowledge generation converge to a consistent theory?
+\item \textbf{Optimality}: How close are LLM-generated theories to MDL-optimal solutions?
+\item \textbf{Completeness}: Can we characterize the class of queries \dreamlog{} can eventually answer?
+\end{enumerate}
+
+\subsection{Toward Hybrid Systems}
+
+\dreamlog{} suggests a path toward hybrid systems that combine:
+\begin{itemize}
+\item Symbolic reasoning for correctness and interpretability
+\item Neural models for flexibility and knowledge coverage
+\item Program synthesis for learning and adaptation
+\end{itemize}
+
+\subsection{Future Directions}
+
+\begin{enumerate}
+\item \textbf{Consistency Maintenance}: Develop mechanisms to ensure generated knowledge remains consistent
+\item \textbf{Active Learning}: Use query patterns to guide focused knowledge generation
+\item \textbf{Meta-Learning}: Learn to generate better prompts based on success/failure patterns
+\item \textbf{Integration with \dreamcoder{}}: Combine library learning with lazy generation
+\item \textbf{Formal Verification}: Prove properties about generated knowledge bases
+\end{enumerate}
+
+\subsection{Applications}
+
+Potential applications include:
+\begin{itemize}
+\item \textbf{Knowledge Base Completion}: Filling gaps in existing knowledge bases
+\item \textbf{Automated Theorem Proving}: Generating lemmas on-demand
+\item \textbf{Question Answering}: Combining reasoning with knowledge generation
+\item \textbf{Program Synthesis}: Using logical specifications to guide synthesis
+\end{itemize}
+
+\section{Conclusion}
+
+\dreamlog{} demonstrates that integrating large language models into logic programming through lazy knowledge generation offers a promising approach to addressing the brittleness of traditional symbolic systems. By viewing LLMs as approximations to the universal prior in Solomonoff induction, we can understand their role in guiding the search for simple theories that explain observations.
+
+While \dreamlog{} cannot provide the same formal guarantees as pure logic programming, it offers a practical path toward systems that combine the best of symbolic and neural approaches. The connection to program synthesis, particularly systems like \dreamcoder{}, suggests rich opportunities for cross-pollination between these research areas.
+
+As we move toward more capable AI systems, the ability to combine formal reasoning with the vast implicit knowledge in neural models will become increasingly important. \dreamlog{} represents one point in this design space, demonstrating both the potential and challenges of this integration.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
