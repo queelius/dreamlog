@@ -57,7 +57,7 @@ kb.fact("likes", "alice", "bob") \
   .and_("likes", ["Y", "X"])
 
 for result in kb.query("friends", "X", "Y"):
-    print(f"{result['X']} and {result['Y']} are friends")
+    print(f"{result.bindings['X']} and {result.bindings['Y']} are friends")
 ```
 
 ### 🔄 Wake-Sleep Architecture
@@ -93,7 +93,7 @@ kb.parse("""
 
 # Query
 for result in kb.query("grandparent", "X", "alice"):
-    print(f"{result['X']} is Alice's grandparent")
+    print(f"{result.bindings['X']} is Alice's grandparent")
 
 # Enable LLM for undefined predicates
 kb_with_llm = dreamlog(llm_provider="openai")

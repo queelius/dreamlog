@@ -18,9 +18,9 @@ from enum import Enum
 from .engine import DreamLogEngine
 from .prefix_parser import parse_prefix_notation, parse_s_expression, term_to_sexp, term_to_prefix_json
 from .knowledge import Fact, Rule
-from .terms import atom, var, compound
+from .factories import atom, var, compound
 from .llm_hook import LLMHook
-from .llm_providers import MockLLMProvider
+# MockLLMProvider is imported dynamically when needed
 
 
 class ReplCommand(Enum):
@@ -106,8 +106,15 @@ class DreamLogRepl:
     
     def _setup_llm(self):
         """Setup LLM integration"""
-        llm = MockLLMProvider(knowledge_domain=self.config.llm_domain)
-        self.engine.llm_hook = LLMHook(llm)
+        try:
+            from tests.mock_provider import MockLLMProvider
+            llm = MockLLMProvider(knowledge_domain=self.config.llm_domain)
+            self.engine.llm_hook = LLMHook(llm)
+        except ImportError:
+            # In production, we'd use a real provider
+            from .llm_providers import create_provider
+            llm = create_provider("mock", knowledge_domain=self.config.llm_domain)
+            self.engine.llm_hook = LLMHook(llm)
     
     def _setup_readline(self):
         """Setup readline for history and tab completion"""

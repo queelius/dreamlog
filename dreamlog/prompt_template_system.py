@@ -23,6 +23,7 @@ class PromptCategory(Enum):
     BRIDGE = "bridge"
     DEFINITION = "definition"  # For undefined predicates
     EXAMPLE_GENERATION = "example_generation"
+    CONSOLIDATION = "consolidation"  # For consolidating knowledge
 
 
 @dataclass
@@ -336,6 +337,117 @@ Output JSON: [["fact", [pred, args...]], ["rule", [head], [body]]]"""
             data['failures'] += 1
         data['total_quality'] += response_quality
         data['count'] += 1
+    
+    def select_template(self, context: QueryContext) -> PromptTemplate:
+        """
+        Select the best template for the given context
+        
+        Args:
+            context: Query context
+            
+        Returns:
+            Selected prompt template
+        """
+        # Determine category based on context
+        category = self._determine_category(context)
+        
+        # Get templates for category
+        templates = self.templates.get(category, [])
+        if not templates:
+            # Fall back to definition templates
+            templates = self.templates.get(PromptCategory.DEFINITION, [])
+        
+        if not templates:
+            # Create a default template
+            return PromptTemplate(
+                id="default",
+                category=PromptCategory.DEFINITION,
+                template="Query: {query}\nContext: {context}\nGenerate facts or rules in JSON format.",
+                variables=["query", "context"]
+            )
+        
+        # For now, return the first template (could be smarter)
+        return templates[0]
+    
+    def _determine_category(self, context: QueryContext) -> PromptCategory:
+        """Determine the appropriate category based on context"""
+        term = context.term
+        
+        # Check for specific patterns
+        if "optimize" in term.lower() or "compress" in term.lower():
+            return PromptCategory.COMPRESSION
+        elif "abstract" in term.lower():
+            return PromptCategory.ABSTRACTION
+        elif "generalize" in term.lower():
+            return PromptCategory.GENERALIZATION
+        elif context.kb_facts and len(context.kb_facts) > 10:
+            return PromptCategory.CONSOLIDATION
+        else:
+            return PromptCategory.DEFINITION
+    
+    def format_prompt(self, context: QueryContext, template_name: Optional[str] = None) -> str:
+        """
+        Format a prompt using the specified template or select the best one
+        
+        Args:
+            context: Query context with term and KB information
+            template_name: Optional specific template to use
+        
+        Returns:
+            Formatted prompt string
+        """
+        if template_name:
+            # Get specific template by name
+            for templates in self.templates.values():
+                for template in templates:
+                    if template.id == template_name:
+                        return self._format_template(template, context)
+        
+        # Select best template based on context
+        template = self.select_template(context)
+        return self._format_template(template, context)
+    
+    def _format_template(self, template: PromptTemplate, context: QueryContext) -> str:
+        """Format a template with context variables"""
+        # Build variable dictionary
+        variables = {
+            'query': context.term,
+            'term': context.term,
+            'context': self._format_context(context),
+            'kb_facts': '\n'.join(context.kb_facts[:10]),
+            'kb_rules': self._format_rules(context.kb_rules[:5]),
+            'existing_functors': ', '.join(context.existing_functors[:20])
+        }
+        
+        # Extract functor if it's a compound term
+        if '(' in context.term:
+            functor = context.term.split('(')[0]
+            variables['functor'] = functor
+            variables['arity'] = context.term.count(',') + 1
+        
+        # Format template
+        prompt = template.template
+        for var, value in variables.items():
+            prompt = prompt.replace(f'{{{var}}}', str(value))
+        
+        return prompt
+    
+    def _format_context(self, context: QueryContext) -> str:
+        """Format context information"""
+        parts = []
+        if context.kb_facts:
+            parts.append(f"Known facts: {', '.join(context.kb_facts[:5])}")
+        if context.kb_rules:
+            parts.append(f"Known rules: {len(context.kb_rules)} rules")
+        return '\n'.join(parts) if parts else "Empty knowledge base"
+    
+    def _format_rules(self, rules: List[Tuple[str, List[str]]]) -> str:
+        """Format rules for display"""
+        formatted = []
+        for head, body in rules:
+            body_str = ', '.join(body)
+            formatted.append(f"{head} :- {body_str}")
+        return '\n'.join(formatted)
     
     def get_performance_stats(self) -> Dict[str, Dict[str, float]]:
         """Get performance statistics for all templates"""
