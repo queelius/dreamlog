@@ -18,7 +18,22 @@ class Term(ABC):
     
     @abstractmethod
     def substitute(self, bindings: Dict[str, 'Term']) -> 'Term':
-        """Apply variable substitutions to this term"""
+        """
+        Apply variable substitutions to this term.
+        
+        Args:
+            bindings: Dictionary mapping variable names to terms.
+                     Chains of variables are followed transitively.
+        
+        Returns:
+            New term with all variables replaced according to bindings.
+            Returns self if no substitutions apply.
+        
+        Examples:
+            >>> term = compound("p", var("X"), var("Y"))
+            >>> term.substitute({"X": atom("a"), "Y": atom("b")})
+            Compound("p", [Atom("a"), Atom("b")])
+        """
         pass
     
     @abstractmethod
@@ -72,17 +87,8 @@ class Variable(Term):
     
     def substitute(self, subst: Dict[str, 'Term']) -> 'Term':
         """Apply substitution to this variable, following chains"""
-        if self.name in subst:
-            result = subst[self.name]
-            visited = {self.name}  # Track visited variables to prevent infinite loops
-            
-            # Follow the chain of variable substitutions
-            while isinstance(result, Variable) and result.name in subst and result.name not in visited:
-                visited.add(result.name)
-                result = subst[result.name]
-            
-            return result
-        return self
+        from .utils import dereference_variable
+        return dereference_variable(self, subst)
     
     def get_variables(self) -> Set[str]:
         """Variables contain themselves"""
@@ -135,27 +141,12 @@ class Compound(Term):
         return result
     
     def __str__(self) -> str:
+        # Use S-expression format as the default string representation
         if not self.args:
-            return self.functor
-        args_str = ", ".join(str(arg) for arg in self.args)
-        return f"{self.functor}({args_str})"
+            return f"({self.functor})"
+        args_str = " ".join(str(arg) for arg in self.args)
+        return f"({self.functor} {args_str})"
 
 
-def term_from_prefix(data: Any) -> Term:
-    """Factory function to create term from prefix notation"""
-    from dreamlog.prefix_parser import parse_prefix_notation
-    return parse_prefix_notation(data)
-
-
-# Convenience functions for creating terms
-def atom(value: str) -> Atom:
-    """Create an atom"""
-    return Atom(value)
-
-def var(name: str) -> Variable:
-    """Create a variable"""
-    return Variable(name)
-
-def compound(functor: str, *args: Term) -> Compound:
-    """Create a compound term"""
-    return Compound(functor, list(args))
+# Note: Factory functions moved to factories.py to avoid circular imports
+# Import them from dreamlog.factories or dreamlog.__init__

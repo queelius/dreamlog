@@ -69,15 +69,25 @@ class DreamLogConfig:
     provider: LLMProviderConfig = field(default_factory=LLMProviderConfig)
     sampling: LLMSamplingConfig = field(default_factory=LLMSamplingConfig)
     query: QueryConfig = field(default_factory=QueryConfig)
-    
+
     # Prompt template configuration
     prompt_template: Optional[str] = None  # "default", "minimal", or path to custom template
     prompt_template_path: Optional[str] = None  # Path to custom template file
-    
+
     # General settings
     auto_save: bool = False
     auto_save_path: Optional[str] = None
-    
+
+    # TUI settings
+    tui_prompt: str = "dreamlog> "
+    tui_history_file: str = "~/.dreamlog_history"
+    tui_color_output: bool = True
+    tui_max_solutions: int = 100  # Limit query results
+
+    # Runtime settings
+    llm_enabled: bool = False
+    debug_enabled: bool = False
+
     # Logging
     log_level: str = "INFO"
     log_file: Optional[str] = None
@@ -148,8 +158,10 @@ class DreamLogConfig:
             config.query = QueryConfig(**data['query'])
         
         # Load general settings
-        for key in ['prompt_template', 'prompt_template_path', 'auto_save', 
-                    'auto_save_path', 'log_level', 'log_file']:
+        for key in ['prompt_template', 'prompt_template_path', 'auto_save',
+                    'auto_save_path', 'log_level', 'log_file', 'tui_prompt',
+                    'tui_history_file', 'tui_color_output', 'tui_max_solutions',
+                    'llm_enabled', 'debug_enabled']:
             if key in data:
                 setattr(config, key, data[key])
         
@@ -183,6 +195,12 @@ class DreamLogConfig:
             'prompt_template_path': self.prompt_template_path,
             'auto_save': self.auto_save,
             'auto_save_path': self.auto_save_path,
+            'tui_prompt': self.tui_prompt,
+            'tui_history_file': self.tui_history_file,
+            'tui_color_output': self.tui_color_output,
+            'tui_max_solutions': self.tui_max_solutions,
+            'llm_enabled': self.llm_enabled,
+            'debug_enabled': self.debug_enabled,
             'log_level': self.log_level,
             'log_file': self.log_file
         }

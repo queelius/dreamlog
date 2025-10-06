@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dreamlog"
-version = "0.8.0"
+version = "0.9.0"
 description = "Logic programming with S-expressions and LLM integration"
 readme = "README.md"
 license = {text = "MIT"}
@@ -62,7 +62,8 @@ integrations = [
     "uvicorn>=0.23.0",
     "websockets>=11.0",
     "jupyter>=1.0.0",
-    "numpy>=1.24.0"
+    "numpy>=1.24.0",
+    "pygls>=1.0.0"
 ]
 all = [
     "dreamlog[dev,docs,integrations]"
@@ -75,11 +76,11 @@ Issues = "https://github.com/spinoza/dreamlog/issues"
 Changelog = "https://github.com/spinoza/dreamlog/blob/master/CHANGELOG.md"
 
 [project.scripts]
-dreamlog = "dreamlog.repl:main"
+dreamlog = "dreamlog.tui:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["dreamlog*"]
+include = ["dreamlog*", "integrations*"]
 exclude = ["tests*"]
 
 [tool.pytest.ini_options]

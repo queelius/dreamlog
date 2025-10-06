@@ -5,7 +5,8 @@ Provides a high-level interface that combines the knowledge base, evaluator, and
 """
 
 from typing import List, Dict, Any, Optional
-from .terms import Term, term_from_prefix, atom, var, compound
+from .terms import Term, Atom
+from .factories import atom, var, compound, term_from_prefix
 from .knowledge import KnowledgeBase, Fact, Rule
 from .evaluator import PrologEvaluator, Solution
 from .llm_hook import LLMHook
@@ -80,28 +81,45 @@ class DreamLogEngine:
         
         return solutions
     
-    def ask(self, goal: Term) -> bool:
+    def ask(self, *args) -> bool:
         """
         Ask a yes/no question
         
         Args:
-            goal: The goal to check
+            Either a single Term object, or functor and arguments as strings
             
         Returns:
             True if at least one solution exists
         """
+        if len(args) == 1 and isinstance(args[0], Term):
+            goal = args[0]
+        else:
+            # Build compound term from strings
+            functor = args[0]
+            term_args = []
+            for arg in args[1:]:
+                if isinstance(arg, str) and arg[0].isupper():
+                    term_args.append(var(arg))
+                else:
+                    term_args.append(atom(arg))
+            goal = compound(functor, *term_args)
+        
         return self.evaluator.ask_yes_no(goal)
     
-    def find_all(self, goal: Term, var_name: str) -> List[Term]:
+    def find_all_terms(self, goal: Term, var_name: str) -> List[Term]:
         """
-        Find all values for a variable in a goal
+        Find all term values for a variable in a goal.
         
         Args:
-            goal: The goal term
+            goal: The goal term to query
             var_name: Name of the variable to collect values for
             
         Returns:
-            List of terms that bind to the variable
+            List of Terms that bind to the variable
+            
+        Examples:
+            >>> engine.find_all_terms(compound("parent", var("X"), atom("mary")), "X")
+            [Atom("john"), Atom("jane")]
         """
         solutions = self.query([goal])
         values = []
@@ -115,6 +133,56 @@ class DreamLogEngine:
                     values.append(final_value)
         
         return values
+    
+    def find_all(self, functor: str, *args: str) -> List[Dict[str, Any]]:
+        """
+        Convenience method to find all solutions with string-based queries.
+        
+        Variables are identified by starting with uppercase letters.
+        Returns solutions as dictionaries with string values.
+        
+        Args:
+            functor: The predicate functor
+            *args: Arguments where uppercase strings become variables
+            
+        Returns:
+            List of dictionaries mapping variable names to their string values
+            
+        Examples:
+            >>> engine.find_all("parent", "john", "X")
+            [{"X": "mary"}, {"X": "bob"}]
+            >>> engine.find_all("parent", "X", "Y")
+            [{"X": "john", "Y": "mary"}, {"X": "jane", "Y": "bob"}]
+        """
+        term_args = []
+        var_names = []
+        
+        for arg in args:
+            if isinstance(arg, str) and arg and arg[0].isupper():
+                term_args.append(var(arg))
+                var_names.append(arg)
+            else:
+                term_args.append(atom(arg))
+        
+        goal = compound(functor, *term_args)
+        solutions = self.query([goal])
+        
+        # Return list of binding dicts
+        results = []
+        for solution in solutions:
+            result = {}
+            for var_name in var_names:
+                binding = solution.get_binding(var_name)
+                if binding is not None:
+                    # Convert to string for convenience
+                    if isinstance(binding, Atom):
+                        result[var_name] = binding.value
+                    else:
+                        result[var_name] = str(binding)
+            if result:
+                results.append(result)
+        
+        return results
     
     def _format_bindings(self, bindings: Dict[str, Term]) -> str:
         """Format variable bindings for display"""

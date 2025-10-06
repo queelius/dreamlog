@@ -8,6 +8,7 @@ import json
 from typing import Any, List, Union
 from dreamlog.terms import Term, Atom, Variable, Compound
 from dreamlog.knowledge import Rule
+from dreamlog.prefix_parser import parse_prefix_notation, parse_s_expression
 
 
 class TestPrefixNotationParsing:
@@ -381,7 +382,7 @@ class TestPrefixNotationParsing:
             # Parse JSON to Term
             term = parse_prefix_notation(json_input)
             # Convert Term to S-expression string
-            sexp_output = term_to_sexp(term)
+            sexp_output = str(term)
             assert sexp_output == sexp_expected, f"Failed to convert {json_input}"
             
             # Parse S-expression back to Term
@@ -413,14 +414,14 @@ class TestParserIntegrationWithExistingCode:
     
     def test_parsed_terms_work_with_unification(self):
         """Ensure parsed terms work with existing unification"""
-        from dreamlog.unification import Unifier
+        from dreamlog.unification import unify
         
         # Parse two terms
         term1 = parse_prefix_notation(["parent", "X", "mary"])
         term2 = parse_prefix_notation(["parent", "john", "Y"])
         
         # Should unify with X=john, Y=mary
-        bindings = Unifier.unify(term1, term2)
+        bindings = unify(term1, term2)
         assert bindings is not None
         assert bindings["X"] == Atom("john")
         assert bindings["Y"] == Atom("mary")
@@ -451,7 +452,7 @@ class TestParserIntegrationWithExistingCode:
     
     def test_json_serialization_roundtrip(self):
         """Test that parsed terms can be serialized and deserialized using prefix notation"""
-        from dreamlog.prefix_parser import term_to_prefix_json
+        # term_to_prefix_json removed - use to_prefix() method instead
         
         test_cases = [
             ["parent", "john", "mary"],
@@ -464,7 +465,7 @@ class TestParserIntegrationWithExistingCode:
             term = parse_prefix_notation(input_data)
             
             # Convert back to prefix JSON
-            output_data = term_to_prefix_json(term)
+            output_data = term.to_prefix()
             
             # Parse again
             reconstructed = parse_prefix_notation(output_data)
@@ -477,8 +478,7 @@ class TestParserIntegrationWithExistingCode:
 from dreamlog.prefix_parser import (
     parse_prefix_notation,
     parse_s_expression,
-    parse_rule,
-    term_to_sexp
+    parse_rule
 )
 
 

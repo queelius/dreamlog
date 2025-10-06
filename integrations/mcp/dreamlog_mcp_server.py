@@ -19,9 +19,13 @@ import os
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from dreamlog import DreamLogEngine, parse_prefix_notation, parse_s_expression
+from dreamlog.engine import DreamLogEngine
+from dreamlog.prefix_parser import parse_s_expression, parse_prefix_notation
 from dreamlog.llm_hook import LLMHook
-from dreamlog.llm_providers import MockLLMProvider
+from dreamlog.llm_providers import create_provider
+from dreamlog.embedding_providers import TfIdfEmbeddingProvider
+from dreamlog.config import DreamLogConfig, get_config
+from dreamlog.prompt_template_system import RULE_EXAMPLES
 
 
 @dataclass
@@ -52,14 +56,42 @@ class DreamLogMCPServer:
     - Generating knowledge with LLM
     """
     
-    def __init__(self, kb_path: Optional[str] = None, enable_llm: bool = False):
+    def __init__(self, kb_path: Optional[str] = None, config: Optional[DreamLogConfig] = None):
+        # Load config or use provided one
+        self.config = config or get_config()
         self.engine = DreamLogEngine()
-        
-        if enable_llm:
-            # Use mock provider for demo, replace with real LLM
-            llm = MockLLMProvider(knowledge_domain="general")
-            self.engine.llm_hook = LLMHook(llm)
-        
+
+        # Setup LLM if enabled in config
+        if self.config.llm_enabled:
+            try:
+                # Create provider from config
+                provider_kwargs = {
+                    'model': self.config.provider.model,
+                    'temperature': self.config.provider.temperature,
+                    'max_tokens': self.config.provider.max_tokens,
+                }
+
+                if self.config.provider.base_url:
+                    provider_kwargs['base_url'] = self.config.provider.base_url
+
+                api_key = self.config.provider.get_api_key()
+                if api_key:
+                    provider_kwargs['api_key'] = api_key
+
+                provider = create_provider(
+                    provider_type=self.config.provider.provider,
+                    **provider_kwargs
+                )
+
+                # Create embedding provider
+                embedding_provider = TfIdfEmbeddingProvider(RULE_EXAMPLES)
+
+                # Create LLM hook
+                self.engine.llm_hook = LLMHook(provider, embedding_provider, debug=False)
+                print(f"✓ LLM enabled with {self.config.provider.provider} ({self.config.provider.model})")
+            except Exception as e:
+                print(f"⚠ LLM setup failed: {e}")
+
         if kb_path and os.path.exists(kb_path):
             self.load_knowledge_base(kb_path)
         
@@ -180,7 +212,7 @@ class DreamLogMCPServer:
                     break
                 solutions.append({
                     "bindings": {k: str(v) for k, v in solution.bindings.items()},
-                    "ground_bindings": {k: str(v) for k, v in solution.ground_bindings.items()}
+                    "ground_bindings": {k: str(v) for k, v in solution.get_ground_bindings().items()}
                 })
             
             return {
@@ -199,8 +231,7 @@ class DreamLogMCPServer:
                 fact_term = parse_prefix_notation(json.loads(fact_str))
             
             # Add to KB
-            from dreamlog.knowledge import Fact
-            self.engine.add_fact(Fact(fact_term))
+            self.engine.add_fact(fact_term)
             
             return {
                 "success": True,
@@ -218,10 +249,11 @@ class DreamLogMCPServer:
             else:
                 head = parse_prefix_notation(json.loads(head_str))
                 body = [parse_prefix_notation(json.loads(b)) for b in body_strs]
-            
+
             # Add to KB
             from dreamlog.knowledge import Rule
-            self.engine.add_rule(Rule(head, body))
+            rule = Rule(head, body)
+            self.engine.kb.add_rule(rule)
             
             return {
                 "success": True,
@@ -238,8 +270,7 @@ class DreamLogMCPServer:
                 query_term = parse_prefix_notation(json.loads(query_str))
             
             # Get explanation (trace unification)
-            from dreamlog.unification import Unifier
-            unifier = Unifier(trace=True)
+            from dreamlog.unification import unify
             
             explanation = {
                 "query": str(query_term),
@@ -250,25 +281,23 @@ class DreamLogMCPServer:
             
             # Check against facts
             for fact in self.engine.kb.facts:
-                result = unifier.unify(query_term, fact.term)
-                if result.success:
+                result = unify(query_term, fact.term)
+                if result:
                     explanation["facts_checked"].append({
                         "fact": str(fact.term),
                         "unified": True,
-                        "bindings": {k: str(v) for k, v in result.bindings.items()}
+                        "bindings": {k: str(v) for k, v in result.items()}
                     })
-                    explanation["unification_trace"].extend(result.steps)
-            
+
             # Check against rules
             for rule in self.engine.kb.rules:
-                result = unifier.unify(query_term, rule.head)
-                if result.success:
+                result = unify(query_term, rule.head)
+                if result:
                     explanation["rules_checked"].append({
                         "rule": f"{rule.head} :- {rule.body}",
                         "head_unified": True,
-                        "bindings": {k: str(v) for k, v in result.bindings.items()}
+                        "bindings": {k: str(v) for k, v in result.items()}
                     })
-                    explanation["unification_trace"].extend(result.steps)
             
             return explanation
         
@@ -315,9 +344,9 @@ class DreamLogMCPServer:
         }
 
 
-async def run_mcp_server(host: str = "localhost", port: int = 8765, **kwargs):
+async def run_mcp_server(host: str = "localhost", port: int = 8765, kb_path: Optional[str] = None, config: Optional[DreamLogConfig] = None):
     """Run the MCP server"""
-    server = DreamLogMCPServer(**kwargs)
+    mcp_server = DreamLogMCPServer(kb_path=kb_path, config=config)
     
     async def handle_client(reader, writer):
         """Handle MCP client connections"""
@@ -332,14 +361,14 @@ async def run_mcp_server(host: str = "localhost", port: int = 8765, **kwargs):
                 
                 # Handle different request types
                 if request.get("method") == "initialize":
-                    response = server.get_server_info()
+                    response = mcp_server.get_server_info()
                 elif request.get("method") == "tools/call":
-                    response = await server.handle_tool_call(
+                    response = await mcp_server.handle_tool_call(
                         request["params"]["name"],
                         request["params"]["arguments"]
                     )
                 elif request.get("method") == "resources/read":
-                    response = await server.handle_resource_read(
+                    response = await mcp_server.handle_resource_read(
                         request["params"]["uri"]
                     )
                 else:
@@ -368,13 +397,18 @@ if __name__ == "__main__":
     parser.add_argument("--kb", help="Path to knowledge base file")
     parser.add_argument("--port", type=int, default=8765, help="Server port")
     parser.add_argument("--host", default="localhost", help="Server host")
-    parser.add_argument("--enable-llm", action="store_true", help="Enable LLM integration")
-    
+    parser.add_argument("--config", help="Path to DreamLog config file")
+
     args = parser.parse_args()
-    
+
+    # Load config if specified
+    config = None
+    if args.config:
+        config = DreamLogConfig.load(args.config)
+
     asyncio.run(run_mcp_server(
         host=args.host,
         port=args.port,
         kb_path=args.kb,
-        enable_llm=args.enable_llm
+        config=config
     ))

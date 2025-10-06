@@ -10,7 +10,12 @@ from .terms import Term, Compound, Atom
 from .knowledge import Fact, Rule
 from .llm_providers import LLMProvider, LLMResponse
 from .config import get_config
-from .prompt_template_system import PromptTemplateLibrary, QueryContext
+from .prompt_template_system import PromptTemplateLibrary, QueryContext, RULE_EXAMPLES
+from .example_retriever import ExampleRetriever
+from .rule_validator import RuleValidator
+from .llm_judge import LLMJudge, VerificationPipeline
+from .correction_retry import CorrectionBasedRetry
+from .llm_response_parser import DreamLogResponseParser
 
 
 class LLMHook:
@@ -18,35 +23,94 @@ class LLMHook:
     Hook for automatic knowledge generation when undefined terms are encountered
     """
     
-    def __init__(self, 
+    def __init__(self,
                  provider: LLMProvider,
+                 embedding_provider,
                  max_generations: int = 10,
+                 max_retries: int = 5,
                  cache_enabled: bool = True,
-                 debug: bool = False):
+                 debug: bool = False,
+                 debug_callback: Optional[callable] = None,
+                 enable_validation: bool = True,
+                 enable_llm_judge: bool = False,
+                 enable_correction_retry: bool = False):
         """
         Initialize LLM hook
-        
+
         Args:
             provider: LLM provider to use for generation
+            embedding_provider: EmbeddingProvider for RAG-based example selection (required)
             max_generations: Maximum number of generation calls per session
+            max_retries: Maximum number of retry attempts for invalid responses (default 5)
             cache_enabled: Whether to cache generated knowledge
+            debug: Enable debug output
+            debug_callback: Optional callback for debug messages (for TUI integration)
+            enable_validation: Enable structural/semantic validation (default True)
+            enable_llm_judge: Enable LLM-as-judge verification (default False, expensive)
+            enable_correction_retry: Enable correction-based retry (default False, requires LLM judge)
         """
         self.provider = provider
         self.max_generations = max_generations
+        self.max_retries = max_retries
         self.cache_enabled = cache_enabled
         self.debug = debug
+        self.debug_callback = debug_callback
+        self.enable_validation = enable_validation
+        self.enable_llm_judge = enable_llm_judge
+        self.enable_correction_retry = enable_correction_retry
         self._cache: Dict[str, LLMResponse] = {}
         self._generation_count = 0
-        
+
+        # Initialize example retriever for RAG (always enabled)
+        self._debug("[LLM] Initializing RAG-based example retriever...")
+        example_retriever = ExampleRetriever(RULE_EXAMPLES, embedding_provider)
+        self._debug(f"[LLM] Precomputed embeddings for {len(RULE_EXAMPLES)} examples")
+
         # Initialize prompt template library
         # Extract model name from provider if available
         model_name = getattr(provider, 'model', 'unknown')
-        self.template_library = PromptTemplateLibrary(model_name=model_name)
+        self.template_library = PromptTemplateLibrary(model_name=model_name, example_retriever=example_retriever)
+
+        # Initialize validation components
+        self.validator = None
+        self.llm_judge = None
+        self.correction_retry = None
+        self.parser = DreamLogResponseParser()
+
+        if self.enable_validation:
+            self._debug("[LLM] Validation enabled")
+
+        if self.enable_llm_judge:
+            self.llm_judge = LLMJudge(provider, debug=debug)
+            self._debug("[LLM] LLM judge enabled")
+
+        if self.enable_correction_retry:
+            if not self.enable_llm_judge:
+                self._debug("[LLM] Warning: Correction retry requires LLM judge, enabling it")
+                self.enable_llm_judge = True
+                self.llm_judge = LLMJudge(provider, debug=debug)
+
+            self.correction_retry = CorrectionBasedRetry(
+                provider=provider,
+                judge=self.llm_judge,
+                parser=self.parser,
+                max_attempts=3,
+                debug=debug
+            )
+            self._debug("[LLM] Correction-based retry enabled")
+
+    def _debug(self, message: str):
+        """Output debug message through callback or print"""
+        if self.debug:
+            if self.debug_callback:
+                self.debug_callback(message)
+            else:
+                print(message)
     
     def __call__(self, unknown_term: Term, evaluator) -> None:
         """
         Called when the evaluator encounters an unknown term
-        
+
         Args:
             unknown_term: The term that couldn't be resolved
             evaluator: The PrologEvaluator instance
@@ -54,7 +118,19 @@ class LLMHook:
         # Check generation limit
         if self._generation_count >= self.max_generations:
             return
-        
+
+        # Skip LLM generation for predicates that are base facts
+        # (already have facts in KB - should not be defined as rules)
+        if isinstance(unknown_term, Compound):
+            functor = unknown_term.functor
+            has_facts = any(
+                isinstance(f.term, Compound) and f.term.functor == functor
+                for f in evaluator.kb.facts
+            )
+            if has_facts:
+                self._debug(f"\n[LLM] Skipping '{functor}' - base predicate with existing facts")
+                return
+
         # Get or generate knowledge
         term_key = str(unknown_term)
         
@@ -68,100 +144,161 @@ class LLMHook:
         
         # Add knowledge to the knowledge base
         added_count = 0
-        
-        if self.debug:
-            print(f"\n[DEBUG] LLM Response for '{unknown_term}':")
-            print(f"  Facts: {response.facts}")
-            print(f"  Rules: {response.rules}")
-        
-        for fact_data in response.facts:
-            try:
-                # Validate fact data
-                if not isinstance(fact_data, (list, tuple)):
-                    if self.debug:
-                        print(f"  Skipping invalid fact data: {fact_data}")
-                    continue
-                    
-                # Create fact from prefix notation
-                fact = Fact.from_prefix(["fact", fact_data])
-                # Use proper containment check
-                if not any(f.term == fact.term for f in evaluator.kb.facts):
-                    evaluator.kb.add_fact(fact)
-                    added_count += 1
-                    if self.debug:
-                        print(f"  Added fact: {fact.term}")
-            except Exception as e:
-                print(f"Error adding fact {fact_data}: {e}")
+
+        self._debug(f"\n[LLM] Response for '{unknown_term}':")
+        self._debug(f"  Facts: {response.facts}")
+        self._debug(f"  Rules: {response.rules}")
+
+        # Skip facts - LLM should only generate rules, not facts
+        # Facts should be manually added by users
+        if response.facts:
+            self._debug(f"  Note: Ignoring {len(response.facts)} facts from LLM (only rules are auto-generated)")
         
         for rule_data in response.rules:
             try:
                 # Validate rule data structure
                 if not isinstance(rule_data, (list, tuple)) or len(rule_data) != 2:
-                    if self.debug:
-                        print(f"  Skipping invalid rule data: {rule_data}")
+                    self._debug(f"  Skipping invalid rule data: {rule_data}")
                     continue
-                    
+
                 head, body = rule_data
                 if not isinstance(head, (list, tuple)) or not isinstance(body, (list, tuple)):
-                    if self.debug:
-                        print(f"  Skipping rule with invalid head/body: {rule_data}")
+                    self._debug(f"  Skipping rule with invalid head/body: {rule_data}")
                     continue
-                    
+
                 rule = Rule.from_prefix(["rule", head, body])
+
+                # Validate the rule before adding
+                if self.enable_validation:
+                    # Initialize validator with current KB
+                    if not self.validator:
+                        self.validator = RuleValidator(evaluator.kb)
+                    else:
+                        # Update validator's KB reference
+                        self.validator.semantic_validator.kb = evaluator.kb
+
+                    # Run structural and semantic validation
+                    validation_result = self.validator.validate(rule, structural=True, semantic=True)
+
+                    if not validation_result.is_valid:
+                        self._debug(f"  ✗ Rule failed validation: {validation_result.error_message}")
+                        self._debug(f"    Rule: {rule}")
+                        continue
+
+                    if validation_result.warning_message:
+                        self._debug(f"  ⚠ Warning: {validation_result.warning_message}")
+
+                    # Run LLM judge verification if enabled
+                    if self.enable_llm_judge and self.llm_judge:
+                        functor = unknown_term.functor if isinstance(unknown_term, Compound) else str(unknown_term)
+
+                        verification = VerificationPipeline(
+                            knowledge_base=evaluator.kb,
+                            llm_judge=self.llm_judge,
+                            debug=self.debug
+                        )
+
+                        result = verification.verify_rule(
+                            rule=rule,
+                            query_functor=functor,
+                            use_llm_judge=True
+                        )
+
+                        if not result["valid"]:
+                            self._debug(f"  ✗ Rule failed verification:")
+                            for error in result["errors"]:
+                                self._debug(f"    - {error}")
+
+                            if result["llm_judgement"] and result["llm_judgement"].suggested_correction:
+                                self._debug(f"    Suggested: {result['llm_judgement'].suggested_correction}")
+
+                            continue
+
+                        if result["warnings"]:
+                            for warning in result["warnings"]:
+                                self._debug(f"  ⚠ {warning}")
+
                 # Use proper containment check
                 if not any(r.head == rule.head and r.body == rule.body for r in evaluator.kb.rules):
                     evaluator.kb.add_rule(rule)
                     added_count += 1
-                    if self.debug:
-                        print(f"  Added rule: {rule.head} :- {rule.body}")
+                    self._debug(f"  ✓ Added rule: {rule.head} :- {rule.body}")
             except Exception as e:
-                if self.debug:
-                    print(f"  Error adding rule {rule_data}: {e}")
+                self._debug(f"  Error adding rule {rule_data}: {e}")
         
         if added_count > 0:
             print(f"LLM generated {added_count} new knowledge items for {unknown_term}")
     
     def _generate_knowledge(self, term: Term, kb) -> LLMResponse:
-        """Generate knowledge for an unknown term"""
-        
-        # Create query context for template manager
+        """Generate knowledge for an unknown term with retry logic"""
+
+        # Create query context for template manager using JSON format
         query_context = QueryContext(
-            term=str(term),
-            kb_facts=[str(fact.term) for fact in kb.facts[:20]],  # Sample facts
-            kb_rules=[(str(rule.head), [str(g) for g in rule.body]) for rule in kb.rules[:10]],  # Sample rules
+            term=term.to_prefix(),  # JSON format: ["functor", "arg1", ...]
+            kb_facts=[fact.term.to_prefix() for fact in kb.facts[:20]],  # JSON facts
+            kb_rules=[(rule.head.to_prefix(), [g.to_prefix() for g in rule.body]) for rule in kb.rules[:10]],  # JSON rules
             existing_functors=list(set(
-                fact.term.functor for fact in kb.facts 
+                fact.term.functor for fact in kb.facts
                 if isinstance(fact.term, Compound)
             ))[:20]
         )
-        
-        # Get the best prompt from template library
-        prompt, template_name = self.template_library.get_best_prompt(query_context)
-        
-        if self.debug:
-            print(f"\n[DEBUG] Calling LLM for term: {str(term)}")
-            print(f"[DEBUG] Using template: {template_name}")
-            print(f"[DEBUG] Prompt length: {len(prompt)} characters")
-            if len(prompt) < 1000:
-                print(f"[DEBUG] Full prompt:\n{prompt}")
+
+        # Retry loop with different examples each time
+        for attempt in range(self.max_retries):
+            # Get the best prompt from template library (samples new examples each time)
+            prompt, template_name = self.template_library.get_best_prompt(query_context)
+
+            if attempt == 0:
+                self._debug(f"\n[LLM] Calling LLM for undefined term: {str(term)}")
             else:
-                print(f"[DEBUG] Prompt preview:\n{prompt[:500]}...\n...\n{prompt[-500:]}")
-        
-        # Call provider with the generated prompt
-        # Note: We pass the prompt as the context since providers expect term + context
-        response = self.provider.generate_knowledge(str(term), context=prompt)
-        
-        if self.debug and hasattr(response, 'raw_response'):
-            print(f"[DEBUG] Raw LLM response: {response.raw_response[:500]}..." if len(response.raw_response) > 500 else f"[DEBUG] Raw LLM response: {response.raw_response}")
-        
-        # Track template performance
-        success = len(response.facts) > 0 or len(response.rules) > 0
-        self.template_library.record_performance(
-            template_name=template_name,
-            success=success,
-            response_quality=1.0 if success else 0.0  # Simple metric for now
-        )
-        
+                self._debug(f"\n[LLM] Retry attempt {attempt + 1}/{self.max_retries}")
+
+            self._debug(f"[LLM] Using template: {template_name}")
+            self._debug(f"[LLM] Prompt length: {len(prompt)} characters")
+
+            # Always show the full prompt when debug is enabled
+            self._debug(f"\n[LLM] === PROMPT START ===")
+            self._debug(prompt)
+            self._debug(f"[LLM] === PROMPT END ===\n")
+
+            # Call provider directly with the complete prompt from template library
+            # Use complete() method since we already have a full prompt
+            raw_response = self.provider.complete(prompt)
+
+            # Parse the response into structured format
+            from .llm_providers import LLMResponse
+
+            # Always show raw response for debugging
+            if len(raw_response) > 500:
+                self._debug(f"[LLM] Raw response: {raw_response[:500]}...")
+            else:
+                self._debug(f"[LLM] Raw response: {raw_response}")
+
+            response = LLMResponse.from_text(raw_response)
+
+            # Check if response is valid (has facts or rules)
+            is_valid = len(response.facts) > 0 or len(response.rules) > 0
+
+            if is_valid:
+                self._debug(f"[LLM] Valid response received on attempt {attempt + 1}")
+                # Track template performance
+                self.template_library.record_performance(
+                    template_name=template_name,
+                    success=True,
+                    response_quality=1.0
+                )
+                return response
+            else:
+                self._debug(f"[LLM] Invalid response (no facts or rules), retrying...")
+                # Track failure
+                self.template_library.record_performance(
+                    template_name=template_name,
+                    success=False,
+                    response_quality=0.0
+                )
+
+        # All retries exhausted, return last response even if invalid
+        self._debug(f"[LLM] Max retries exhausted, returning last response")
         return response
     
     def _extract_context(self, term: Term, kb) -> str:

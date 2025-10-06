@@ -22,37 +22,24 @@ class LLMResponse:
     
     @classmethod
     def from_text(cls, text: str) -> 'LLMResponse':
-        """Create response from raw text, attempting to parse DreamLog structures"""
+        """Create response from raw text using DreamLog's native parser"""
+        # Use the proper DreamLog parser
+        from .llm_response_parser import parse_llm_response
+        
+        # Parse with non-strict mode to collect what we can
+        parsed_knowledge, validation_report = parse_llm_response(text, strict=False, validate=False)
+        
+        # Convert to LLMResponse format
+        if parsed_knowledge.is_valid:
+            return parsed_knowledge.to_llm_response(text)
+        
+        # Fallback for special cases
         facts = []
         rules = []
         
-        # First try to extract JSON from the text (handle extra text around JSON)
-        import re
-        # Look for JSON array anywhere in the text
-        json_pattern = r'\[[\s\S]*?\]'
-        json_matches = re.findall(json_pattern, text)
-        
-        for potential_json in json_matches:
-            try:
-                # Clean up the JSON string
-                clean_json = potential_json.strip()
-                data = json.loads(clean_json)
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, list) and len(item) > 0:
-                            if item[0] == "fact" and len(item) > 1:
-                                facts.append(item[1])
-                            elif item[0] == "rule" and len(item) > 2:
-                                rules.append([item[1], item[2]])
-                    # If we successfully parsed JSON, stop looking
-                    if facts or rules:
-                        break
-            except (json.JSONDecodeError, TypeError):
-                continue
-        
-        # If no valid JSON found and it looks like a grandparent query, add the standard rule
-        if not facts and not rules and "grandparent" in text.lower():
-            # Add the standard grandparent rule
+        # If no valid parsing and it looks like a grandparent query, add the standard rule
+        if not parsed_knowledge.is_valid and "grandparent" in text.lower():
+            # Add the standard grandparent rule as fallback
             rules.append([
                 ["grandparent", "X", "Z"],
                 [["parent", "X", "Y"], ["parent", "Y", "Z"]]
@@ -75,7 +62,7 @@ class LLMProvider(Protocol):
     """
     Protocol for LLM providers
     
-    All providers must implement this interface.
+    All providers must implement this interface for uniform behavior.
     """
     
     def generate_knowledge(self, 
@@ -107,17 +94,114 @@ class LLMProvider(Protocol):
             Generated text
         """
         ...
+    
+    def get_parameter(self, key: str, default: Any = None) -> Any:
+        """
+        Get configuration parameter
+        
+        Args:
+            key: Parameter name (e.g., "temperature", "max_tokens", "model")
+            default: Default value if parameter not set
+            
+        Returns:
+            Parameter value
+        """
+        ...
+    
+    def set_parameter(self, key: str, value: Any) -> None:
+        """
+        Update configuration parameter
+        
+        Args:
+            key: Parameter name
+            value: New parameter value
+        """
+        ...
+    
+    def get_metadata(self) -> Dict[str, Any]:
+        """
+        Provider metadata and capabilities
+        
+        Returns:
+            Dictionary with provider info (model, capabilities, etc.)
+        """
+        ...
+    
+    def clone_with_parameters(self, **params) -> 'LLMProvider':
+        """
+        Create copy with modified parameters
+        
+        Useful for retry wrapper and temporary parameter changes.
+        
+        Args:
+            **params: Parameters to override
+            
+        Returns:
+            New provider instance with updated parameters
+        """
+        ...
 
 
 class BaseLLMProvider(ABC):
     """
     Base class for LLM providers with common functionality
+    
+    Implements the LLMProvider protocol with parameter management.
     """
     
-    def __init__(self, model: str = "default", temperature: float = 0.1):
-        self.model = model
-        self.temperature = temperature
+    def __init__(self, model: str = "default", temperature: float = 0.1, **kwargs):
+        # Store all parameters in a unified way
+        self._parameters = {
+            "model": model,
+            "temperature": temperature,
+            **kwargs
+        }
         self._cache: Dict[str, LLMResponse] = {}
+    
+    # Legacy property access for backward compatibility
+    @property
+    def model(self) -> str:
+        return self._parameters.get("model", "default")
+    
+    @model.setter 
+    def model(self, value: str):
+        self._parameters["model"] = value
+    
+    @property
+    def temperature(self) -> float:
+        return self._parameters.get("temperature", 0.1)
+    
+    @temperature.setter
+    def temperature(self, value: float):
+        self._parameters["temperature"] = value
+    
+    def get_parameter(self, key: str, default: Any = None) -> Any:
+        """Get configuration parameter"""
+        return self._parameters.get(key, default)
+    
+    def set_parameter(self, key: str, value: Any) -> None:
+        """Update configuration parameter"""
+        self._parameters[key] = value
+    
+    def get_metadata(self) -> Dict[str, Any]:
+        """Provider metadata and capabilities"""
+        return {
+            "provider_class": self.__class__.__name__,
+            "model": self.get_parameter("model"),
+            "parameters": self._parameters.copy(),
+            "capabilities": ["knowledge_generation", "text_completion"]
+        }
+    
+    def clone_with_parameters(self, **params) -> 'BaseLLMProvider':
+        """Create copy with modified parameters"""
+        # Create new instance of same class with updated parameters
+        new_params = self._parameters.copy()
+        new_params.update(params)
+        
+        # Create new instance (subclasses will inherit this behavior)
+        new_instance = self.__class__(**new_params)
+        new_instance._cache = self._cache.copy()  # Share cache but allow independent updates
+        return new_instance
     
     @abstractmethod
     def _call_api(self, prompt: str, **kwargs) -> str:
@@ -142,8 +226,8 @@ class BaseLLMProvider(ABC):
         # Create focused prompt for knowledge generation
         prompt = self._create_knowledge_prompt(term, context, max_items)
         
-        # Get response
-        raw_response = self._call_api(prompt, temperature=self.temperature)
+        # Get response using parameter system
+        raw_response = self._call_api(prompt, temperature=self.get_parameter("temperature", 0.1))
         
         # Parse into structured response
         response = LLMResponse.from_text(raw_response)
@@ -154,30 +238,30 @@ class BaseLLMProvider(ABC):
     
     def _create_knowledge_prompt(self, term: str, context: Optional[str], max_items: int) -> str:
         """Create prompt for knowledge generation"""
-        # Convert term representation to S-expression if needed
-        # term comes as "grandparent(john, X)" but we want "(grandparent john X)"
-        if '(' in term and not term.startswith('('):
-            # Convert from Prolog style to S-expression
-            parts = term.replace(')', '').split('(')
-            functor = parts[0]
-            args = parts[1].split(',') if len(parts) > 1 else []
-            args_str = ' '.join(arg.strip() for arg in args)
-            sexp_term = f"({functor} {args_str})"
-        else:
-            sexp_term = term
+        # Terms are already in S-expression format
+        sexp_term = term
         
-        # Create prompt using S-expression notation
-        prompt = f"""Generate logic rules in S-expression/prefix notation.
+        # Create prompt using S-expression notation ONLY
+        prompt = f"""Generate Prolog-style logic rules using S-expression syntax.
 
 Query: {sexp_term}
-{context if context else ''}
+{f'Context: {context}' if context else ''}
 
-For (grandparent X Z), the rule is: X is grandparent of Z if X is parent of Y and Y is parent of Z.
+S-expression format:
+- Facts: (parent john mary)
+- Rules: (rule (head args...) ((body1 args...) (body2 args...)))
 
-Return as JSON array with prefix notation:
-[["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]]
+Examples:
+(parent john mary)
+(parent mary alice)
+(rule (grandparent X Z) ((parent X Y) (parent Y Z)))
+(rule (sibling X Y) ((parent Z X) (parent Z Y) (different X Y)))
+(rule (cousin X Y) ((parent A X) (parent B Y) (sibling A B)))
 
-Your response (JSON only):
+Generate {max_items} relevant facts or rules for: {sexp_term}
+Use UPPERCASE for variables (X, Y, Z), lowercase for constants (john, mary).
+
+Output S-expressions only, one per line:
 """
         return prompt
 
@@ -192,7 +276,7 @@ class URLBasedProvider(BaseLLMProvider):
     def __init__(self, base_url: str, endpoint: str = "/complete", 
                  api_key: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip('/') if base_url else "http://localhost:11434"
         self.endpoint = endpoint
         self.api_key = api_key
     
@@ -413,16 +497,19 @@ def create_provider(provider_type: str, **config) -> LLMProvider:
         "url": URLBasedProvider
     }
     
-    # Special handling for mock provider (test-only)
-    if provider_type == "mock":
-        # Import from tests if available
-        try:
-            from tests.mock_provider import MockLLMProvider
-            return MockLLMProvider(**config)
-        except ImportError:
-            raise ValueError("Mock provider is only available in test environment")
+    # Add mock provider if available (test environments)
+    try:
+        from tests.mock_provider import MockLLMProvider
+        providers["mock"] = MockLLMProvider
+    except ImportError:
+        pass  # Mock provider not available in production
     
     if provider_type not in providers:
-        raise ValueError(f"Unknown provider type: {provider_type}. Choose from: {list(providers.keys())}")
+        available = list(providers.keys())
+        raise ValueError(f"Unknown provider type: {provider_type}. Choose from: {available}")
     
     return providers[provider_type](**config)
+
+
+# Backward compatibility alias
+create_llm_provider = create_provider

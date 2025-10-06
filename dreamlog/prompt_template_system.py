@@ -13,6 +13,379 @@ import json
 from pathlib import Path
 
 
+# Example database for few-shot learning
+RULE_EXAMPLES = [
+    # Family relationships
+    {
+        "domain": "family",
+        "prolog": "grandparent(X, Z) :- parent(X, Y), parent(Y, Z).",
+        "json": [["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]]
+    },
+    {
+        "domain": "family",
+        "prolog": "sibling(X, Y) :- parent(Z, X), parent(Z, Y).",
+        "json": [["rule", ["sibling", "X", "Y"], [["parent", "Z", "X"], ["parent", "Z", "Y"]]]]
+    },
+    {
+        "domain": "family",
+        "prolog": "uncle(X, Y) :- parent(Z, Y), sibling(X, Z).",
+        "json": [["rule", ["uncle", "X", "Y"], [["parent", "Z", "Y"], ["sibling", "X", "Z"]]]]
+    },
+    {
+        "domain": "family",
+        "prolog": "cousin(X, Y) :- parent(A, X), parent(B, Y), sibling(A, B).",
+        "json": [["rule", ["cousin", "X", "Y"], [["parent", "A", "X"], ["parent", "B", "Y"], ["sibling", "A", "B"]]]]
+    },
+    {
+        "domain": "family",
+        "prolog": "ancestor(X, Y) :- parent(X, Y).",
+        "json": [["rule", ["ancestor", "X", "Y"], [["parent", "X", "Y"]]]]
+    },
+    # Geography
+    {
+        "domain": "geography",
+        "prolog": "in_continent(City, Continent) :- in_country(City, Country), country_in(Country, Continent).",
+        "json": [["rule", ["in_continent", "City", "Continent"], [["in_country", "City", "Country"], ["country_in", "Country", "Continent"]]]]
+    },
+    {
+        "domain": "geography",
+        "prolog": "neighbor_cities(X, Y) :- in_country(X, C), in_country(Y, C), adjacent(X, Y).",
+        "json": [["rule", ["neighbor_cities", "X", "Y"], [["in_country", "X", "C"], ["in_country", "Y", "C"], ["adjacent", "X", "Y"]]]]
+    },
+    # Programming
+    {
+        "domain": "programming",
+        "prolog": "web_framework(F, L) :- uses(L, F), framework_type(F, web).",
+        "json": [["rule", ["web_framework", "F", "L"], [["uses", "L", "F"], ["framework_type", "F", "web"]]]]
+    },
+    {
+        "domain": "programming",
+        "prolog": "compiled_language(L) :- language(L, compiled).",
+        "json": [["rule", ["compiled_language", "L"], [["language", "L", "compiled"]]]]
+    },
+    # Academic
+    {
+        "domain": "academic",
+        "prolog": "advisor_chain(X, Z) :- advises(X, Y), advises(Y, Z).",
+        "json": [["rule", ["advisor_chain", "X", "Z"], [["advises", "X", "Y"], ["advises", "Y", "Z"]]]]
+    },
+    {
+        "domain": "academic",
+        "prolog": "coauthor(X, Y) :- wrote(X, P), wrote(Y, P).",
+        "json": [["rule", ["coauthor", "X", "Y"], [["wrote", "X", "P"], ["wrote", "Y", "P"]]]]
+    },
+    # Organization
+    {
+        "domain": "organization",
+        "prolog": "manager_chain(X, Z) :- manages(X, Y), manages(Y, Z).",
+        "json": [["rule", ["manager_chain", "X", "Z"], [["manages", "X", "Y"], ["manages", "Y", "Z"]]]]
+    },
+    {
+        "domain": "organization",
+        "prolog": "colleague(X, Y) :- works_in(X, D), works_in(Y, D).",
+        "json": [["rule", ["colleague", "X", "Y"], [["works_in", "X", "D"], ["works_in", "Y", "D"]]]]
+    },
+    # Graph/Network
+    {
+        "domain": "graph",
+        "prolog": "path(X, Y) :- edge(X, Y).",
+        "json": [["rule", ["path", "X", "Y"], [["edge", "X", "Y"]]]]
+    },
+    {
+        "domain": "graph",
+        "prolog": "reachable(X, Z) :- edge(X, Y), path(Y, Z).",
+        "json": [["rule", ["reachable", "X", "Z"], [["edge", "X", "Y"], ["path", "Y", "Z"]]]]
+    },
+    {
+        "domain": "graph",
+        "prolog": "connected(X, Y) :- reachable(X, Y).",
+        "json": [["rule", ["connected", "X", "Y"], [["reachable", "X", "Y"]]]]
+    },
+    # Medical/Health
+    {
+        "domain": "medical",
+        "prolog": "treatment_for(Drug, Disease) :- targets(Drug, Symptom), causes(Disease, Symptom).",
+        "json": [["rule", ["treatment_for", "Drug", "Disease"], [["targets", "Drug", "Symptom"], ["causes", "Disease", "Symptom"]]]]
+    },
+    {
+        "domain": "medical",
+        "prolog": "contraindicated(Drug, Patient) :- allergic_to(Patient, Drug).",
+        "json": [["rule", ["contraindicated", "Drug", "Patient"], [["allergic_to", "Patient", "Drug"]]]]
+    },
+    {
+        "domain": "medical",
+        "prolog": "high_risk(Patient, Disease) :- has_symptom(Patient, S), risk_factor(S, Disease).",
+        "json": [["rule", ["high_risk", "Patient", "Disease"], [["has_symptom", "Patient", "S"], ["risk_factor", "S", "Disease"]]]]
+    },
+    # Commerce/Business
+    {
+        "domain": "commerce",
+        "prolog": "can_buy(Customer, Product) :- has_funds(Customer, Amount), price(Product, Cost), greater_equal(Amount, Cost).",
+        "json": [["rule", ["can_buy", "Customer", "Product"], [["has_funds", "Customer", "Amount"], ["price", "Product", "Cost"], ["greater_equal", "Amount", "Cost"]]]]
+    },
+    {
+        "domain": "commerce",
+        "prolog": "supplier_of(Company, Product) :- manufactures(Company, Product).",
+        "json": [["rule", ["supplier_of", "Company", "Product"], [["manufactures", "Company", "Product"]]]]
+    },
+    {
+        "domain": "commerce",
+        "prolog": "competitor(X, Y) :- sells(X, P), sells(Y, P), different(X, Y).",
+        "json": [["rule", ["competitor", "X", "Y"], [["sells", "X", "P"], ["sells", "Y", "P"], ["different", "X", "Y"]]]]
+    },
+    # Transportation
+    {
+        "domain": "transportation",
+        "prolog": "can_reach(From, To) :- route(From, To).",
+        "json": [["rule", ["can_reach", "From", "To"], [["route", "From", "To"]]]]
+    },
+    {
+        "domain": "transportation",
+        "prolog": "transfer_route(From, To) :- route(From, Hub), route(Hub, To).",
+        "json": [["rule", ["transfer_route", "From", "To"], [["route", "From", "Hub"], ["route", "Hub", "To"]]]]
+    },
+    {
+        "domain": "transportation",
+        "prolog": "same_line(Stop1, Stop2) :- on_line(Stop1, Line), on_line(Stop2, Line).",
+        "json": [["rule", ["same_line", "Stop1", "Stop2"], [["on_line", "Stop1", "Line"], ["on_line", "Stop2", "Line"]]]]
+    },
+    # Food/Cuisine
+    {
+        "domain": "food",
+        "prolog": "can_make(Dish, Chef) :- requires(Dish, Ingredient), has_ingredient(Chef, Ingredient).",
+        "json": [["rule", ["can_make", "Dish", "Chef"], [["requires", "Dish", "Ingredient"], ["has_ingredient", "Chef", "Ingredient"]]]]
+    },
+    {
+        "domain": "food",
+        "prolog": "vegetarian_dish(Dish) :- ingredient_in(I, Dish), vegetarian(I).",
+        "json": [["rule", ["vegetarian_dish", "Dish"], [["ingredient_in", "I", "Dish"], ["vegetarian", "I"]]]]
+    },
+    {
+        "domain": "food",
+        "prolog": "pairs_with(Food, Wine) :- flavor(Food, F), complements(Wine, F).",
+        "json": [["rule", ["pairs_with", "Food", "Wine"], [["flavor", "Food", "F"], ["complements", "Wine", "F"]]]]
+    },
+    # Sports
+    {
+        "domain": "sports",
+        "prolog": "team_rivals(T1, T2) :- in_division(T1, D), in_division(T2, D), different(T1, T2).",
+        "json": [["rule", ["team_rivals", "T1", "T2"], [["in_division", "T1", "D"], ["in_division", "T2", "D"], ["different", "T1", "T2"]]]]
+    },
+    {
+        "domain": "sports",
+        "prolog": "championship_eligible(Team) :- wins(Team, W), greater_equal(W, 10).",
+        "json": [["rule", ["championship_eligible", "Team"], [["wins", "Team", "W"], ["greater_equal", "W", 10]]]]
+    },
+    {
+        "domain": "sports",
+        "prolog": "teammates(P1, P2) :- plays_for(P1, Team), plays_for(P2, Team), different(P1, P2).",
+        "json": [["rule", ["teammates", "P1", "P2"], [["plays_for", "P1", "Team"], ["plays_for", "P2", "Team"], ["different", "P1", "P2"]]]]
+    },
+    # Science/Chemistry
+    {
+        "domain": "science",
+        "prolog": "forms_compound(E1, E2, Compound) :- element(E1), element(E2), bonds_with(E1, E2, Compound).",
+        "json": [["rule", ["forms_compound", "E1", "E2", "Compound"], [["element", "E1"], ["element", "E2"], ["bonds_with", "E1", "E2", "Compound"]]]]
+    },
+    {
+        "domain": "science",
+        "prolog": "soluble_in(Substance, Solvent) :- polarity(Substance, P), polarity(Solvent, P).",
+        "json": [["rule", ["soluble_in", "Substance", "Solvent"], [["polarity", "Substance", "P"], ["polarity", "Solvent", "P"]]]]
+    },
+    # Education
+    {
+        "domain": "education",
+        "prolog": "prerequisite_chain(C1, C3) :- prerequisite(C1, C2), prerequisite(C2, C3).",
+        "json": [["rule", ["prerequisite_chain", "C1", "C3"], [["prerequisite", "C1", "C2"], ["prerequisite", "C2", "C3"]]]]
+    },
+    {
+        "domain": "education",
+        "prolog": "can_enroll(Student, Course) :- completed(Student, Prereq), prerequisite(Prereq, Course).",
+        "json": [["rule", ["can_enroll", "Student", "Course"], [["completed", "Student", "Prereq"], ["prerequisite", "Prereq", "Course"]]]]
+    },
+    {
+        "domain": "education",
+        "prolog": "classmates(S1, S2) :- enrolled_in(S1, C), enrolled_in(S2, C), different(S1, S2).",
+        "json": [["rule", ["classmates", "S1", "S2"], [["enrolled_in", "S1", "C"], ["enrolled_in", "S2", "C"], ["different", "S1", "S2"]]]]
+    },
+    # Library/Books
+    {
+        "domain": "library",
+        "prolog": "available(Book) :- in_library(Book), not_checked_out(Book).",
+        "json": [["rule", ["available", "Book"], [["in_library", "Book"], ["not_checked_out", "Book"]]]]
+    },
+    {
+        "domain": "library",
+        "prolog": "same_author(B1, B2) :- written_by(B1, A), written_by(B2, A), different(B1, B2).",
+        "json": [["rule", ["same_author", "B1", "B2"], [["written_by", "B1", "A"], ["written_by", "B2", "A"], ["different", "B1", "B2"]]]]
+    },
+    {
+        "domain": "library",
+        "prolog": "recommended_for(Book, Reader) :- genre(Book, G), likes(Reader, G).",
+        "json": [["rule", ["recommended_for", "Book", "Reader"], [["genre", "Book", "G"], ["likes", "Reader", "G"]]]]
+    },
+    # Movies/Entertainment
+    {
+        "domain": "movies",
+        "prolog": "acted_together(A1, A2) :- acts_in(A1, M), acts_in(A2, M), different(A1, A2).",
+        "json": [["rule", ["acted_together", "A1", "A2"], [["acts_in", "A1", "M"], ["acts_in", "A2", "M"], ["different", "A1", "A2"]]]]
+    },
+    {
+        "domain": "movies",
+        "prolog": "directed_actor(Director, Actor) :- directed(Director, Movie), acts_in(Actor, Movie).",
+        "json": [["rule", ["directed_actor", "Director", "Actor"], [["directed", "Director", "Movie"], ["acts_in", "Actor", "Movie"]]]]
+    },
+    {
+        "domain": "movies",
+        "prolog": "similar_movies(M1, M2) :- genre(M1, G), genre(M2, G), different(M1, M2).",
+        "json": [["rule", ["similar_movies", "M1", "M2"], [["genre", "M1", "G"], ["genre", "M2", "G"], ["different", "M1", "M2"]]]]
+    },
+    # Music
+    {
+        "domain": "music",
+        "prolog": "band_member(Person, Band) :- plays_in(Person, Band).",
+        "json": [["rule", ["band_member", "Person", "Band"], [["plays_in", "Person", "Band"]]]]
+    },
+    {
+        "domain": "music",
+        "prolog": "collaborated(M1, M2) :- performed_on(M1, Album), performed_on(M2, Album), different(M1, M2).",
+        "json": [["rule", ["collaborated", "M1", "M2"], [["performed_on", "M1", "Album"], ["performed_on", "M2", "Album"], ["different", "M1", "M2"]]]]
+    },
+    {
+        "domain": "music",
+        "prolog": "influenced_by(Artist, Influence) :- style(Artist, S), pioneered(Influence, S).",
+        "json": [["rule", ["influenced_by", "Artist", "Influence"], [["style", "Artist", "S"], ["pioneered", "Influence", "S"]]]]
+    },
+    # Social Networks
+    {
+        "domain": "social",
+        "prolog": "friend_of_friend(X, Z) :- friend(X, Y), friend(Y, Z), different(X, Z).",
+        "json": [["rule", ["friend_of_friend", "X", "Z"], [["friend", "X", "Y"], ["friend", "Y", "Z"], ["different", "X", "Z"]]]]
+    },
+    {
+        "domain": "social",
+        "prolog": "mutual_friend(X, Y, Z) :- friend(X, Z), friend(Y, Z), different(X, Y).",
+        "json": [["rule", ["mutual_friend", "X", "Y", "Z"], [["friend", "X", "Z"], ["friend", "Y", "Z"], ["different", "X", "Y"]]]]
+    },
+    {
+        "domain": "social",
+        "prolog": "influencer(Person) :- follower(F, Person), count(F, N), greater(N, 1000).",
+        "json": [["rule", ["influencer", "Person"], [["follower", "F", "Person"], ["count", "F", "N"], ["greater", "N", 1000]]]]
+    },
+    # Law/Legal
+    {
+        "domain": "legal",
+        "prolog": "precedent_applies(Case, Law) :- similar_facts(Case, PriorCase), ruled_by(PriorCase, Law).",
+        "json": [["rule", ["precedent_applies", "Case", "Law"], [["similar_facts", "Case", "PriorCase"], ["ruled_by", "PriorCase", "Law"]]]]
+    },
+    {
+        "domain": "legal",
+        "prolog": "conflict_of_interest(Lawyer, Case) :- represents(Lawyer, Party1), opposes(Party1, Party2), related_to(Lawyer, Party2).",
+        "json": [["rule", ["conflict_of_interest", "Lawyer", "Case"], [["represents", "Lawyer", "Party1"], ["opposes", "Party1", "Party2"], ["related_to", "Lawyer", "Party2"]]]]
+    },
+    # Real Estate
+    {
+        "domain": "real_estate",
+        "prolog": "neighborhood(H1, H2) :- address(H1, Street, City), address(H2, Street, City), different(H1, H2).",
+        "json": [["rule", ["neighborhood", "H1", "H2"], [["address", "H1", "Street", "City"], ["address", "H2", "Street", "City"], ["different", "H1", "H2"]]]]
+    },
+    {
+        "domain": "real_estate",
+        "prolog": "affordable(Property, Buyer) :- price(Property, P), budget(Buyer, B), less_equal(P, B).",
+        "json": [["rule", ["affordable", "Property", "Buyer"], [["price", "Property", "P"], ["budget", "Buyer", "B"], ["less_equal", "P", "B"]]]]
+    },
+    # Biology/Ecology
+    {
+        "domain": "biology",
+        "prolog": "predator_of(X, Y) :- eats(X, Y), animal(X), animal(Y).",
+        "json": [["rule", ["predator_of", "X", "Y"], [["eats", "X", "Y"], ["animal", "X"], ["animal", "Y"]]]]
+    },
+    {
+        "domain": "biology",
+        "prolog": "food_chain(X, Z) :- eats(X, Y), eats(Y, Z).",
+        "json": [["rule", ["food_chain", "X", "Z"], [["eats", "X", "Y"], ["eats", "Y", "Z"]]]]
+    },
+    {
+        "domain": "biology",
+        "prolog": "ecosystem_member(Organism, Ecosystem) :- lives_in(Organism, Habitat), part_of(Habitat, Ecosystem).",
+        "json": [["rule", ["ecosystem_member", "Organism", "Ecosystem"], [["lives_in", "Organism", "Habitat"], ["part_of", "Habitat", "Ecosystem"]]]]
+    },
+    # Finance
+    {
+        "domain": "finance",
+        "prolog": "investment_risk(Stock, Level) :- volatility(Stock, V), classify_risk(V, Level).",
+        "json": [["rule", ["investment_risk", "Stock", "Level"], [["volatility", "Stock", "V"], ["classify_risk", "V", "Level"]]]]
+    },
+    {
+        "domain": "finance",
+        "prolog": "diversified(Portfolio) :- holds(Portfolio, A1), holds(Portfolio, A2), different_sector(A1, A2).",
+        "json": [["rule", ["diversified", "Portfolio"], [["holds", "Portfolio", "A1"], ["holds", "Portfolio", "A2"], ["different_sector", "A1", "A2"]]]]
+    },
+    {
+        "domain": "finance",
+        "prolog": "profitable_trade(Buy, Sell) :- bought_at(Buy, P1), sold_at(Sell, P2), greater(P2, P1).",
+        "json": [["rule", ["profitable_trade", "Buy", "Sell"], [["bought_at", "Buy", "P1"], ["sold_at", "Sell", "P2"], ["greater", "P2", "P1"]]]]
+    },
+    # Weather/Climate
+    {
+        "domain": "weather",
+        "prolog": "similar_climate(City1, City2) :- avg_temp(City1, T), avg_temp(City2, T), different(City1, City2).",
+        "json": [["rule", ["similar_climate", "City1", "City2"], [["avg_temp", "City1", "T"], ["avg_temp", "City2", "T"], ["different", "City1", "City2"]]]]
+    },
+    {
+        "domain": "weather",
+        "prolog": "rainy_season(Location, Month) :- precipitation(Location, Month, P), high_rainfall(P).",
+        "json": [["rule", ["rainy_season", "Location", "Month"], [["precipitation", "Location", "Month", "P"], ["high_rainfall", "P"]]]]
+    },
+    # Gaming
+    {
+        "domain": "gaming",
+        "prolog": "can_defeat(Player, Enemy) :- level(Player, L1), level(Enemy, L2), greater(L1, L2).",
+        "json": [["rule", ["can_defeat", "Player", "Enemy"], [["level", "Player", "L1"], ["level", "Enemy", "L2"], ["greater", "L1", "L2"]]]]
+    },
+    {
+        "domain": "gaming",
+        "prolog": "unlocked(Achievement, Player) :- completed(Player, Quest), grants(Quest, Achievement).",
+        "json": [["rule", ["unlocked", "Achievement", "Player"], [["completed", "Player", "Quest"], ["grants", "Quest", "Achievement"]]]]
+    },
+    {
+        "domain": "gaming",
+        "prolog": "team_game(G1, G2) :- multiplayer(G1), multiplayer(G2), same_genre(G1, G2).",
+        "json": [["rule", ["team_game", "G1", "G2"], [["multiplayer", "G1"], ["multiplayer", "G2"], ["same_genre", "G1", "G2"]]]]
+    },
+    # History
+    {
+        "domain": "history",
+        "prolog": "contemporary(P1, P2) :- lived_during(P1, Era), lived_during(P2, Era), different(P1, P2).",
+        "json": [["rule", ["contemporary", "P1", "P2"], [["lived_during", "P1", "Era"], ["lived_during", "P2", "Era"], ["different", "P1", "P2"]]]]
+    },
+    {
+        "domain": "history",
+        "prolog": "influenced_event(Person, Event) :- participated_in(Person, E1), led_to(E1, Event).",
+        "json": [["rule", ["influenced_event", "Person", "Event"], [["participated_in", "Person", "E1"], ["led_to", "E1", "Event"]]]]
+    },
+]
+
+
+def sample_examples(num_examples: int = 5, seed: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Sample examples from the database without replacement.
+
+    Args:
+        num_examples: Number of examples to sample (default 5)
+        seed: Random seed for reproducibility (optional)
+
+    Returns:
+        List of sampled example dictionaries
+    """
+    if seed is not None:
+        random.seed(seed)
+
+    # Sample without replacement
+    num_to_sample = min(num_examples, len(RULE_EXAMPLES))
+    return random.sample(RULE_EXAMPLES, num_to_sample)
+
+
 class PromptCategory(Enum):
     """Categories of prompt templates for different reasoning tasks"""
     COMPRESSION = "compression"
@@ -29,9 +402,9 @@ class PromptCategory(Enum):
 @dataclass
 class QueryContext:
     """Context for a query to help select appropriate template"""
-    term: str
-    kb_facts: List[str] = field(default_factory=list)
-    kb_rules: List[Tuple[str, List[str]]] = field(default_factory=list)
+    term: Any  # JSON format: ["functor", "arg1", ...]
+    kb_facts: List[Any] = field(default_factory=list)  # JSON format facts
+    kb_rules: List[Tuple[Any, List[Any]]] = field(default_factory=list)  # JSON format rules
     existing_functors: List[str] = field(default_factory=list)
     
     @property
@@ -124,13 +497,14 @@ class PromptTemplate:
 
 class PromptTemplateLibrary:
     """Library of prompt templates organized by category"""
-    
-    def __init__(self, model_name: str = "unknown"):
+
+    def __init__(self, model_name: str = "unknown", example_retriever=None):
         self.model_name = model_name
         self.model_params = ModelParameters(model_name=model_name)
         self.templates: Dict[PromptCategory, List[PromptTemplate]] = {
             category: [] for category in PromptCategory
         }
+        self.example_retriever = example_retriever
         self._initialize_templates()
     
     def _initialize_templates(self):
@@ -144,8 +518,8 @@ class PromptTemplateLibrary:
                 template="""Find patterns in these facts that could be expressed as a single rule:
 {facts}
 
-Return a JSON array with the compressed rule in S-expression format:
-[["rule", [head], [body]]]""",
+Return the compressed rule in S-expression format:
+(rule (head args...) ((body1 args...) (body2 args...)))""",
                 variables=["facts"]
             ),
             PromptTemplate(
@@ -155,7 +529,7 @@ Return a JSON array with the compressed rule in S-expression format:
 {rules}
 
 Can you merge them into a more general rule?
-Output format: [["rule", [head], [body]]]""",
+Output format: (rule (head args...) ((body1 args...) (body2 args...)))""",
                 variables=["rules"]
             )
         ])
@@ -170,31 +544,49 @@ Context: {context}
 
 Define the predicate '{functor}' with {arity} arguments.
 
-Output examples (return ONLY JSON in this exact format):
-- Fact: [["fact", ["parent", "alice", "bob"]]]
-- Rule: [["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]]
-- Rule with multiple conditions: [["rule", ["sibling", "X", "Y"], [["parent", "Z", "X"], ["parent", "Z", "Y"], ["different", "X", "Y"]]]]
+S-expression format (return ONLY S-expressions, one per line):
+- Fact: (parent alice bob)
+- Rule: (rule (grandparent X Z) ((parent X Y) (parent Y Z)))
+- Rule with multiple conditions: (rule (sibling X Y) ((parent Z X) (parent Z Y) (different X Y)))
 
-Your output (JSON array only, no other text):""",
+Your output (S-expressions only, one per line):""",
                 variables=["query", "context", "functor", "arity"]
             ),
             PromptTemplate(
                 id="define_with_examples",
                 category=PromptCategory.DEFINITION,
-                template="""Query: {query}
-Context: {context}
+                template="""You are helping define logic programming predicates.
 
-Examples from knowledge base:
+## Query
+{query}
+
+## Context
+{context}
+
+## Task
+Define '{functor}' as a RULE using existing predicates from the context above.
+
+CRITICAL INSTRUCTIONS:
+- Return ONLY a rule definition for '{functor}'
+- DO NOT return facts - only rules with variables
+- DO NOT return rules that already exist in the context
+- DO NOT return definitions for predicates used in the body of your rule
+- If you reference undefined predicates, they will be defined automatically in subsequent calls
+- Use generic variable names: X, Y, Z, A, B, C (single uppercase letters)
+- DO NOT use variable names that look like the constants in the query (e.g., John, Mary, Alice)
+
+You may reason about the problem first, then provide your answer in JSON format.
+
+## Format Examples
+
+Here are Prolog rules with their JSON equivalents:
+
 {examples}
 
-Define '{functor}' following similar patterns.
+## Output Format
+Return ONLY a JSON array in a ```json code block. All elements must be QUOTED STRINGS.
 
-Output format examples:
-[["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]]
-[["rule", ["sibling", "X", "Y"], [["parent", "Z", "X"], ["parent", "Z", "Y"]]]]
-[["fact", ["parent", "john", "mary"]]]
-
-Return ONLY the JSON array:""",
+Your response for '{functor}':""",
                 variables=["query", "context", "functor", "examples"]
             ),
             PromptTemplate(
@@ -206,7 +598,7 @@ Return ONLY the JSON array:""",
 2. Existing knowledge: {context}
 3. This predicate likely means: {hint}
 
-Provide the definition as JSON: [["rule", [head], [body]]]""",
+Provide the definition as S-expression: (rule (head args...) ((body1 args...) (body2 args...)))""",
                 variables=["query", "context", "functor", "hint"]
             )
         ])
@@ -220,7 +612,7 @@ Provide the definition as JSON: [["rule", [head], [body]]]""",
 {patterns}
 
 Create an abstract rule that captures the essence.
-Output: [["rule", [abstract_predicate, vars...], [conditions...]]]""",
+Output: (rule (abstract_predicate vars...) ((condition1 args...) (condition2 args...)))""",
                 variables=["patterns"]
             )
         ])
@@ -233,7 +625,9 @@ Output: [["rule", [abstract_predicate, vars...], [conditions...]]]""",
                 template="""Given this rule: {rule}
 
 Generate {num_examples} example facts that would match this rule.
-Output: [["fact", [pred, args...]], ...]""",
+Output S-expressions, one per line:
+(fact1 args...)
+(fact2 args...)""",
                 variables=["rule", "num_examples"]
             )
         ])
@@ -258,7 +652,9 @@ Output: [["fact", [pred, args...]], ...]""",
 Knowledge base has {len(context.kb_facts)} facts and {len(context.kb_rules)} rules.
 
 Please generate relevant facts and rules for this query.
-Output JSON: [["fact", [pred, args...]], ["rule", [head], [body]]]"""
+Output S-expressions:
+(fact args...)
+(rule (head args...) ((body args...)))"""
             return prompt, "fallback"
         
         # Choose template based on context
@@ -273,50 +669,58 @@ Output JSON: [["fact", [pred, args...]], ["rule", [head], [body]]]"""
         # Build prompt from template
         variables = {}
         if "query" in template.variables:
-            variables["query"] = context.term
+            # Format query as JSON
+            variables["query"] = json.dumps(context.term)
         if "context" in template.variables:
-            # Build context string
+            # Build context string with markdown headers using JSON format
             ctx_parts = []
             if context.kb_facts:
-                ctx_parts.append(f"Facts: {', '.join(context.kb_facts[:5])}")
+                # One fact per line in JSON format
+                ctx_parts.append("### Facts")
+                for fact in context.kb_facts[:5]:
+                    ctx_parts.append(json.dumps(fact))
             if context.kb_rules:
-                rule_strs = [f"{h} :- {', '.join(b)}" for h, b in context.kb_rules[:3]]
-                ctx_parts.append(f"Rules: {'; '.join(rule_strs)}")
+                # Rules in JSON format: ["rule", head, body]
+                ctx_parts.append("\n### Rules")
+                for h, b in context.kb_rules[:3]:
+                    rule_json = ["rule", h, b]
+                    ctx_parts.append(json.dumps(rule_json))
             variables["context"] = "\n".join(ctx_parts) if ctx_parts else "Empty knowledge base"
         if "functor" in template.variables:
-            # Extract functor from term
-            term_str = context.term
-            if term_str.startswith("("):
-                # S-expression format: (functor arg1 arg2)
-                parts = term_str[1:-1].split()
-                functor = parts[0] if parts else "unknown"
-            elif "(" in term_str:
-                # Prolog format: functor(arg1, arg2)
-                functor = term_str.split("(")[0]
+            # Extract functor from JSON term: ["functor", "arg1", ...]
+            if isinstance(context.term, list) and len(context.term) > 0:
+                functor = context.term[0]
             else:
-                functor = term_str
+                functor = "unknown"
             variables["functor"] = functor
         if "arity" in template.variables:
-            # Count arguments
-            term_str = context.term
-            if term_str.startswith("("):
-                # S-expression: (functor arg1 arg2)
-                parts = term_str[1:-1].split()
-                arity = len(parts) - 1 if len(parts) > 1 else 0
-            elif "(" in term_str:
-                # Prolog format: functor(arg1, arg2)
-                args_str = term_str.split("(")[1].rstrip(")")
-                if args_str:
-                    # Count commas + 1, handling spaces
-                    arity = args_str.count(",") + 1
-                else:
-                    arity = 0
+            # Count arguments in JSON term: ["functor", "arg1", "arg2"]
+            if isinstance(context.term, list) and len(context.term) > 0:
+                arity = len(context.term) - 1  # Minus the functor
             else:
                 arity = 0
             variables["arity"] = arity
         if "examples" in template.variables:
-            variables["examples"] = "\n".join(context.kb_facts[:3])
-        
+            # Sample examples from the database
+            num_examples = 5  # Default, can be made configurable
+            temperature = 1.0  # Default temperature for softmax sampling
+            functor = variables.get("functor", "unknown")
+
+            # Use retriever if available, otherwise random sampling
+            if self.example_retriever:
+                sampled = self.example_retriever.retrieve(functor, num_examples, temperature=temperature)
+            else:
+                sampled = sample_examples(num_examples)
+
+            # Format examples as markdown
+            examples_text = []
+            for i, ex in enumerate(sampled, 1):
+                examples_text.append(f"**Example {i}**")
+                examples_text.append(f"```prolog\n{ex['prolog']}\n```")
+                examples_text.append(f"```json\n{json.dumps(ex['json'])}\n```")
+                examples_text.append("")  # Blank line
+            variables["examples"] = "\n".join(examples_text)
+
         prompt = template.render(**variables)
         return prompt, template.id
     
@@ -362,7 +766,7 @@ Output JSON: [["fact", [pred, args...]], ["rule", [head], [body]]]"""
             return PromptTemplate(
                 id="default",
                 category=PromptCategory.DEFINITION,
-                template="Query: {query}\nContext: {context}\nGenerate facts or rules in JSON format.",
+                template="Query: {query}\nContext: {context}\nGenerate facts or rules in S-expression format.",
                 variables=["query", "context"]
             )
         

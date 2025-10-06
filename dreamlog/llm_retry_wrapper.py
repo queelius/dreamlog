@@ -6,6 +6,8 @@ Wraps LLM providers to add:
 - JSON format enforcement
 - Multiple sampling strategies
 - Beam search simulation
+
+Uses DreamLog's native parser and validator for proper abstraction.
 """
 
 import json
@@ -16,6 +18,7 @@ import time
 
 from .llm_providers import LLMProvider, LLMResponse
 from .validation_feedback import OutputValidator
+from .llm_response_parser import parse_llm_response
 
 
 @dataclass
@@ -46,10 +49,17 @@ class RetryLLMProvider(LLMProvider):
         Generate knowledge with retries and JSON validation
         """
         # First attempt
-        response = self.base_provider.generate_knowledge(term, context)
-        analysis = self.validator.analyze_output(response.raw_response)
+        try:
+            response = self.base_provider.generate_knowledge(term, context)
+            analysis = self.validator.analyze_output(response.raw_response)
+        except Exception as e:
+            if self.config.verbose:
+                print(f"[RETRY] First attempt failed: {e}")
+            # Retry with strategies
+            response = None
+            analysis = {'valid': False, 'parsed': None, 'close_but_wrong': False, 'score': 0}
         
-        if analysis['valid'] and analysis['parsed']:
+        if response and analysis['valid'] and analysis['parsed']:
             return LLMResponse(
                 text=response.text,
                 facts=analysis['parsed'].get('facts', []),
@@ -170,14 +180,15 @@ Please provide a correctly formatted JSON array:"""
             print(f"[RETRY] Strategy: Multi-sample (n={self.config.max_samples})")
         
         responses = []
-        original_temp = getattr(self.base_provider, 'temperature', 0.7)
+        # Use parameter methods for clean temperature management
+        original_temp = self.base_provider.get_parameter('temperature', 0.7)
         
         # Generate multiple samples
         for i in range(self.config.max_samples):
-            # Vary temperature slightly for diversity (only if provider supports it)
-            if hasattr(self.base_provider, 'temperature'):
-                temp_variation = 0.1 * (i - self.config.max_samples // 2)
-                self.base_provider.temperature = max(0.1, original_temp + temp_variation)
+            # Vary temperature slightly for diversity
+            temp_variation = 0.1 * (i - self.config.max_samples // 2)
+            varied_temp = max(0.1, original_temp + temp_variation)
+            self.base_provider.set_parameter('temperature', varied_temp)
             
             response = self.base_provider.generate_knowledge(term, context)
             parsed = self._try_parse_response(response.raw_response)
@@ -197,9 +208,8 @@ Please provide a correctly formatted JSON array:"""
                 if self.config.verbose:
                     print(f"[RETRY]   Sample {i+1}: Parse failed")
         
-        # Restore original temperature (if provider supports it)
-        if hasattr(self.base_provider, 'temperature'):
-            self.base_provider.temperature = original_temp
+        # Restore original temperature
+        self.base_provider.set_parameter('temperature', original_temp)
         
         # Return best response
         if responses:
@@ -218,22 +228,18 @@ Please provide a correctly formatted JSON array:"""
         if self.config.verbose:
             print(f"[RETRY] Strategy: Temperature sweep")
             
-        original_temp = getattr(self.base_provider, 'temperature', 0.7)
+        original_temp = self.base_provider.get_parameter('temperature', 0.7)
         temperatures = [0.3, 0.5, 0.7, 0.9, 1.0]
         
         for temp in temperatures:
-            if hasattr(self.base_provider, 'temperature'):
-                self.base_provider.temperature = temp
-            else:
-                # If provider doesn't support temperature, skip this strategy
-                return None
+            self.base_provider.set_parameter('temperature', temp)
             response = self.base_provider.generate_knowledge(term, context)
             parsed = self._try_parse_response(response.raw_response)
             
             if parsed:
                 if self.config.verbose:
                     print(f"[RETRY]   Temperature {temp}: Success")
-                self.base_provider.temperature = original_temp
+                self.base_provider.set_parameter('temperature', original_temp)
                 return LLMResponse(
                     text=response.text,
                     facts=parsed.get('facts', []),
@@ -241,185 +247,87 @@ Please provide a correctly formatted JSON array:"""
                     raw_response=response.raw_response
                 )
                 
-        self.base_provider.temperature = original_temp
+        self.base_provider.set_parameter('temperature', original_temp)
         return None
     
     def _format_repair(self, term: str, context: str) -> Optional[LLMResponse]:
-        """Try to repair malformed JSON"""
+        """Try to repair malformed output using DreamLog's flexible parser"""
         if self.config.verbose:
             print(f"[RETRY] Strategy: Format repair")
             
         response = self.base_provider.generate_knowledge(term, context)
         
-        # Try aggressive extraction
-        repaired = self._extract_json_aggressively(response.raw_response)
-        if repaired:
-            parsed = self._try_parse_response(repaired)
-            if parsed:
-                return LLMResponse(
-                    text=response.text,
-                    facts=parsed.get('facts', []),
-                    rules=parsed.get('rules', []),
-                    raw_response=response.raw_response
-                )
+        # DreamLog's parser already handles extraction and repair internally
+        # It tries multiple strategies including JSON extraction, S-expression parsing, etc.
+        parsed = self._try_parse_response(response.raw_response)
+        if parsed:
+            return LLMResponse(
+                text=response.text,
+                facts=parsed.get('facts', []),
+                rules=parsed.get('rules', []),
+                raw_response=response.raw_response
+            )
         return None
     
-    def _validate_and_parse(self, parsed_json: Any) -> Tuple[Optional[Dict[str, Any]], str]:
-        """
-        Validate parsed JSON matches our expected format
-        Returns: (parsed_result, error_message)
-        """
-        facts = []
-        rules = []
-        errors = []
-        
-        # Expected format: [["rule", head, body], ["fact", data], ...]
-        if not isinstance(parsed_json, list):
-            return None, f"Expected JSON array, got {type(parsed_json).__name__}"
-            
-        for i, item in enumerate(parsed_json):
-            if not isinstance(item, list):
-                errors.append(f"Item {i}: Expected array, got {type(item).__name__}")
-                continue
-                
-            if len(item) < 2:
-                errors.append(f"Item {i}: Too few elements (need at least 2)")
-                continue
-                
-            if item[0] == "fact":
-                if len(item) != 2:
-                    errors.append(f"Item {i}: Fact needs exactly 2 elements [\"fact\", data]")
-                elif not isinstance(item[1], list):
-                    errors.append(f"Item {i}: Fact data must be an array")
-                else:
-                    facts.append(item[1])
-                    
-            elif item[0] == "rule":
-                if len(item) != 3:
-                    errors.append(f"Item {i}: Rule needs exactly 3 elements [\"rule\", head, body]")
-                else:
-                    head = item[1]
-                    body = item[2]
-                    if not isinstance(head, list):
-                        errors.append(f"Item {i}: Rule head must be an array")
-                    elif not isinstance(body, list):
-                        errors.append(f"Item {i}: Rule body must be an array of conditions")
-                    else:
-                        # Validate body contains valid predicates
-                        invalid_preds = [j for j, pred in enumerate(body) if not isinstance(pred, list)]
-                        if invalid_preds:
-                            errors.append(f"Item {i}: Body conditions {invalid_preds} are not arrays")
-                        else:
-                            rules.append([head, body])
-            else:
-                errors.append(f"Item {i}: Unknown type '{item[0]}' (expected 'fact' or 'rule')")
-                            
-        if facts or rules:
-            return {'facts': facts, 'rules': rules}, ""
-        
-        # Return errors for feedback
-        error_msg = "Validation failed:\n" + "\n".join(errors) if errors else "No valid facts or rules found"
-        return None, error_msg
     
     def _try_parse_response(self, raw_response: str) -> Optional[Dict[str, Any]]:
-        """Try to parse LLM response as JSON"""
+        """Try to parse LLM response using DreamLog's native parser"""
         if not raw_response:
             return None
-            
-        # Clean up the response
-        cleaned = self._extract_json(raw_response)
         
-        try:
-            # Try to parse as JSON
-            parsed = json.loads(cleaned)
-            
-            # First try strict validation
-            result, error_msg = self._validate_and_parse(parsed)
-            if result:
-                return result
-            
-            # Store validation error for potential retry with feedback
-            if self.config.verbose and error_msg:
-                print(f"[RETRY] Validation error: {error_msg}")
-            
-            # If strict validation failed, try lenient parsing
-            if isinstance(parsed, list):
-                # It's already in the format we want
-                facts = []
-                rules = []
-                
-                for item in parsed:
-                    if isinstance(item, list) and len(item) > 0:
-                        if item[0] == "fact" and len(item) > 1:
-                            facts.append(item[1])
-                        elif item[0] == "rule" and len(item) > 2:
-                            rules.append(item[1:])
-                        elif len(item) == 2 and isinstance(item[1], list):
-                            # Assume it's a rule [head, body]
-                            rules.append(item)
-                
-                return {'facts': facts, 'rules': rules}
-                
-            return None
-            
-        except json.JSONDecodeError:
-            return None
-    
-    def _extract_json(self, text: str) -> str:
-        """Extract JSON from text that might have other content"""
-        # Remove markdown code blocks
-        text = re.sub(r'```json\s*', '', text)
-        text = re.sub(r'```\s*', '', text)
+        # Use DreamLog's native parser with non-strict mode
+        parsed_knowledge, validation_report = parse_llm_response(
+            raw_response,
+            strict=False,
+            validate=True
+        )
         
-        # Remove <think> tags
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+        # Check if we got any valid knowledge
+        if parsed_knowledge.facts or parsed_knowledge.rules:
+            # Convert to expected format
+            return {
+                'facts': [fact.term.to_prefix() for fact in parsed_knowledge.facts],
+                'rules': [[rule.head.to_prefix(), [t.to_prefix() for t in rule.body]] 
+                         for rule in parsed_knowledge.rules]
+            }
         
-        # Find JSON array or object
-        json_patterns = [
-            r'\[\[.*?\]\]',  # Nested arrays
-            r'\[.*?\]',       # Single array
-            r'\{.*?\}'        # Object
-        ]
+        # Store parsing errors for potential retry with feedback
+        if self.config.verbose and parsed_knowledge.errors:
+            print(f"[RETRY] Parsing errors: {', '.join(parsed_knowledge.errors[:3])}")
         
-        for pattern in json_patterns:
-            match = re.search(pattern, text, re.DOTALL)
-            if match:
-                return match.group(0)
-        
-        return text.strip()
-    
-    def _extract_json_aggressively(self, text: str) -> Optional[str]:
-        """More aggressive JSON extraction"""
-        # Look for anything that looks like our expected format
-        # [["rule", ["predicate", ...], [...]]]
-        
-        # Remove all non-JSON content
-        lines = text.split('\n')
-        json_lines = []
-        in_json = False
-        
-        for line in lines:
-            if '[' in line or in_json:
-                in_json = True
-                json_lines.append(line)
-                if line.count('[') <= line.count(']'):
-                    in_json = False
-        
-        if json_lines:
-            attempt = '\n'.join(json_lines)
-            # Fix common issues
-            attempt = re.sub(r',\s*]', ']', attempt)  # Remove trailing commas
-            attempt = re.sub(r',\s*}', '}', attempt)
-            
-            # Ensure it starts and ends with brackets
-            if not attempt.strip().startswith('['):
-                attempt = '[' + attempt
-            if not attempt.strip().endswith(']'):
-                attempt = attempt + ']'
-                
-            return attempt
-            
         return None
+    
+    # LLMProvider protocol methods - delegate to base provider
+    def complete(self, prompt: str, **kwargs) -> str:
+        """General text completion with retry logic"""
+        return self.base_provider.complete(prompt, **kwargs)
+    
+    def get_parameter(self, key: str, default: Any = None) -> Any:
+        """Get configuration parameter from base provider"""
+        return self.base_provider.get_parameter(key, default)
+    
+    def set_parameter(self, key: str, value: Any) -> None:
+        """Update configuration parameter on base provider"""
+        self.base_provider.set_parameter(key, value)
+    
+    def get_metadata(self) -> Dict[str, Any]:
+        """Enhanced metadata including retry configuration"""
+        base_metadata = self.base_provider.get_metadata()
+        base_metadata.update({
+            "wrapper": "RetryLLMProvider",
+            "retry_config": {
+                "max_retries": self.config.max_retries,
+                "max_samples": self.config.max_samples,
+                "temperature_increase": self.config.temperature_increase,
+                "enforce_json": self.config.enforce_json
+            }
+        })
+        return base_metadata
+    
+    def clone_with_parameters(self, **params) -> 'RetryLLMProvider':
+        """Create copy with modified parameters"""
+        new_base = self.base_provider.clone_with_parameters(**params)
+        return RetryLLMProvider(new_base, self.config)
 
 
 class OllamaRetryProvider(RetryLLMProvider):

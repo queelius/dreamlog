@@ -15,7 +15,7 @@ from dreamlog.knowledge import KnowledgeBase
 from dreamlog.llm_hook import LLMHook
 from dreamlog.llm_providers import LLMResponse
 from .mock_provider import MockLLMProvider
-from dreamlog.terms import compound, atom, var
+from dreamlog import compound, atom, var
 from dreamlog.evaluator import PrologEvaluator
 from dreamlog.config import DreamLogConfig, LLMSamplingConfig
 
@@ -26,38 +26,28 @@ class TestLLMInference:
     @pytest.fixture
     def mock_llm_provider(self):
         """Create a mock LLM provider with predefined responses"""
-        def generate_knowledge(term, context):
-            # Generate different knowledge based on the term
-            if "healthy" in str(term):
-                return LLMResponse(
-                    text="Generated health rules",
-                    facts=[
-                        ["healthy", "alice"],
-                        ["exercises", "alice"],
-                        ["eats_well", "alice"]
-                    ],
-                    rules=[
-                        [["healthy", "X"], [["exercises", "X"], ["eats_well", "X"]]]
-                    ]
-                )
-            elif "uncle" in str(term):
-                return LLMResponse(
-                    text="Generated uncle rules",
-                    facts=[],
-                    rules=[
-                        [["uncle", "X", "Y"], [["brother", "X", "Z"], ["parent", "Z", "Y"]]],
-                        [["uncle", "X", "Y"], [["male", "X"], ["sibling", "X", "Z"], ["parent", "Z", "Y"]]]
-                    ]
-                )
-            else:
-                return LLMResponse(
-                    text="No knowledge generated",
-                    facts=[],
-                    rules=[]
-                )
+        provider = MockLLMProvider(knowledge_domain="family")
         
-        provider = Mock()
-        provider.generate_knowledge = generate_knowledge
+        # Add custom responses for specific test scenarios
+        provider.add_response("healthy", 
+            facts=[
+                ["healthy", "alice"],
+                ["exercises", "alice"], 
+                ["eats_well", "alice"]
+            ],
+            rules=[
+                [["healthy", "X"], [["exercises", "X"], ["eats_well", "X"]]]
+            ]
+        )
+        
+        provider.add_response("uncle",
+            facts=[],
+            rules=[
+                [["uncle", "X", "Y"], [["brother", "X", "Z"], ["parent", "Z", "Y"]]],
+                [["uncle", "X", "Y"], [["male", "X"], ["sibling", "X", "Z"], ["parent", "Z", "Y"]]]
+            ]
+        )
+        
         return provider
     
     @pytest.fixture
@@ -83,8 +73,8 @@ class TestLLMInference:
         assert len(results) > 0
         
         # Check that the generated facts were added
-        assert kb_with_llm.query_exists("healthy", "alice")
-        assert kb_with_llm.query_exists("exercises", "alice")
+        assert kb_with_llm.ask("healthy", "alice")
+        assert kb_with_llm.ask("exercises", "alice")
     
     def test_generated_rules_are_usable(self, kb_with_llm):
         """Test that generated rules can be used for inference"""
@@ -155,14 +145,14 @@ class TestLLMInference:
         hook(term, evaluator)
         
         # Track calls to provider
-        call_count_before = mock_llm_provider.generate_knowledge.call_count
+        call_count_before = mock_llm_provider.call_count
         
         # Second call should use cache
         hook(term, evaluator)
         
-        call_count_after = mock_llm_provider.generate_knowledge.call_count
+        call_count_after = mock_llm_provider.call_count
         
-        # Should not have called provider again
+        # Should not have called provider again  
         assert call_count_after == call_count_before
     
     def test_generation_limit(self, mock_llm_provider):
@@ -328,6 +318,11 @@ class TestPromptTemplates:
 @pytest.mark.integration  
 class TestEndToEndLLMIntegration:
     """End-to-end tests for LLM integration"""
+    
+    @pytest.fixture
+    def mock_llm_provider(self):
+        """Create a mock LLM provider for integration tests"""
+        return MockLLMProvider(knowledge_domain="family")
     
     def test_family_tree_completion(self, mock_llm_provider):
         """Test completing a family tree with LLM"""

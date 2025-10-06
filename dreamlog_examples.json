@@ -1,0 +1,1102 @@
+{
+  "examples": [
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: grandparent(X, Y) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Y)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(charlie, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(charlie, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 3,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(betty, Z_2) Response: fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "parent(betty, Z_2)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"john\", \"mary\"] fact:[\"parent\", \"mary\", \"alice\"] rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 5,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "Query: parent(alice, X) Response: fact:[\"parent\", \"alice\", \"bob\"]",
+      "metadata": {
+        "query": "parent(alice, X)",
+        "functor": "parent",
+        "response": "fact:[\"parent\", \"alice\", \"bob\"]",
+        "kb_size": 0,
+        "success": true
+      },
+      "confidence": 1.0
+    },
+    {
+      "text": "grandparent rule generation",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "response": "[[\"rule\", [\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]]"
+      },
+      "confidence": 0.95
+    },
+    {
+      "text": "Query: grandparent(X, Z) Response: rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+      "metadata": {
+        "query": "grandparent(X, Z)",
+        "functor": "grandparent",
+        "response": "rule:[[\"grandparent\", \"X\", \"Z\"], [[\"parent\", \"X\", \"Y\"], [\"parent\", \"Y\", \"Z\"]]]",
+        "kb_size": 1,
+        "success": true
+      },
+      "confidence": 1.0
+    }
+  ]
+}

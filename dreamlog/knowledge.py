@@ -4,9 +4,11 @@ Knowledge representation for DreamLog
 This module defines facts, rules, and the knowledge base structure.
 """
 
-from typing import List, Dict, Any, Set, Optional, Iterator
+from typing import List, Dict, Any, Set, Optional, Iterator, Union
 from dataclasses import dataclass
-from .terms import Term, term_from_prefix
+from .terms import Term
+from .factories import term_from_prefix
+from .unification import is_ground
 import json
 
 
@@ -111,8 +113,26 @@ class KnowledgeBase:
         self._fact_index: Dict[tuple[str, int], List[Fact]] = {}
         self._rule_index: Dict[tuple[str, int], List[Rule]] = {}
     
-    def add_fact(self, fact: Fact) -> None:
-        """Add a fact to the knowledge base"""
+    def add_fact(self, fact: Union[Fact, Term]) -> None:
+        """
+        Add a fact to the knowledge base.
+
+        Raises:
+            ValueError: If the fact contains variables (not ground)
+        """
+        # Convert Term to Fact if needed
+        if isinstance(fact, Term):
+            term = fact
+            fact = Fact(fact)
+        else:
+            term = fact.term
+
+        # Validate: facts must be ground (no variables)
+        if not is_ground(term):
+            variables = term.get_variables()
+            var_list = ", ".join(sorted(variables))
+            raise ValueError(f"Facts cannot contain variables. Found: {var_list}")
+
         if fact not in self._facts:
             self._facts.append(fact)
             self._index_fact(fact)
@@ -140,17 +160,52 @@ class KnowledgeBase:
             self._rule_index[key].append(rule)
     
     def _get_term_key(self, term: Term) -> Optional[tuple[str, int]]:
-        """Get indexing key for a term"""
-        from .terms import Compound, Atom
+        """
+        Get indexing key for a term.
         
-        if isinstance(term, Compound):
+        Returns None for Variables as they cannot be indexed directly
+        (they match everything). Raises TypeError for unknown term types.
+        
+        Args:
+            term: Term to get the key for
+            
+        Returns:
+            Tuple of (functor/value, arity) or None for Variables
+            
+        Raises:
+            TypeError: If term is not a recognized Term subclass
+        """
+        from .terms import Compound, Atom, Variable
+        
+        if isinstance(term, Variable):
+            # Variables are wildcards that match anything, cannot index
+            return None
+        elif isinstance(term, Compound):
             return (term.functor, term.arity)
         elif isinstance(term, Atom):
             return (term.value, 0)
-        return None
+        else:
+            raise TypeError(f"Unknown term type: {type(term).__name__}. "
+                          f"Expected Variable, Compound, or Atom.")
     
     def get_matching_facts(self, term: Term) -> Iterator[Fact]:
-        """Get facts that might unify with the given term"""
+        """
+        Get facts that might unify with the given term.
+        
+        Uses functor/arity indexing for efficient lookup.
+        Variables in the query term will match any fact.
+        
+        Args:
+            term: The term to match against
+        
+        Yields:
+            Facts that have the same functor and arity as the term
+        
+        Examples:
+            >>> kb.add_fact(Fact(compound("parent", atom("john"), atom("mary"))))
+            >>> list(kb.get_matching_facts(compound("parent", var("X"), var("Y"))))
+            [Fact(Compound("parent", [Atom("john"), Atom("mary")]))]
+        """
         key = self._get_term_key(term)
         if key and key in self._fact_index:
             yield from self._fact_index[key]
@@ -171,6 +226,62 @@ class KnowledgeBase:
         """Get all rules"""
         return self._rules.copy()
     
+    def remove_fact(self, index: int) -> Fact:
+        """
+        Remove a fact by index.
+
+        Args:
+            index: Index of the fact to remove (0-based)
+
+        Returns:
+            The removed Fact
+
+        Raises:
+            IndexError: If index is out of range
+        """
+        if index < 0 or index >= len(self._facts):
+            raise IndexError(f"Fact index {index} out of range (0-{len(self._facts)-1})")
+
+        fact = self._facts[index]
+
+        # Remove from list
+        self._facts.pop(index)
+
+        # Rebuild fact index (simpler than trying to update it)
+        self._fact_index.clear()
+        for f in self._facts:
+            self._index_fact(f)
+
+        return fact
+
+    def remove_rule(self, index: int) -> Rule:
+        """
+        Remove a rule by index.
+
+        Args:
+            index: Index of the rule to remove (0-based)
+
+        Returns:
+            The removed Rule
+
+        Raises:
+            IndexError: If index is out of range
+        """
+        if index < 0 or index >= len(self._rules):
+            raise IndexError(f"Rule index {index} out of range (0-{len(self._rules)-1})")
+
+        rule = self._rules[index]
+
+        # Remove from list
+        self._rules.pop(index)
+
+        # Rebuild rule index
+        self._rule_index.clear()
+        for r in self._rules:
+            self._index_rule(r)
+
+        return rule
+
     def clear(self) -> None:
         """Clear all facts and rules"""
         self._facts.clear()

@@ -13,6 +13,7 @@ from typing import Dict, Optional, Set, Tuple, List, Any, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from .terms import Term, Atom, Variable, Compound
+from .types import Bindings, VarName
 
 
 class UnificationMode(Enum):
@@ -183,16 +184,16 @@ class Unifier:
         
         # Variable unification
         if isinstance(term1, Variable):
-            if self.mode == UnificationMode.MATCH:
-                # In match mode, only bind variables in pattern (term1)
+            if self.mode in (UnificationMode.MATCH, UnificationMode.SUBSUME):
+                # In match/subsume mode, only bind variables in pattern (term1)
                 return self._bind_variable(term1, term2, bindings)
             else:
                 return self._unify_variable(term1, term2, bindings)
         
         if isinstance(term2, Variable):
-            if self.mode == UnificationMode.MATCH:
-                # In match mode, don't bind variables in term2
-                self.trace.add(f"Match mode: Cannot bind variable in term: {term2}")
+            if self.mode in (UnificationMode.MATCH, UnificationMode.SUBSUME):
+                # In match/subsume mode, don't bind variables in term2
+                self.trace.add(f"{self.mode} mode: Cannot bind variable in term: {term2}")
                 return None
             else:
                 return self._unify_variable(term2, term1, bindings)
@@ -211,14 +212,8 @@ class Unifier:
         More efficient than full substitution.
         """
         if isinstance(term, Variable):
-            visited = set()
-            while term.name in bindings and term.name not in visited:
-                visited.add(term.name)
-                bound = bindings[term.name]
-                if isinstance(bound, Variable):
-                    term = bound
-                else:
-                    return bound
+            from .utils import dereference_variable
+            return dereference_variable(term, bindings)
         return term
     
     def _bind_variable(self, var: Variable, term: Term, 

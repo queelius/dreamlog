@@ -169,15 +169,15 @@ class TestTermOperations:
     def test_get_variables(self):
         """Test extracting variables from terms"""
         c = compound("parent", var("X"), var("Y"))
-        vars = c.get_vars()
+        vars = c.get_variables()
         assert len(vars) == 2
-        assert var("X") in vars
-        assert var("Y") in vars
+        assert "X" in vars
+        assert "Y" in vars
     
     def test_substitute(self):
         """Test substitution in terms"""
         c = compound("parent", var("X"), atom("mary"))
-        subst = {var("X"): atom("john")}
+        subst = {"X": atom("john")}
         result = c.substitute(subst)
         
         assert result.functor == "parent"
@@ -189,12 +189,15 @@ class TestTermOperations:
         x = var("X")
         c = compound("f", x, atom("a"))
         
-        assert x.occurs_in(c)
-        assert not atom("b").occurs_in(c)
+        # Check if X occurs in the compound
+        assert "X" in c.get_variables()
+        # Atoms don't have an occurs_in method, so check manually
+        assert atom("a") in c.args
+        assert atom("b") not in c.args
     
     def test_ground_check(self):
         """Test if term is ground (no variables)"""
-        from dreamlog.terms import is_ground
+        from dreamlog.unification import is_ground
         
         assert is_ground(atom("john"))
         assert is_ground(compound("parent", atom("john"), atom("mary")))

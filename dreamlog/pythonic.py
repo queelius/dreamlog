@@ -31,9 +31,10 @@ from dataclasses import dataclass
 import json
 
 from .engine import DreamLogEngine
-from .terms import atom, var, compound, Term
+from .terms import Term
+from .factories import atom, var, compound
 from .knowledge import Fact, Rule
-from .prefix_parser import parse_s_expression, parse_prefix_notation, term_to_sexp
+from .prefix_parser import parse_s_expression, parse_prefix_notation
 from .config import DreamLogConfig
 from .llm_providers import create_provider
 
@@ -138,11 +139,19 @@ class DreamLog:
             max_retries = llm_config.pop('max_retries', 3)
             verbose_retry = llm_config.pop('verbose_retry', False)
             
-            # Create base provider with remaining config
-            provider = create_provider(llm_provider, **llm_config)
+            # Create base provider - support both string identifiers and direct injection
+            if isinstance(llm_provider, str):
+                # String identifier - use factory
+                provider = create_provider(llm_provider, **llm_config)
+            else:
+                # Already a provider object - use directly (for testing)
+                provider = llm_provider
             
-            # Wrap with retry logic if requested
-            if use_retry:
+            # Wrap with retry logic if requested (skip for mock providers)  
+            provider_metadata = provider.get_metadata()
+            is_mock = provider_metadata.get("provider_type") == "mock"
+            
+            if use_retry and not is_mock:
                 from .llm_retry_wrapper import create_retry_provider
                 provider = create_retry_provider(
                     provider, 

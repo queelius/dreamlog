@@ -1,0 +1,16 @@
+; Family relations knowledge base
+; Basic parent facts
+(parent john mary)
+(parent john tom)
+(parent mary alice)
+(parent tom bob)
+(parent alice charlie)
+(parent john sam)
+(parent sam sarah)
+(parent sarah ben)
+(parent sarah jessica)
+(parent sam will)
+(parent jessica alice)
+
+; Grandparent rule
+(grandparent X Z) :- (parent X Y), (parent Y Z)

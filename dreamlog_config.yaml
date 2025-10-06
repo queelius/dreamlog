@@ -1,18 +1,18 @@
 # DreamLog Configuration for Ollama
-# 
+#
 # This configures DreamLog to use Ollama running on your local network
 
 # LLM Provider Configuration
 provider:
   provider: ollama  # Using Ollama as the LLM provider
-  
+
   # Your Ollama server
   base_url: http://192.168.0.225:11434
-  
+
   # Model to use - qwen3:4b is fast and decent
   # You can also try: phi4-mini-reasoning:latest, gemma3:4b, qwen3:1.7b
   model: qwen3:4b
-  
+
   # Generation parameters
   temperature: 0.3  # Lower = more deterministic
   max_tokens: 500
@@ -31,6 +31,20 @@ query:
   max_iterations: 1000
   trace_enabled: false
   cache_enabled: true
+
+# TUI Settings
+tui_prompt: "dreamlog> "
+tui_history_file: "~/.dreamlog_history"
+tui_color_output: true
+tui_max_solutions: 100
+
+# Runtime Settings
+llm_enabled: true  # Enable/disable LLM on startup
+debug_enabled: false
+
+# Auto-save Settings
+auto_save: true
+auto_save_path: "~/.dreamlog_autosave.json"
 
 # Logging
 log_level: INFO

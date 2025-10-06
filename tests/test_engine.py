@@ -61,7 +61,7 @@ class TestDreamLogEngine:
         solutions = list(engine.query([query]))
         
         assert len(solutions) == 1
-        assert solutions[0].bindings[var("X")] == atom("mary")
+        assert solutions[0].bindings["X"] == atom("mary")
     
     def test_query_with_rules(self):
         """Test querying with rule inference"""
@@ -84,7 +84,9 @@ class TestDreamLogEngine:
         solutions = list(engine.query([query]))
         
         assert len(solutions) == 1
-        assert solutions[0].bindings[var("X")] == atom("alice")
+        # Get ground bindings to resolve transitive variable bindings
+        ground_bindings = solutions[0].get_ground_bindings()
+        assert ground_bindings["X"] == atom("alice")
     
     def test_ask_method(self):
         """Test the ask convenience method"""
