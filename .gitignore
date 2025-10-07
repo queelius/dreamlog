@@ -166,6 +166,21 @@ llm_config.json
 .dreamlog_history
 .dreamlog_autosave.json
 
+# Temporary/experimental
+temp-experiments/
+temp_*.py
+*_temp.py
+scratch/
+playground/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
 # Local development
 .DS_Store
 Thumbs.db
