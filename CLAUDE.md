@@ -19,6 +19,17 @@ python -m pytest tests/test_unification.py -v
 
 # Run with coverage
 python -m pytest tests/ --cov=dreamlog
+
+# Skip slow/integration/LLM tests
+python -m pytest tests/ -m "not slow"
+python -m pytest tests/ -m "not llm"
+```
+
+### Linting & Formatting
+```bash
+black dreamlog/           # Format code
+mypy dreamlog/            # Type check
+pylint dreamlog/          # Lint
 ```
 
 ### Running the TUI
