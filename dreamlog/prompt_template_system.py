@@ -555,38 +555,107 @@ Your output (S-expressions only, one per line):""",
             PromptTemplate(
                 id="define_with_examples",
                 category=PromptCategory.DEFINITION,
-                template="""You are helping define logic programming predicates.
+                template="""You are a logic programming expert helping define predicates in Prolog.
 
-## Query
+## Your Query
 {query}
 
-## Context
+## Current Knowledge Base
 {context}
 
-## Task
-Define '{functor}' as a RULE using existing predicates from the context above.
+## Your Task
+Define the predicate '{functor}' to answer the query above.
 
-CRITICAL INSTRUCTIONS:
-- Return ONLY a rule definition for '{functor}'
-- DO NOT return facts - only rules with variables
-- DO NOT return rules that already exist in the context
-- DO NOT return definitions for predicates used in the body of your rule
-- If you reference undefined predicates, they will be defined automatically in subsequent calls
-- Use generic variable names: X, Y, Z, A, B, C (single uppercase letters)
-- DO NOT use variable names that look like the constants in the query (e.g., John, Mary, Alice)
+---
 
-You may reason about the problem first, then provide your answer in JSON format.
+## FEW-SHOT EXAMPLES
 
-## Format Examples
+Here are complete examples showing how to reason about queries:
 
-Here are Prolog rules with their JSON equivalents:
+### Example 1: Query about gender (primitive property)
+**Query:** `["male", "john"]`
+**KB Facts:** `parent(john, mary). parent(john, tom).`
+**Reasoning:** The predicate `male` is a primitive property - it cannot be derived from `parent` relationships. The name "john" is typically male. I should generate a fact.
+**Output:**
+```prolog
+male(john).
+```
 
-{examples}
+### Example 2: Query about gender with female name
+**Query:** `["female", "mary"]`
+**KB Facts:** `parent(john, mary). parent(mary, alice).`
+**Reasoning:** The predicate `female` is a primitive property. The name "mary" is typically female. I should generate a fact.
+**Output:**
+```prolog
+female(mary).
+```
+
+### Example 3: Query about a derivable relationship
+**Query:** `["father", "X", "Y"]`
+**KB Facts:** `parent(john, mary). male(john).`
+**Reasoning:** A father is a male parent. I have both `parent` and `male` predicates in the KB. I should generate a rule.
+**Output:**
+```prolog
+father(X, Y) :- parent(X, Y), male(X).
+```
+
+### Example 4: Query about ancestry (recursive)
+**Query:** `["ancestor", "X", "Y"]`
+**KB Facts:** `parent(john, mary). parent(mary, alice).`
+**Reasoning:** An ancestor is either a parent (base case) or a parent of an ancestor (recursive case). I should generate rules.
+**Output:**
+```prolog
+ancestor(X, Y) :- parent(X, Y).
+ancestor(X, Z) :- parent(X, Y), ancestor(Y, Z).
+```
+
+### Example 5: Query about grandparent
+**Query:** `["grandparent", "X", "Z"]`
+**KB Facts:** `parent(john, mary). parent(mary, alice).`
+**Reasoning:** A grandparent is a parent of a parent. I can derive this from the `parent` predicate.
+**Output:**
+```prolog
+grandparent(X, Z) :- parent(X, Y), parent(Y, Z).
+```
+
+### Example 6: Negative inference from name
+**Query:** `["male", "mary"]`
+**KB Facts:** `parent(mary, alice). parent(john, mary).`
+**Reasoning:** The query asks if mary is male. The name "mary" is typically female, not male. I should NOT generate `male(mary)`. Instead, I can generate the opposite fact if useful, or generate nothing for male(mary).
+**Output:**
+```prolog
+female(mary).
+```
+
+---
+
+## DECISION RULES
+
+1. **Primitive properties (use your world knowledge):**
+   - For predicates like `male/female`, use your knowledge of names to infer the likely gender
+   - For categories, use your knowledge to classify entities (e.g., `mammal(dog)`, `country(france)`)
+   - Generate FACTS based on what you know about the world
+
+2. **Derivable relationships:** Generate RULES when the predicate can be logically derived from existing KB predicates.
+
+3. **Transitive/recursive predicates:** Generate RULES with base case and recursive case.
+
+4. **NEVER generate facts that already exist in the KB.**
+
+5. **ONLY output definitions for '{functor}' - do not define other predicates.**
+
+6. **Common sense:** If a query seems false (e.g., `male(mary)`), generate the correct fact instead (e.g., `female(mary)`) or output nothing.
+
+---
 
 ## Output Format
-Return ONLY a JSON array in a ```json code block. All elements must be QUOTED STRINGS.
+Think step-by-step, then provide your Prolog code in a ```prolog block.
 
-Your response for '{functor}':""",
+```prolog
+% Your facts and/or rules here
+```
+
+Now, analyze the query `{query}` and generate the appropriate definition for '{functor}':""",
                 variables=["query", "context", "functor", "examples"]
             ),
             PromptTemplate(

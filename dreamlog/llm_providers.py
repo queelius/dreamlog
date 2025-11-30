@@ -433,8 +433,9 @@ class AnthropicProvider(URLBasedProvider):
 
 class OllamaProvider(URLBasedProvider):
     """Ollama local LLM provider"""
-    
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama2", **kwargs):
+
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama2",
+                 timeout: int = 30, **kwargs):
         super().__init__(
             base_url=base_url,
             endpoint="/api/generate",
@@ -442,6 +443,7 @@ class OllamaProvider(URLBasedProvider):
             model=model,
             **kwargs
         )
+        self.timeout = timeout
     
     def _call_api(self, prompt: str, **kwargs) -> str:
         """Ollama-specific API call"""
@@ -470,7 +472,7 @@ class OllamaProvider(URLBasedProvider):
         req = urllib.request.Request(url, data=data, headers=headers, method='POST')
         
         try:
-            with urllib.request.urlopen(req, timeout=30) as response:
+            with urllib.request.urlopen(req, timeout=self.timeout) as response:
                 result = json.loads(response.read().decode('utf-8'))
                 return result.get('response', '[]')
         except Exception as e:

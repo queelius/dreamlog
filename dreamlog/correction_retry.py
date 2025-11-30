@@ -153,7 +153,7 @@ class CorrectionBasedRetry:
         # Format previous attempts
         attempt_lines = []
         for att in previous_attempts:
-            if att.rule and att.judgement:
+            if att.rule and att.judgement is not None:
                 attempt_lines.append(f"\nAttempt {att.attempt_number}:")
                 attempt_lines.append(f"  Generated: {att.rule}")
                 attempt_lines.append(f"  Result: {'✓ CORRECT' if att.judgement.is_correct else '✗ INCORRECT'}")
@@ -206,7 +206,7 @@ Your response (JSON array only):"""
             else:
                 lines.append("Generated: [failed to parse]")
 
-            if att.judgement:
+            if att.judgement is not None:
                 status = "✓ CORRECT" if att.judgement.is_correct else "✗ INCORRECT"
                 lines.append(f"Status: {status}")
                 lines.append(f"Confidence: {att.judgement.confidence:.2f}")

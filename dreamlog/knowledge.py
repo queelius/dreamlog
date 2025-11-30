@@ -288,6 +288,15 @@ class KnowledgeBase:
         self._rules.clear()
         self._fact_index.clear()
         self._rule_index.clear()
+
+    def _rebuild_indices(self) -> None:
+        """Rebuild fact and rule indices from current lists"""
+        self._fact_index.clear()
+        self._rule_index.clear()
+        for fact in self._facts:
+            self._index_fact(fact)
+        for rule in self._rules:
+            self._index_rule(rule)
     
     def to_prefix(self) -> str:
         """Export knowledge base to prefix notation JSON"""

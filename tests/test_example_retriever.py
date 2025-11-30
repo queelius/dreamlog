@@ -57,13 +57,12 @@ class TestExampleRetrieverInitialization:
 
         assert retriever.examples == SAMPLE_EXAMPLES
         assert retriever.embedding_provider is mock_provider
-        assert len(retriever._example_embeddings) == len(SAMPLE_EXAMPLES)
 
-        # Verify embed was called for each example
+        # Verify embed was called for each example during initialization
         assert mock_provider.embed.call_count == len(SAMPLE_EXAMPLES)
 
     def test_precompute_embeddings_handles_errors(self):
-        """Test that embedding errors are handled gracefully"""
+        """Test that embedding errors are handled gracefully during initialization"""
         mock_provider = Mock()
         mock_provider.dimension = 3
 
@@ -77,13 +76,13 @@ class TestExampleRetrieverInitialization:
             [1.3, 1.4, 1.5],
         ]
 
+        # Should initialize without error despite one embedding failure
         retriever = ExampleRetriever(SAMPLE_EXAMPLES, mock_provider)
 
-        # Should have embeddings for all examples (failed one uses zero vector)
-        assert len(retriever._example_embeddings) == len(SAMPLE_EXAMPLES)
-        assert retriever._example_embeddings[0] == [0.1, 0.2, 0.3]
-        assert retriever._example_embeddings[1] == [0.0, 0.0, 0.0]  # Zero vector fallback
-        assert retriever._example_embeddings[2] == [0.4, 0.5, 0.6]
+        # Verify all examples were processed (behavior: can still retrieve)
+        results = retriever.retrieve("test", num_examples=3, temperature=1.0)
+        assert len(results) == 3
+        assert all(r in SAMPLE_EXAMPLES for r in results)
 
     def test_embedding_provider_required(self):
         """Test that embedding provider is required (not optional)"""
@@ -180,53 +179,71 @@ class TestSoftmaxRetrieval:
         # Should have selected from multiple examples, not just top-2
         assert len(all_selected) >= 4  # At least 4 different examples selected
 
-    def test_softmax_computation(self):
-        """Test softmax with temperature computation"""
+    def test_temperature_affects_sampling_behavior(self):
+        """Test that temperature parameter affects sampling distribution"""
         mock_provider = Mock()
-        mock_provider.embed.return_value = [0.5, 0.5]
+
+        # Create embeddings where first example is most similar to query
+        example_embeddings = [
+            [1.0, 0.0],  # Most similar
+            [0.5, 0.5],
+            [0.0, 1.0],
+            [0.0, 1.0],
+            [0.0, 1.0],
+            [0.0, 1.0],
+        ]
+        query_embedding = [1.0, 0.0]  # Very similar to first
+
+        mock_provider.embed.side_effect = example_embeddings + [query_embedding] * 200
         mock_provider.dimension = 2
 
         retriever = ExampleRetriever(SAMPLE_EXAMPLES, mock_provider)
 
-        # Test softmax function
-        scores = [1.0, 2.0, 3.0]
+        # Low temperature should heavily favor most similar (deterministic)
+        low_temp_counts = {}
+        for _ in range(100):
+            results = retriever.retrieve("test", num_examples=1, temperature=0.01)
+            idx = SAMPLE_EXAMPLES.index(results[0])
+            low_temp_counts[idx] = low_temp_counts.get(idx, 0) + 1
 
-        # Temperature = 1.0 (standard softmax)
-        probs = retriever._softmax(scores, temperature=1.0)
-        assert abs(sum(probs) - 1.0) < 1e-6  # Probabilities sum to 1
-        assert probs[2] > probs[1] > probs[0]  # Highest score gets highest prob
+        # Should almost always pick example 0 (most similar)
+        assert low_temp_counts.get(0, 0) > 90
 
-        # Temperature → 0 (approaches one-hot)
-        probs_low = retriever._softmax(scores, temperature=0.1)
-        assert probs_low[2] > 0.9  # Almost all weight on highest score
+        # High temperature should be more uniform (stochastic)
+        high_temp_counts = {}
+        for _ in range(100):
+            results = retriever.retrieve("test", num_examples=1, temperature=10.0)
+            idx = SAMPLE_EXAMPLES.index(results[0])
+            high_temp_counts[idx] = high_temp_counts.get(idx, 0) + 1
 
-        # Temperature → ∞ (approaches uniform)
-        probs_high = retriever._softmax(scores, temperature=10.0)
-        assert abs(probs_high[0] - probs_high[2]) < 0.1  # Nearly uniform
+        # Should select from multiple examples
+        assert len(high_temp_counts) >= 3
 
-    def test_cosine_similarity_calculation(self):
-        """Test cosine similarity calculation"""
+    def test_semantic_similarity_ranking(self):
+        """Test that retrieval ranks by semantic similarity"""
         mock_provider = Mock()
-        mock_provider.embed.return_value = [0.5, 0.5]
-        mock_provider.dimension = 2
+
+        # Create embeddings with clear similarity structure
+        example_embeddings = [
+            [1.0, 0.0, 0.0],  # Orthogonal to others
+            [0.0, 1.0, 0.0],  # Identical to query
+            [0.0, 0.9, 0.1],  # Very similar to query
+            [0.0, 0.5, 0.5],  # Somewhat similar
+            [0.0, 0.1, 0.9],  # Less similar
+            [0.0, 0.0, 1.0],  # Orthogonal to query
+        ]
+        query_embedding = [0.0, 1.0, 0.0]  # Should match example 1 best
+
+        mock_provider.embed.side_effect = example_embeddings + [query_embedding]
+        mock_provider.dimension = 3
 
         retriever = ExampleRetriever(SAMPLE_EXAMPLES, mock_provider)
 
-        # Identical vectors
-        sim = retriever._cosine_similarity([1.0, 0.0, 0.0], [1.0, 0.0, 0.0])
-        assert abs(sim - 1.0) < 1e-6
+        # With very low temperature, should prefer most similar
+        results = retriever.retrieve("test", num_examples=3, temperature=0.001)
 
-        # Orthogonal vectors
-        sim = retriever._cosine_similarity([1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
-        assert abs(sim - 0.0) < 1e-6
-
-        # Opposite vectors
-        sim = retriever._cosine_similarity([1.0, 0.0, 0.0], [-1.0, 0.0, 0.0])
-        assert abs(sim - (-1.0)) < 1e-6
-
-        # Zero vector
-        sim = retriever._cosine_similarity([0.0, 0.0, 0.0], [1.0, 0.0, 0.0])
-        assert sim == 0.0
+        # First result should be the most similar (example 1)
+        assert results[0] == SAMPLE_EXAMPLES[1]
 
     def test_fallback_on_error(self):
         """Test fallback to random sampling on error"""

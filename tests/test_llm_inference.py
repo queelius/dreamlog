@@ -18,6 +18,8 @@ from .mock_provider import MockLLMProvider
 from dreamlog import compound, atom, var
 from dreamlog.evaluator import PrologEvaluator
 from dreamlog.config import DreamLogConfig, LLMSamplingConfig
+from dreamlog.tfidf_embedding_provider import TfIdfEmbeddingProvider
+from dreamlog.prompt_template_system import RULE_EXAMPLES
 
 
 class TestLLMInference:
@@ -54,27 +56,32 @@ class TestLLMInference:
     def kb_with_llm(self, mock_llm_provider):
         """Create a knowledge base with LLM support"""
         kb = dreamlog(llm_provider=mock_llm_provider)
-        
+
         # Add some base facts
         kb.fact("parent", "john", "mary")
         kb.fact("parent", "mary", "alice")
         kb.fact("male", "john")
         kb.fact("male", "bob")
         kb.fact("brother", "john", "jane")
-        
+        # Add base facts for healthy test
+        kb.fact("exercises", "alice")
+        kb.fact("eats_well", "alice")
+
         return kb
-    
+
     def test_undefined_predicate_triggers_generation(self, kb_with_llm):
-        """Test that querying undefined predicate triggers LLM"""
+        """Test that querying undefined predicate triggers LLM rule generation"""
         # Query for undefined "healthy" predicate
+        # LLM should generate: (healthy X) :- (exercises X), (eats_well X)
         results = list(kb_with_llm.query("healthy", "alice"))
-        
-        # Should have generated and found results
-        assert len(results) > 0
-        
-        # Check that the generated facts were added
-        assert kb_with_llm.ask("healthy", "alice")
-        assert kb_with_llm.ask("exercises", "alice")
+
+        # Should have generated rule and found results using existing facts
+        assert len(results) > 0, "Query should succeed after LLM generates rule"
+
+        # Verify the rule was added, not facts
+        engine = kb_with_llm.engine
+        healthy_rules = [r for r in engine.kb.rules if hasattr(r.head, 'functor') and r.head.functor == 'healthy']
+        assert len(healthy_rules) > 0, "LLM should have generated a rule for healthy"
     
     def test_generated_rules_are_usable(self, kb_with_llm):
         """Test that generated rules can be used for inference"""
@@ -96,15 +103,18 @@ class TestLLMInference:
     def test_context_extraction(self, mock_llm_provider):
         """Test that relevant context is extracted for LLM"""
         kb = KnowledgeBase()
-        
+
         # Add various facts
         for i in range(30):  # Many facts to test sampling
             kb.add_fact(compound("fact", atom(f"item_{i}"), atom("value")))
-        
+
         kb.add_fact(compound("parent", atom("john"), atom("mary")))
         kb.add_fact(compound("parent", atom("mary"), atom("alice")))
-        
-        hook = LLMHook(mock_llm_provider)
+
+        # Create embedding provider for RAG
+        embedding_provider = TfIdfEmbeddingProvider(corpus=RULE_EXAMPLES)
+
+        hook = LLMHook(mock_llm_provider, embedding_provider)
         
         # Test context extraction for a compound term
         term = compound("parent", var("X"), var("Y"))
@@ -133,7 +143,10 @@ class TestLLMInference:
     
     def test_caching_prevents_redundant_generation(self, mock_llm_provider):
         """Test that LLM hook caches generated knowledge"""
-        hook = LLMHook(mock_llm_provider, cache_enabled=True)
+        # Create embedding provider for RAG
+        embedding_provider = TfIdfEmbeddingProvider(corpus=RULE_EXAMPLES)
+
+        hook = LLMHook(mock_llm_provider, embedding_provider, cache_enabled=True)
         kb = KnowledgeBase()
         
         # Create a mock evaluator
@@ -157,7 +170,10 @@ class TestLLMInference:
     
     def test_generation_limit(self, mock_llm_provider):
         """Test that generation has a limit to prevent infinite loops"""
-        hook = LLMHook(mock_llm_provider, max_generations=2)
+        # Create embedding provider for RAG
+        embedding_provider = TfIdfEmbeddingProvider(corpus=RULE_EXAMPLES)
+
+        hook = LLMHook(mock_llm_provider, embedding_provider, max_generations=2)
         kb = KnowledgeBase()
         evaluator = Mock()
         evaluator.kb = kb
@@ -172,33 +188,54 @@ class TestLLMInference:
         # Check generation count
         assert hook._generation_count == 2
     
-    def test_fact_addition_from_llm(self, mock_llm_provider):
-        """Test that facts from LLM are properly added"""
+    def test_facts_and_rules_from_llm(self, mock_llm_provider):
+        """Test that both facts and rules from LLM are accepted"""
         kb = KnowledgeBase()
         evaluator = Mock()
         evaluator.kb = kb
-        
-        hook = LLMHook(mock_llm_provider)
-        
-        # Trigger generation for "healthy"
-        term = compound("healthy", atom("alice"))
+
+        # Create embedding provider for RAG
+        embedding_provider = TfIdfEmbeddingProvider(corpus=RULE_EXAMPLES)
+
+        hook = LLMHook(mock_llm_provider, embedding_provider)
+
+        # Add a custom response that contains both facts and rules
+        import json
+        def custom_call_api(prompt, **kwargs):
+            # Return both facts and rules
+            return json.dumps([
+                ["fact", ["should_be", "added"]],
+                ["fact", ["also_added", "yes"]],
+                ["rule", ["test_rule", "X"], [["base_predicate", "X"]]]
+            ])
+
+        mock_llm_provider._call_api = custom_call_api
+
+        # Trigger generation
+        term = compound("test_rule", var("X"))
         hook(term, evaluator)
-        
-        # Check facts were added
-        assert len(kb.facts) > 0
-        
-        # Check specific facts
+
+        # Facts SHOULD be added (LLM can generate both facts and rules)
+        assert len(kb.facts) == 2, "Facts from LLM should be added"
         fact_strs = [str(f.term) for f in kb.facts]
-        assert any("healthy" in s for s in fact_strs)
-        assert any("exercises" in s for s in fact_strs)
+        assert any("should_be" in f for f in fact_strs)
+        assert any("also_added" in f for f in fact_strs)
+
+        # Rules SHOULD also be added
+        assert len(kb.rules) > 0, "Rules from LLM should be added"
+        rule_heads = [str(r.head) for r in kb.rules]
+        assert any("test_rule" in h for h in rule_heads)
     
     def test_rule_addition_from_llm(self, mock_llm_provider):
         """Test that rules from LLM are properly added"""
         kb = KnowledgeBase()
         evaluator = Mock()
         evaluator.kb = kb
-        
-        hook = LLMHook(mock_llm_provider)
+
+        # Create embedding provider for RAG
+        embedding_provider = TfIdfEmbeddingProvider(corpus=RULE_EXAMPLES)
+
+        hook = LLMHook(mock_llm_provider, embedding_provider)
         
         # Trigger generation for "uncle"
         term = compound("uncle", var("X"), var("Y"))
@@ -325,51 +362,68 @@ class TestEndToEndLLMIntegration:
         return MockLLMProvider(knowledge_domain="family")
     
     def test_family_tree_completion(self, mock_llm_provider):
-        """Test completing a family tree with LLM"""
-        # Provide custom responses for family relationships
-        mock_llm_provider.generate_knowledge = Mock(return_value=LLMResponse(
-            text="Family rules",
-            facts=[["brother", "bob", "alice"]],
-            rules=[[["sibling", "X", "Y"], [["brother", "X", "Y"]]]]
-        ))
-        
+        """Test completing a family tree with LLM-generated rules"""
+        import json
+
+        # Override _call_api to return a sibling rule that works with existing parent facts
+        original_call_api = mock_llm_provider._call_api
+
+        def custom_call_api(prompt, **kwargs):
+            lines = prompt.split('\n')
+            query_line = next((line for line in lines if line.startswith('Query:')), '')
+
+            if 'sibling' in query_line.lower():
+                # Return a sibling rule that uses parent facts
+                # Note: We don't use (different X Y) here for simplicity
+                return json.dumps([
+                    ["rule", ["sibling", "X", "Y"], [["parent", "Z", "X"], ["parent", "Z", "Y"]]]
+                ])
+            return original_call_api(prompt, **kwargs)
+
+        mock_llm_provider._call_api = custom_call_api
+
         kb = dreamlog(llm_provider=mock_llm_provider)
-        
-        # Add partial family tree
+
+        # Add partial family tree (base facts)
         kb.fact("parent", "john", "alice")
         kb.fact("parent", "john", "bob")
-        
+
         # Query for undefined sibling relationship
         results = list(kb.query("sibling", "bob", "alice"))
-        
-        # Should have generated and found relationship
+
+        # Should have generated rule and found relationship using existing facts
         assert len(results) > 0
     
     def test_cascading_generation(self, mock_llm_provider):
         """Test that generated rules can trigger more generation"""
+        import json
+
+        # Mock responses as JSON strings (what _call_api returns)
         responses = {
-            "grandparent": LLMResponse(
-                text="",
-                facts=[],
-                rules=[[["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]]
-            ),
-            "ancestor": LLMResponse(
-                text="",
-                facts=[],
-                rules=[
-                    [["ancestor", "X", "Y"], [["parent", "X", "Y"]]],
-                    [["ancestor", "X", "Z"], [["parent", "X", "Y"], ["ancestor", "Y", "Z"]]]
-                ]
-            )
+            "grandparent": json.dumps([["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]]),
+            "ancestor": json.dumps([
+                ["rule", ["ancestor", "X", "Y"], [["parent", "X", "Y"]]],
+                ["rule", ["ancestor", "X", "Z"], [["parent", "X", "Y"], ["ancestor", "Y", "Z"]]]
+            ])
         }
-        
-        def generate(term, context):
-            for key in responses:
-                if key in str(term):
-                    return responses[key]
-            return LLMResponse("", [], [])
-        
-        mock_llm_provider.generate_knowledge = generate
+
+        # Store original _call_api
+        original_call_api = mock_llm_provider._call_api
+
+        def custom_call_api(prompt, **kwargs):
+            # Check prompt for which predicate is being queried
+            # Look specifically in the Query line to avoid false matches
+            lines = prompt.split('\n')
+            query_line = next((line for line in lines if line.startswith('Query:')), '')
+
+            for key, response in responses.items():
+                if key in query_line.lower():
+                    return response
+            # Fall back to original for anything else
+            return original_call_api(prompt, **kwargs)
+
+        # Override _call_api (not generate_knowledge, since LLMHook uses complete())
+        mock_llm_provider._call_api = custom_call_api
         
         kb = dreamlog(llm_provider=mock_llm_provider)
         kb.fact("parent", "john", "mary")

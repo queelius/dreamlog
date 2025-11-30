@@ -34,8 +34,9 @@ class MockLLMProvider(BaseLLMProvider):
         
         # Initialize base provider with all parameters
         super().__init__(**merged_kwargs)
-        
+
         # Mock-specific attributes
+        self.knowledge_domain = knowledge_domain  # Store knowledge domain
         self.custom_responses = {}  # For test-specific responses
         self.call_count = 0  # For tracking calls in tests
         self.domains = {
@@ -53,9 +54,7 @@ class MockLLMProvider(BaseLLMProvider):
                     ["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]
                 ],
                 "healthy": [
-                    ["fact", ["healthy", "alice"]],
-                    ["fact", ["exercises", "alice"]],
-                    ["fact", ["eats_well", "alice"]],
+                    # Return rules only - facts should be added manually by users
                     ["rule", ["healthy", "X"], [["exercises", "X"], ["eats_well", "X"]]]
                 ],
                 "uncle": [

@@ -154,6 +154,7 @@ class DreamLogTUI:
                 'model': self.config.provider.model,
                 'temperature': self.config.provider.temperature,
                 'max_tokens': self.config.provider.max_tokens,
+                'timeout': self.config.provider.timeout,
             }
 
             if self.config.provider.base_url:
@@ -1072,19 +1073,29 @@ def main():
     parser.add_argument("--provider", default="ollama", help="LLM provider")
     parser.add_argument("--model", default="phi4-mini:latest", help="LLM model")
     parser.add_argument("--base-url", default="http://localhost:11434", help="LLM base URL")
+    parser.add_argument("--timeout", type=int, default=30, help="LLM request timeout in seconds (default: 30, use 120 for reasoning models)")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output")
     parser.add_argument("--load", help="Load knowledge base on startup")
 
     args = parser.parse_args()
 
-    config = TUIConfig(
+    from dreamlog.config import DreamLogConfig, LLMProviderConfig
+
+    # Create provider config from CLI args
+    provider_config = LLMProviderConfig(
+        provider=args.provider,
+        model=args.model,
+        base_url=args.base_url,
+        timeout=args.timeout
+    )
+
+    # Create main config
+    config = DreamLogConfig(
+        provider=provider_config,
         llm_enabled=args.llm,
-        llm_provider=args.provider,
-        llm_model=args.model,
-        llm_base_url=args.base_url,
         debug_enabled=args.debug,
-        color_output=not args.no_color
+        tui_color_output=not args.no_color
     )
 
     tui = DreamLogTUI(config)
