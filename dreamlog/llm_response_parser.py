@@ -79,8 +79,9 @@ class DreamLogResponseParser:
         errors = []
         raw_data = None
         
-        # Try multiple parsing strategies
+        # Try multiple parsing strategies - Prolog first since it's most natural for LLMs
         strategies = [
+            self._parse_as_prolog,
             self._parse_as_json,
             self._parse_as_sexp,
             self._parse_with_extraction,
@@ -131,6 +132,104 @@ class DreamLogResponseParser:
         # Apply the fix
         result = re.sub(pattern, quote_if_needed, json_str)
         return result
+
+    def _parse_as_prolog(self, response: str) -> Optional[Tuple[List[Fact], List[Rule], Any, List[str]]]:
+        """
+        Parse Prolog-style syntax from LLM response.
+
+        Handles:
+        - Facts: predicate(arg1, arg2).
+        - Rules: head(X, Y) :- body1(X), body2(Y).
+
+        Also extracts from ```prolog code blocks.
+        """
+        facts = []
+        rules = []
+        errors = []
+
+        # Extract from ```prolog code blocks first
+        prolog_block_pattern = r'```(?:prolog)?\n?(.*?)```'
+        blocks = re.findall(prolog_block_pattern, response, re.DOTALL | re.IGNORECASE)
+
+        # If no code blocks, try to find Prolog statements in the raw text
+        if blocks:
+            text_to_parse = '\n'.join(blocks)
+        else:
+            text_to_parse = response
+
+        # Pattern for Prolog clauses (facts and rules)
+        # Matches: predicate(args) :- body.  OR  predicate(args).
+        clause_pattern = r'([a-z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)\s*(?::-\s*(.+?))?\s*\.'
+
+        for match in re.finditer(clause_pattern, text_to_parse, re.MULTILINE):
+            functor = match.group(1)
+            args_str = match.group(2)
+            body_str = match.group(3)
+
+            try:
+                # Parse arguments
+                args = self._parse_prolog_args(args_str)
+                head_term = self._build_term(functor, args)
+
+                if body_str:
+                    # It's a rule
+                    body_terms = self._parse_prolog_body(body_str)
+                    if body_terms:
+                        rules.append(Rule(head_term, body_terms))
+                else:
+                    # It's a fact
+                    facts.append(Fact(head_term))
+
+            except Exception as e:
+                errors.append(f"Error parsing Prolog clause '{match.group(0)}': {e}")
+
+        if facts or rules:
+            return (facts, rules, text_to_parse, errors)
+        return None
+
+    def _parse_prolog_args(self, args_str: str) -> List[Term]:
+        """Parse comma-separated Prolog arguments into terms."""
+        from .factories import atom, var
+
+        args = []
+        if not args_str.strip():
+            return args
+
+        # Simple split by comma (doesn't handle nested terms yet)
+        for arg in args_str.split(','):
+            arg = arg.strip()
+            if not arg:
+                continue
+            if arg[0].isupper() or arg.startswith('_'):
+                # Variable
+                args.append(var(arg))
+            else:
+                # Atom (constant)
+                args.append(atom(arg))
+        return args
+
+    def _parse_prolog_body(self, body_str: str) -> List[Term]:
+        """Parse Prolog rule body (comma-separated goals)."""
+        body_terms = []
+
+        # Pattern for body goals: predicate(args)
+        goal_pattern = r'([a-z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)'
+
+        for match in re.finditer(goal_pattern, body_str):
+            functor = match.group(1)
+            args_str = match.group(2)
+            args = self._parse_prolog_args(args_str)
+            body_terms.append(self._build_term(functor, args))
+
+        return body_terms
+
+    def _build_term(self, functor: str, args: List[Term]) -> Term:
+        """Build a compound term or atom from functor and args."""
+        from .factories import atom, compound
+
+        if not args:
+            return atom(functor)
+        return compound(functor, *args)
 
     def _parse_as_json(self, response: str) -> Optional[Tuple[List[Fact], List[Rule], Any, List[str]]]:
         """
@@ -347,12 +446,12 @@ class DreamLogResponseParser:
 
         # Split by lines and try to parse each
         lines = response.strip().split('\n')
-        
+
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-            
+
             # Try JSON first
             if line.startswith('['):
                 try:
@@ -366,7 +465,7 @@ class DreamLogResponseParser:
                             rules.append(rule)
                 except:
                     pass
-            
+
             # Try S-expression
             elif line.startswith('('):
                 try:
@@ -375,7 +474,7 @@ class DreamLogResponseParser:
                         # Parse as rule: (rule (head ...) ((body1 ...) (body2 ...)))
                         # Extract the parts using a simple approach
                         content = line[6:-1]  # Remove "(rule " and final ")"
-                        
+
                         # Find the head (first S-expression)
                         paren_count = 0
                         head_end = 0
@@ -387,18 +486,18 @@ class DreamLogResponseParser:
                                 if paren_count == 0:
                                     head_end = i + 1
                                     break
-                        
+
                         head_str = content[:head_end]
                         body_str = content[head_end:].strip()
-                        
+
                         # Parse head
                         head_term = parse_s_expression(head_str)
-                        
+
                         # Parse body - it should be ((term1) (term2) ...)
                         body_terms = []
                         if body_str.startswith('(') and body_str.endswith(')'):
                             body_content = body_str[1:-1]  # Remove outer parens
-                            
+
                             # Split body into individual terms
                             current_term = ""
                             paren_count = 0
@@ -411,7 +510,7 @@ class DreamLogResponseParser:
                                     if paren_count == 0 and current_term.strip():
                                         body_terms.append(parse_s_expression(current_term.strip()))
                                         current_term = ""
-                        
+
                         if head_term and body_terms:
                             rules.append(Rule(head_term, body_terms))
                     else:
@@ -421,9 +520,55 @@ class DreamLogResponseParser:
                 except Exception as e:
                     errors.append(f"S-expression parse error: {e}")
                     pass
-        
+
         if facts or rules:
             return (facts, rules, lines, errors)
+        return None
+
+    def extract_json_from_text(self, text: str) -> Optional[str]:
+        """
+        Extract JSON structure from text.
+
+        Tries to find JSON in code blocks first, then looks for raw JSON.
+
+        Args:
+            text: Text that may contain JSON
+
+        Returns:
+            JSON string or None if not found
+        """
+        # Try JSON code blocks first
+        json_code_block_pattern = r'```json\n?(.*?)```'
+        json_blocks = re.findall(json_code_block_pattern, text, re.DOTALL)
+
+        if json_blocks:
+            return json_blocks[0].strip()
+
+        # Try to find raw JSON structure
+        # Look for { ... } or [ ... ]
+        match = re.search(r'(\{.*\}|\[.*\])', text, re.DOTALL)
+        if match:
+            return match.group(0)
+
+        return None
+
+    def parse_rule_from_response(self, response: str) -> Optional[Rule]:
+        """
+        Parse a single rule from LLM response.
+
+        Args:
+            response: LLM response text
+
+        Returns:
+            Parsed Rule or None if parsing failed
+        """
+        # Parse the response
+        knowledge = self.parse(response)
+
+        # Return the first rule found
+        if knowledge.rules:
+            return knowledge.rules[0]
+
         return None
 
 
@@ -561,53 +706,6 @@ class DreamLogKnowledgeValidator:
                 report['valid'] = False
         
         return report
-
-
-    def extract_json_from_text(self, text: str) -> Optional[str]:
-        """
-        Extract JSON structure from text.
-
-        Tries to find JSON in code blocks first, then looks for raw JSON.
-
-        Args:
-            text: Text that may contain JSON
-
-        Returns:
-            JSON string or None if not found
-        """
-        # Try JSON code blocks first
-        json_code_block_pattern = r'```json\n?(.*?)```'
-        json_blocks = re.findall(json_code_block_pattern, text, re.DOTALL)
-
-        if json_blocks:
-            return json_blocks[0].strip()
-
-        # Try to find raw JSON structure
-        # Look for { ... } or [ ... ]
-        match = re.search(r'(\{.*\}|\[.*\])', text, re.DOTALL)
-        if match:
-            return match.group(0)
-
-        return None
-
-    def parse_rule_from_response(self, response: str) -> Optional[Rule]:
-        """
-        Parse a single rule from LLM response.
-
-        Args:
-            response: LLM response text
-
-        Returns:
-            Parsed Rule or None if parsing failed
-        """
-        # Parse the response
-        knowledge = self.parse(response)
-
-        # Return the first rule found
-        if knowledge.rules:
-            return knowledge.rules[0]
-
-        return None
 
 
 def parse_llm_response(response: str, strict: bool = False, validate: bool = True) -> Tuple[ParsedKnowledge, Optional[Dict]]:

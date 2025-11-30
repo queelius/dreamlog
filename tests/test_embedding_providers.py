@@ -48,7 +48,6 @@ class TestOllamaEmbeddingProvider:
         assert provider.base_url == "http://localhost:11434"
         assert provider.model == "nomic-embed-text"
         assert provider.timeout == 30
-        assert provider._dimension is None
 
         # Custom initialization
         provider = OllamaEmbeddingProvider(
@@ -85,13 +84,13 @@ class TestOllamaEmbeddingProvider:
         assert call_args[1]['json']['prompt'] == "test text"
         assert call_args[1]['timeout'] == 30
 
-        # Verify result
+        # Verify result - test behavior, not internal cache
         assert result == [0.1, 0.2, 0.3, 0.4, 0.5]
-        assert provider._dimension == 5  # Should cache dimension
+        assert len(result) == 5
 
     @patch('dreamlog.embedding_providers.requests.post')
-    def test_embed_caches_dimension(self, mock_post):
-        """Test that dimension is cached after first embedding"""
+    def test_embed_produces_consistent_dimensions(self, mock_post):
+        """Test that embeddings have consistent dimensions across calls"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "embedding": [0.1, 0.2, 0.3]
@@ -100,13 +99,13 @@ class TestOllamaEmbeddingProvider:
 
         provider = OllamaEmbeddingProvider()
 
-        # First call
-        provider.embed("first")
-        assert provider._dimension == 3
+        # Multiple calls should produce same dimension
+        emb1 = provider.embed("first")
+        emb2 = provider.embed("second")
 
-        # Second call should use cached dimension
-        provider.embed("second")
-        assert provider._dimension == 3
+        assert len(emb1) == len(emb2) == 3
+        # Verify dimension property also returns consistent value
+        assert provider.dimension == 3
 
     @patch('dreamlog.embedding_providers.requests.post')
     def test_embed_timeout_error(self, mock_post):
@@ -144,7 +143,7 @@ class TestOllamaEmbeddingProvider:
 
     @patch('dreamlog.embedding_providers.requests.post')
     def test_dimension_property_lazy_initialization(self, mock_post):
-        """Test that dimension property triggers embed if not cached"""
+        """Test that dimension property works without explicit embed call"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "embedding": [0.1] * 768
@@ -152,27 +151,36 @@ class TestOllamaEmbeddingProvider:
         mock_post.return_value = mock_response
 
         provider = OllamaEmbeddingProvider()
-        assert provider._dimension is None
 
-        # Accessing dimension should trigger embed("test")
+        # Accessing dimension should work even without explicit embed
         dim = provider.dimension
         assert dim == 768
-        assert provider._dimension == 768
 
-        # Verify embed was called with "test"
+        # Verify embed was called (implementation detail: with "test")
         mock_post.assert_called_once()
         assert mock_post.call_args[1]['json']['prompt'] == "test"
 
     @patch('dreamlog.embedding_providers.requests.post')
-    def test_dimension_property_uses_cache(self, mock_post):
-        """Test that dimension property uses cached value"""
-        provider = OllamaEmbeddingProvider()
-        provider._dimension = 1024  # Manually set cached dimension
+    def test_dimension_property_doesnt_make_redundant_calls(self, mock_post):
+        """Test that dimension property doesn't make redundant API calls"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "embedding": [0.1] * 1024
+        }
+        mock_post.return_value = mock_response
 
-        # Should not trigger API call
-        dim = provider.dimension
-        assert dim == 1024
-        mock_post.assert_not_called()
+        provider = OllamaEmbeddingProvider()
+
+        # First access triggers call
+        dim1 = provider.dimension
+        assert dim1 == 1024
+        assert mock_post.call_count == 1
+
+        # Subsequent accesses should not trigger more calls
+        dim2 = provider.dimension
+        dim3 = provider.dimension
+        assert dim2 == dim3 == 1024
+        assert mock_post.call_count == 1  # Still only one call
 
     def test_repr(self):
         """Test string representation"""
@@ -205,18 +213,27 @@ class TestTfIdfEmbeddingProvider:
         assert len(provider.vocabulary) > 0
         assert len(provider.idf) > 0
 
-    def test_tokenization(self):
-        """Test text tokenization"""
-        corpus = [{"domain": "test", "prolog": "foo(X)"}]
+    def test_embeddings_reflect_corpus_content(self):
+        """Test that embeddings reflect corpus content without testing internals"""
+        # Create corpus with specific tokens
+        corpus = [
+            {"domain": "family", "prolog": "parent john mary"},
+            {"domain": "family", "prolog": "grandparent X Z"},
+            {"domain": "programming", "prolog": "compile java"}
+        ]
         provider = TfIdfEmbeddingProvider(corpus)
 
-        tokens = provider._tokenize("Hello World! Test-123")
-        assert tokens == ["hello", "world", "test", "123"]
+        # Text with words in corpus should produce non-zero embeddings
+        emb_family = provider.embed("family parent grandparent")
+        assert any(x != 0.0 for x in emb_family), "Words from corpus should produce non-zero embeddings"
 
-        tokens = provider._tokenize("parent(X, Y)")
-        assert "parent" in tokens
-        assert "x" in tokens
-        assert "y" in tokens
+        # Text with no words in corpus should produce mostly zero embeddings
+        emb_unknown = provider.embed("completely unknown vocabulary words")
+        zero_count = sum(1 for x in emb_unknown if x == 0.0)
+        assert zero_count > len(emb_unknown) * 0.8, "Unknown words should produce sparse embeddings"
+
+        # Embeddings should have consistent dimensions
+        assert len(emb_family) == len(emb_unknown) == provider.dimension
 
     def test_vocabulary_building(self):
         """Test that vocabulary is built from corpus"""

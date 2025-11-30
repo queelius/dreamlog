@@ -37,6 +37,8 @@ from .knowledge import Fact, Rule
 from .prefix_parser import parse_s_expression, parse_prefix_notation
 from .config import DreamLogConfig
 from .llm_providers import create_provider
+from .tfidf_embedding_provider import TfIdfEmbeddingProvider
+from .prompt_template_system import RULE_EXAMPLES
 
 
 @dataclass
@@ -154,12 +156,15 @@ class DreamLog:
             if use_retry and not is_mock:
                 from .llm_retry_wrapper import create_retry_provider
                 provider = create_retry_provider(
-                    provider, 
+                    provider,
                     max_retries=max_retries,
                     verbose=verbose_retry
                 )
-            
-            llm_hook = LLMHook(provider)
+
+            # Create embedding provider for RAG (use TF-IDF with RULE_EXAMPLES corpus)
+            embedding_provider = TfIdfEmbeddingProvider(corpus=RULE_EXAMPLES)
+
+            llm_hook = LLMHook(provider, embedding_provider)
             self.engine = DreamLogEngine(llm_hook)
         else:
             self.engine = DreamLogEngine()
@@ -337,23 +342,26 @@ class DreamLog:
     def transaction(self):
         """
         Context manager for transactional operations
-        
+
         Example:
             with jl.transaction():
                 jl.fact("parent", "john", "mary")
                 jl.fact("parent", "mary", "alice")
                 # All facts added atomically
         """
-        # Save current state
-        saved_facts = self.engine.kb.facts.copy()
-        saved_rules = self.engine.kb.rules.copy()
-        
+        # Save current state (deep copy of internal lists)
+        saved_facts = list(self.engine.kb._facts)
+        saved_rules = list(self.engine.kb._rules)
+
         try:
             yield self
         except Exception:
-            # Rollback on error
-            self.engine.kb.facts = saved_facts
-            self.engine.kb.rules = saved_rules
+            # Rollback on error - restore internal state and rebuild indices
+            self.engine.kb._facts.clear()
+            self.engine.kb._facts.extend(saved_facts)
+            self.engine.kb._rules.clear()
+            self.engine.kb._rules.extend(saved_rules)
+            self.engine.kb._rebuild_indices()
             raise
     
     # Python integration
@@ -459,7 +467,7 @@ class DreamLog:
     
     def clear(self) -> 'DreamLog':
         """Clear all facts and rules"""
-        self.engine.clear()
+        self.engine.clear_knowledge()
         return self
     
     def __repr__(self) -> str:

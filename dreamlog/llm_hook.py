@@ -149,11 +149,29 @@ class LLMHook:
         self._debug(f"  Facts: {response.facts}")
         self._debug(f"  Rules: {response.rules}")
 
-        # Skip facts - LLM should only generate rules, not facts
-        # Facts should be manually added by users
-        if response.facts:
-            self._debug(f"  Note: Ignoring {len(response.facts)} facts from LLM (only rules are auto-generated)")
-        
+        # Process facts from LLM response
+        for fact_data in response.facts:
+            try:
+                # Validate fact data structure - should be a list like ["predicate", "arg1", "arg2"]
+                if not isinstance(fact_data, (list, tuple)) or len(fact_data) < 1:
+                    self._debug(f"  Skipping invalid fact data: {fact_data}")
+                    continue
+
+                # Create fact directly from the term data (not using from_prefix which expects ['fact', term])
+                from .factories import term_from_prefix
+                term = term_from_prefix(fact_data)
+                fact = Fact(term)
+
+                # Check if fact already exists
+                if any(f.term == fact.term for f in evaluator.kb.facts):
+                    self._debug(f"  - Skipped duplicate fact: {fact.term}")
+                else:
+                    evaluator.kb.add_fact(fact)
+                    added_count += 1
+                    self._debug(f"  ✓ Added fact: {fact.term}")
+            except Exception as e:
+                self._debug(f"  Error adding fact {fact_data}: {e}")
+
         for rule_data in response.rules:
             try:
                 # Validate rule data structure
