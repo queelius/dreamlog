@@ -436,3 +436,148 @@ class TestEndToEndLLMIntegration:
         # Query for undefined ancestor - should generate and use
         results = list(kb.query("ancestor", "john", "alice"))
         assert len(results) > 0
+
+
+class TestFactGeneration:
+    """Test LLM fact generation (new in v0.10.0)"""
+
+    @pytest.fixture
+    def mock_llm_provider(self):
+        """Create a mock LLM provider for fact generation tests"""
+        return MockLLMProvider(knowledge_domain="family")
+
+    def test_prolog_fact_parsing(self, mock_llm_provider):
+        """Test that Prolog-style facts are correctly parsed from LLM response"""
+        from dreamlog.llm_response_parser import DreamLogResponseParser
+
+        parser = DreamLogResponseParser()
+
+        # Test Prolog-style response with facts
+        prolog_response = """
+        Based on the name, mary is typically female.
+
+        ```prolog
+        female(mary).
+        female(alice).
+        male(john).
+        ```
+        """
+
+        result = parser.parse(prolog_response)
+
+        assert result is not None
+        assert result.is_valid
+        assert len(result.facts) >= 2
+        # Check that female(mary) was parsed
+        fact_strs = [str(f.term) for f in result.facts]
+        assert any("female" in f and "mary" in f for f in fact_strs)
+
+    def test_prolog_mixed_facts_and_rules(self, mock_llm_provider):
+        """Test parsing mixed facts and rules from Prolog response"""
+        from dreamlog.llm_response_parser import DreamLogResponseParser
+
+        parser = DreamLogResponseParser()
+
+        prolog_response = """
+        ```prolog
+        male(john).
+        male(bob).
+        father(X, Y) :- parent(X, Y), male(X).
+        ```
+        """
+
+        result = parser.parse(prolog_response)
+
+        assert result is not None
+        assert result.is_valid
+        assert len(result.facts) >= 2  # male(john), male(bob)
+        assert len(result.rules) >= 1  # father rule
+
+    def test_duplicate_facts_skipped(self, mock_llm_provider):
+        """Test that duplicate facts from LLM are not added twice"""
+        import json
+        kb = KnowledgeBase()
+        evaluator = Mock()
+        evaluator.kb = kb
+
+        # Pre-add a fact
+        from dreamlog.knowledge import Fact
+        from dreamlog.factories import term_from_prefix
+        existing_fact = Fact(term_from_prefix(["male", "john"]))
+        kb.add_fact(existing_fact)
+
+        embedding_provider = TfIdfEmbeddingProvider(corpus=RULE_EXAMPLES)
+        hook = LLMHook(mock_llm_provider, embedding_provider)
+
+        # Mock response that includes the existing fact
+        def custom_call_api(prompt, **kwargs):
+            return json.dumps([
+                ["fact", ["male", "john"]],  # Duplicate
+                ["fact", ["male", "bob"]],   # New
+                ["rule", ["father", "X", "Y"], [["parent", "X", "Y"], ["male", "X"]]]
+            ])
+
+        mock_llm_provider._call_api = custom_call_api
+
+        # Trigger generation
+        term = compound("father", var("X"), var("Y"))
+        hook(term, evaluator)
+
+        # Should only have 2 facts (original + bob, not duplicate john)
+        assert len(kb.facts) == 2
+        fact_strs = [str(f.term) for f in kb.facts]
+        assert sum(1 for f in fact_strs if "john" in f) == 1  # Only one john
+
+    def test_fact_generation_with_prolog_syntax(self, mock_llm_provider):
+        """Test end-to-end fact generation using Prolog syntax from LLM"""
+        import json
+
+        # Override to return Prolog-style response
+        def custom_call_api(prompt, **kwargs):
+            # Return a response with Prolog in code block
+            return """
+            The name "mary" is typically female.
+
+            ```prolog
+            female(mary).
+            ```
+            """
+
+        mock_llm_provider._call_api = custom_call_api
+
+        kb = dreamlog(llm_provider=mock_llm_provider)
+        kb.fact("parent", "mary", "alice")
+
+        # Query for mother - should trigger generation
+        # Note: mother needs female(mary) fact
+        results = list(kb.query("female", "mary"))
+
+        # The LLM should have generated female(mary) fact
+        facts = [str(f.term) for f in kb.engine.kb.facts]
+        assert any("female" in f and "mary" in f for f in facts)
+
+    def test_world_knowledge_inference_names(self, mock_llm_provider):
+        """Test that LLM can infer gender from names using world knowledge"""
+        # This tests the prompt's instruction to use world knowledge
+        # The mock provider should be configured to return appropriate facts
+
+        mock_llm_provider.add_response("male",
+            facts=[["male", "john"], ["male", "bob"]],
+            rules=[]
+        )
+
+        mock_llm_provider.add_response("female",
+            facts=[["female", "mary"], ["female", "alice"]],
+            rules=[]
+        )
+
+        kb = dreamlog(llm_provider=mock_llm_provider)
+        kb.fact("parent", "john", "mary")
+
+        # Query for male(john) - should trigger fact generation
+        results = list(kb.query("male", "john"))
+
+        # Check that male fact was added
+        facts = [str(f.term) for f in kb.engine.kb.facts]
+        male_facts = [f for f in facts if "male" in f]
+        assert len(male_facts) > 0

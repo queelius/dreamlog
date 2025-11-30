@@ -876,37 +876,108 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
                 self._print(f"    • {cap}")
 
     def _cmd_sleep(self, args: str):
-        """Run full sleep cycle"""
+        """Run full sleep cycle (dream with all optimizations)"""
         self._print(self._colorize("\n=== Sleep Cycle Starting ===", Colors.BOLD))
-        self._print("Running compression and consolidation...")
+        self._print("Running full dream cycle with compression, abstraction, and generalization...\n")
 
-        # TODO: Implement actual sleep cycle
-        self._print(self._colorize("⚠ Sleep cycle not yet implemented", Colors.YELLOW))
-        self.stats['sleep_cycles'] += 1
+        try:
+            from .kb_dreamer import KnowledgeBaseDreamer
+
+            # Create dreamer (uses LLM provider if available)
+            dreamer = KnowledgeBaseDreamer(self.llm_provider)
+
+            # Run dream cycle
+            session = dreamer.dream(
+                self.engine.kb,
+                dream_cycles=3,
+                exploration_samples=5,
+                focus="all",
+                verify=True
+            )
+
+            # Display results
+            self._print(self._colorize(f"Dream cycle complete!", Colors.GREEN))
+            self._print(f"  Exploration paths: {session.exploration_paths}")
+            self._print(f"  Insights discovered: {len(session.insights)}")
+            self._print(f"  Compression ratio: {session.compression_ratio:.1%}")
+            self._print(f"  Generalization score: {session.generalization_score:.2f}")
+            self._print(f"  Behavior preserved: {session.verification.preserved}")
+
+            if session.insights:
+                self._print(self._colorize("\nInsights:", Colors.CYAN))
+                for insight in session.insights:
+                    self._print(f"  [{insight.type}] {insight.description}")
+
+            self.stats['sleep_cycles'] += 1
+
+        except Exception as e:
+            self._print(self._colorize(f"✗ Sleep cycle failed: {e}", Colors.RED))
 
     def _cmd_compress(self, args: str):
-        """Compress knowledge base"""
+        """Compress knowledge base (detect redundancies)"""
         self._print(self._colorize("\n=== Knowledge Base Compression ===", Colors.BOLD))
-        # TODO: Implement compression
-        self._print(self._colorize("⚠ Compression not yet implemented", Colors.YELLOW))
+
+        try:
+            from .kb_dreamer import KnowledgeBaseDreamer
+
+            dreamer = KnowledgeBaseDreamer(self.llm_provider)
+            session = dreamer.dream(self.engine.kb, focus="compression", verify=False)
+
+            if session.insights:
+                self._print(self._colorize(f"Found {len(session.insights)} compression opportunities:", Colors.GREEN))
+                for insight in session.insights:
+                    self._print(f"  • {insight.description}")
+                    self._print(f"    Potential compression: {insight.compression_ratio:.1%}")
+            else:
+                self._print(self._colorize("No compression opportunities found", Colors.YELLOW))
+
+        except Exception as e:
+            self._print(self._colorize(f"✗ Compression analysis failed: {e}", Colors.RED))
 
     def _cmd_consolidate(self, args: str):
-        """Consolidate learned knowledge"""
+        """Consolidate learned knowledge (detect generalizations)"""
         self._print(self._colorize("\n=== Knowledge Consolidation ===", Colors.BOLD))
-        # TODO: Implement consolidation
-        self._print(self._colorize("⚠ Consolidation not yet implemented", Colors.YELLOW))
+
+        try:
+            from .kb_dreamer import KnowledgeBaseDreamer
+
+            dreamer = KnowledgeBaseDreamer(self.llm_provider)
+            session = dreamer.dream(self.engine.kb, focus="generalization", verify=False)
+
+            if session.insights:
+                self._print(self._colorize(f"Found {len(session.insights)} generalization opportunities:", Colors.GREEN))
+                for insight in session.insights:
+                    self._print(f"  • {insight.description}")
+                    self._print(f"    Coverage gain: {insight.coverage_gain:.1f}x")
+            else:
+                self._print(self._colorize("No generalization opportunities found", Colors.YELLOW))
+
+        except Exception as e:
+            self._print(self._colorize(f"✗ Consolidation analysis failed: {e}", Colors.RED))
 
     def _cmd_dream(self, args: str):
-        """Run dream cycle"""
-        self._print(self._colorize("\n=== Dream Cycle ===", Colors.BOLD))
-        # TODO: Implement dream cycle
-        self._print(self._colorize("⚠ Dream cycle not yet implemented", Colors.YELLOW))
+        """Run dream cycle (alias for /sleep)"""
+        self._cmd_sleep(args)
 
     def _cmd_analyze(self, args: str):
-        """Analyze compression opportunities"""
-        self._print(self._colorize("\n=== Compression Analysis ===", Colors.BOLD))
-        # TODO: Implement analysis
-        self._print(self._colorize("⚠ Analysis not yet implemented", Colors.YELLOW))
+        """Analyze all optimization opportunities"""
+        self._print(self._colorize("\n=== Knowledge Base Analysis ===", Colors.BOLD))
+
+        try:
+            from .kb_dreamer import KnowledgeBaseDreamer
+
+            dreamer = KnowledgeBaseDreamer(self.llm_provider)
+            suggestions = dreamer.suggest_optimizations(self.engine.kb)
+
+            if suggestions:
+                self._print(self._colorize(f"Found {len(suggestions)} optimization opportunities:\n", Colors.GREEN))
+                for suggestion in suggestions:
+                    self._print(f"  • {suggestion}")
+            else:
+                self._print(self._colorize("Knowledge base is already well-optimized!", Colors.GREEN))
+
+        except Exception as e:
+            self._print(self._colorize(f"✗ Analysis failed: {e}", Colors.RED))
 
     def _cmd_explain(self, args: str):
         """Explain how a query would be resolved"""
