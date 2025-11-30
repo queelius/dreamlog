@@ -184,3 +184,6 @@ playground/
 # Local development
 .DS_Store
 Thumbs.db
+# LaTeX build artifacts
+*.bbl
+*.blg

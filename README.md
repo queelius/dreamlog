@@ -43,7 +43,8 @@ print(f"Generalization score: {session.generalization_score:.2f}")
 - Verifies that optimizations preserve behavior
 
 ### 🤖 LLM-Powered Learning
-- Generates missing knowledge when needed
+- Generates missing knowledge when needed (both facts and rules)
+- Uses world knowledge to infer primitive properties (e.g., gender from names)
 - Context-aware generation based on existing facts
 - Multiple provider support (OpenAI, Anthropic, Ollama)
 
@@ -96,8 +97,9 @@ for result in kb.query("grandparent", "X", "alice"):
     print(f"{result.bindings['X']} is Alice's grandparent")
 
 # Enable LLM for undefined predicates
-kb_with_llm = dreamlog(llm_provider="openai")
+kb_with_llm = dreamlog(llm_provider="ollama")
 # Now queries for undefined predicates will generate knowledge automatically
+# The LLM infers both facts (e.g., male(john) from names) and rules (e.g., father(X,Y) :- parent(X,Y), male(X))
 ```
 
 ## The Philosophy

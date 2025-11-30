@@ -1,9 +1,9 @@
-site_name: JLOG - Logic Programming with LLM Integration
-site_description: A modern Prolog-like language that learns as it reasons
-site_author: JLOG Contributors
-site_url: https://github.com/queelius/jlog
-repo_url: https://github.com/queelius/jlog
-repo_name: jlog
+site_name: DreamLog - Logic Programming with Wake-Sleep Cycles
+site_description: A reasoning engine that dreams to improve itself
+site_author: DreamLog Contributors
+site_url: https://github.com/queelius/dreamlog
+repo_url: https://github.com/queelius/dreamlog
+repo_name: dreamlog
 
 theme:
   name: material
@@ -70,28 +70,21 @@ nav:
     - Knowledge Bases: guide/knowledge.md
     - Queries: guide/queries.md
     - LLM Integration: guide/llm.md
-  - Python API:
-    - Fluent Interface: api/pythonic.md
-    - REPL: api/repl.md
-    - Engine: api/engine.md
-  - Integrations:
-    - REST API: integrations/rest.md
-    - Jupyter: integrations/jupyter.md
-    - VS Code: integrations/vscode.md
-    - MCP: integrations/mcp.md
   - API Reference:
-    - Terms: reference/terms.md
-    - Unification: reference/unification.md
-    - LLM Providers: reference/llm.md
-  - Examples:
-    - Family Trees: examples/family.md
-    - Academic Records: examples/academic.md
-    - Zero-Shot Learning: examples/zero-shot.md
-  - Contributing: contributing.md
+    - Overview: api/index.md
+    - Terms: api/terms.md
+    - Unification: api/unification.md
+    - Knowledge Base: api/knowledge_base.md
+    - Parser: api/parser.md
+  - Integrations:
+    - Overview: integrations/index.md
+    - REST API: integrations/rest_api.md
+    - MCP Server: integrations/mcp.md
+  - Examples: examples/index.md
 
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/queelius/jlog
+      link: https://github.com/queelius/dreamlog
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/jlog/
+      link: https://pypi.org/project/dreamlog/
