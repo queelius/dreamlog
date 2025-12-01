@@ -573,7 +573,7 @@ Define the predicate '{functor}' to answer the query above.
 Here are complete examples showing how to reason about queries:
 
 ### Example 1: Query about gender (primitive property)
-**Query:** `["male", "john"]`
+**Query:** `male(john)`
 **KB Facts:** `parent(john, mary). parent(john, tom).`
 **Reasoning:** The predicate `male` is a primitive property - it cannot be derived from `parent` relationships. The name "john" is typically male. I should generate a fact.
 **Output:**
@@ -582,7 +582,7 @@ male(john).
 ```
 
 ### Example 2: Query about gender with female name
-**Query:** `["female", "mary"]`
+**Query:** `female(mary)`
 **KB Facts:** `parent(john, mary). parent(mary, alice).`
 **Reasoning:** The predicate `female` is a primitive property. The name "mary" is typically female. I should generate a fact.
 **Output:**
@@ -591,7 +591,7 @@ female(mary).
 ```
 
 ### Example 3: Query about a derivable relationship
-**Query:** `["father", "X", "Y"]`
+**Query:** `father(X, Y)`
 **KB Facts:** `parent(john, mary). male(john).`
 **Reasoning:** A father is a male parent. I have both `parent` and `male` predicates in the KB. I should generate a rule.
 **Output:**
@@ -600,7 +600,7 @@ father(X, Y) :- parent(X, Y), male(X).
 ```
 
 ### Example 4: Query about ancestry (recursive)
-**Query:** `["ancestor", "X", "Y"]`
+**Query:** `ancestor(X, Y)`
 **KB Facts:** `parent(john, mary). parent(mary, alice).`
 **Reasoning:** An ancestor is either a parent (base case) or a parent of an ancestor (recursive case). I should generate rules.
 **Output:**
@@ -610,7 +610,7 @@ ancestor(X, Z) :- parent(X, Y), ancestor(Y, Z).
 ```
 
 ### Example 5: Query about grandparent
-**Query:** `["grandparent", "X", "Z"]`
+**Query:** `grandparent(X, Z)`
 **KB Facts:** `parent(john, mary). parent(mary, alice).`
 **Reasoning:** A grandparent is a parent of a parent. I can derive this from the `parent` predicate.
 **Output:**
@@ -619,7 +619,7 @@ grandparent(X, Z) :- parent(X, Y), parent(Y, Z).
 ```
 
 ### Example 6: Negative inference from name
-**Query:** `["male", "mary"]`
+**Query:** `male(mary)`
 **KB Facts:** `parent(mary, alice). parent(john, mary).`
 **Reasoning:** The query asks if mary is male. The name "mary" is typically female, not male. I should NOT generate `male(mary)`. Instead, I can generate the opposite fact if useful, or generate nothing for male(mary).
 **Output:**
