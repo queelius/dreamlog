@@ -884,7 +884,8 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
             from .kb_dreamer import KnowledgeBaseDreamer
 
             # Create dreamer (uses LLM provider if available)
-            dreamer = KnowledgeBaseDreamer(self.llm_provider)
+            provider = self.engine.llm_hook.provider if self.engine.llm_hook else None
+            dreamer = KnowledgeBaseDreamer(provider)
 
             # Run dream cycle
             session = dreamer.dream(
@@ -920,7 +921,8 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
         try:
             from .kb_dreamer import KnowledgeBaseDreamer
 
-            dreamer = KnowledgeBaseDreamer(self.llm_provider)
+            provider = self.engine.llm_hook.provider if self.engine.llm_hook else None
+            dreamer = KnowledgeBaseDreamer(provider)
             session = dreamer.dream(self.engine.kb, focus="compression", verify=False)
 
             if session.insights:
@@ -941,7 +943,8 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
         try:
             from .kb_dreamer import KnowledgeBaseDreamer
 
-            dreamer = KnowledgeBaseDreamer(self.llm_provider)
+            provider = self.engine.llm_hook.provider if self.engine.llm_hook else None
+            dreamer = KnowledgeBaseDreamer(provider)
             session = dreamer.dream(self.engine.kb, focus="generalization", verify=False)
 
             if session.insights:
@@ -966,7 +969,8 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
         try:
             from .kb_dreamer import KnowledgeBaseDreamer
 
-            dreamer = KnowledgeBaseDreamer(self.llm_provider)
+            provider = self.engine.llm_hook.provider if self.engine.llm_hook else None
+            dreamer = KnowledgeBaseDreamer(provider)
             suggestions = dreamer.suggest_optimizations(self.engine.kb)
 
             if suggestions:
