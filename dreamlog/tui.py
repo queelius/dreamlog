@@ -676,6 +676,21 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
 
             self._print(self._colorize(f"\n? {query}", Colors.CYAN))
 
+            # Extract user's query variables (before evaluation)
+            from .terms import Variable
+            def get_vars(term):
+                """Recursively get all variable names from a term"""
+                if isinstance(term, Variable):
+                    return {term.name}
+                elif hasattr(term, 'args'):
+                    vars_set = set()
+                    for arg in term.args:
+                        vars_set.update(get_vars(arg))
+                    return vars_set
+                return set()
+
+            query_vars = get_vars(query)
+
             results = self.engine.query([query])
 
             if results:
@@ -684,8 +699,10 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
 
                 for i, result in enumerate(limited_results, 1):
                     bindings = result.get_ground_bindings()
-                    if bindings:
-                        binding_str = ", ".join(f"{k}={v}" for k, v in bindings.items())
+                    # Filter to only show user's query variables
+                    user_bindings = {k: v for k, v in bindings.items() if k in query_vars}
+                    if user_bindings:
+                        binding_str = ", ".join(f"{k}={v}" for k, v in user_bindings.items())
                         self._print(self._colorize(f"  {i}. {binding_str}", Colors.GREEN))
                     else:
                         self._print(self._colorize(f"  {i}. true", Colors.GREEN))
