@@ -979,9 +979,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#repl" class="md-nav__link">
+  <a href="#tui" class="md-nav__link">
     <span class="md-ellipsis">
-      REPL
+      TUI
     </span>
   </a>
   
@@ -1000,39 +1000,6 @@
   <a href="#rest-api" class="md-nav__link">
     <span class="md-ellipsis">
       REST API
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#utilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      Utilities
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Utilities">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#types" class="md-nav__link">
-    <span class="md-ellipsis">
-      Types
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#exceptions" class="md-nav__link">
-    <span class="md-ellipsis">
-      Exceptions
     </span>
   </a>
   
@@ -1499,9 +1466,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#repl" class="md-nav__link">
+  <a href="#tui" class="md-nav__link">
     <span class="md-ellipsis">
-      REPL
+      TUI
     </span>
   </a>
   
@@ -1520,39 +1487,6 @@
   <a href="#rest-api" class="md-nav__link">
     <span class="md-ellipsis">
       REST API
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#utilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      Utilities
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Utilities">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#types" class="md-nav__link">
-    <span class="md-ellipsis">
-      Types
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#exceptions" class="md-nav__link">
-    <span class="md-ellipsis">
-      Exceptions
     </span>
   </a>
   
@@ -1614,20 +1548,20 @@
 <li><code>subsumes()</code> - Subsumption checking</li>
 <li><code>Unifier</code> - Stateful unification operations</li>
 </ul>
-<h3 id="evaluator"><a href="evaluator.md">Evaluator</a><a class="headerlink" href="#evaluator" title="Permanent link">&para;</a></h3>
+<h3 id="evaluator">Evaluator<a class="headerlink" href="#evaluator" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>PrologEvaluator</code> - SLD resolution with backtracking</li>
 <li><code>Solution</code> - Query results with variable bindings</li>
 <li>Query evaluation strategies</li>
 </ul>
-<h3 id="engine"><a href="engine.md">Engine</a><a class="headerlink" href="#engine" title="Permanent link">&para;</a></h3>
+<h3 id="engine">Engine<a class="headerlink" href="#engine" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>JLogEngine</code> - High-level API combining all components</li>
+<li><code>DreamLogEngine</code> - High-level API combining all components</li>
 <li><code>add_fact()</code>, <code>add_rule()</code>, <code>query()</code> methods</li>
 <li>Persistence with <code>save_to_prefix()</code>, <code>load_from_prefix()</code></li>
 </ul>
 <h2 id="llm-integration">LLM Integration<a class="headerlink" href="#llm-integration" title="Permanent link">&para;</a></h2>
-<h3 id="llm-providers"><a href="llm_providers.md">LLM Providers</a><a class="headerlink" href="#llm-providers" title="Permanent link">&para;</a></h3>
+<h3 id="llm-providers">LLM Providers<a class="headerlink" href="#llm-providers" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>LLMProvider</code> - Protocol for all providers</li>
 <li><code>MockLLMProvider</code> - Testing provider</li>
@@ -1635,68 +1569,57 @@
 <li><code>AnthropicProvider</code> - Anthropic Claude integration</li>
 <li><code>OllamaProvider</code> - Local LLM support</li>
 </ul>
-<h3 id="llm-hook"><a href="llm_hook.md">LLM Hook</a><a class="headerlink" href="#llm-hook" title="Permanent link">&para;</a></h3>
+<h3 id="llm-hook">LLM Hook<a class="headerlink" href="#llm-hook" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>LLMHook</code> - Automatic knowledge generation</li>
 <li>Context extraction and management</li>
 <li>Caching and rate limiting</li>
 </ul>
-<h3 id="prompt-templates"><a href="prompt_templates.md">Prompt Templates</a><a class="headerlink" href="#prompt-templates" title="Permanent link">&para;</a></h3>
+<h3 id="prompt-templates">Prompt Templates<a class="headerlink" href="#prompt-templates" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>PromptTemplateManager</code> - Manage prompt templates</li>
 <li>Template variables and substitution</li>
 <li>Custom template creation</li>
 </ul>
 <h2 id="wake-sleep-system">Wake-Sleep System<a class="headerlink" href="#wake-sleep-system" title="Permanent link">&para;</a></h2>
-<h3 id="kb-dreamer"><a href="kb_dreamer.md">KB Dreamer</a><a class="headerlink" href="#kb-dreamer" title="Permanent link">&para;</a></h3>
+<h3 id="kb-dreamer">KB Dreamer<a class="headerlink" href="#kb-dreamer" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>KnowledgeBaseDreamer</code> - Wake-sleep optimization</li>
 <li><code>DreamSession</code> - Dream cycle results</li>
 <li><code>DreamInsight</code> - Individual optimizations</li>
 <li>Compression, abstraction, and generalization</li>
 </ul>
-<h3 id="configuration"><a href="config.md">Configuration</a><a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h3>
+<h3 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>DreamLogConfig</code> - Main configuration</li>
 <li><code>LLMSamplingConfig</code> - Sampling strategies</li>
 <li>YAML configuration support</li>
 </ul>
 <h2 id="pythonic-interface">Pythonic Interface<a class="headerlink" href="#pythonic-interface" title="Permanent link">&para;</a></h2>
-<h3 id="pythonic-api"><a href="pythonic.md">Pythonic API</a><a class="headerlink" href="#pythonic-api" title="Permanent link">&para;</a></h3>
+<h3 id="pythonic-api">Pythonic API<a class="headerlink" href="#pythonic-api" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>dreamlog()</code> - Fluent API factory</li>
 <li>Method chaining for facts and rules</li>
 <li>Query execution and results</li>
 </ul>
 <h2 id="integration-modules">Integration Modules<a class="headerlink" href="#integration-modules" title="Permanent link">&para;</a></h2>
-<h3 id="repl"><a href="repl.md">REPL</a><a class="headerlink" href="#repl" title="Permanent link">&para;</a></h3>
+<h3 id="tui">TUI<a class="headerlink" href="#tui" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Interactive command-line interface</li>
+<li>Interactive terminal user interface</li>
 <li>Commands for queries, facts, rules</li>
-<li>Syntax highlighting and completion</li>
+<li>LLM and dreaming support</li>
 </ul>
-<h3 id="mcp-server"><a href="mcp.md">MCP Server</a><a class="headerlink" href="#mcp-server" title="Permanent link">&para;</a></h3>
+<h3 id="mcp-server">MCP Server<a class="headerlink" href="#mcp-server" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Model Context Protocol integration</li>
 <li>Tool definitions for DreamLog operations</li>
 <li>WebSocket communication</li>
 </ul>
-<h3 id="rest-api"><a href="rest_api.md">REST API</a><a class="headerlink" href="#rest-api" title="Permanent link">&para;</a></h3>
+<h3 id="rest-api">REST API<a class="headerlink" href="#rest-api" title="Permanent link">&para;</a></h3>
 <ul>
 <li>HTTP endpoints for DreamLog</li>
 <li>WebSocket REPL support</li>
 <li>JSON request/response format</li>
-</ul>
-<h2 id="utilities">Utilities<a class="headerlink" href="#utilities" title="Permanent link">&para;</a></h2>
-<h3 id="types"><a href="types.md">Types</a><a class="headerlink" href="#types" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Type hints and protocols</li>
-<li>Common type definitions</li>
-</ul>
-<h3 id="exceptions"><a href="exceptions.md">Exceptions</a><a class="headerlink" href="#exceptions" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Custom exception classes</li>
-<li>Error handling patterns</li>
 </ul>
 
 
