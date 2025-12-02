@@ -4,24 +4,24 @@ This section contains practical examples demonstrating various DreamLog features
 
 ## Basic Examples
 
-### [Family Relations](family_relations.md)
+### Family Relations
 Classic family tree reasoning with parent, grandparent, and sibling relationships.
 
-### [Academic Database](academic_database.md)
+### Academic Database
 Student enrollment, course prerequisites, and grade calculations.
 
-### [Graph Algorithms](graph_algorithms.md)
+### Graph Algorithms
 Path finding, connectivity, and graph traversal using logic programming.
 
 ## Advanced Examples
 
-### [Wake-Sleep Optimization](wake_sleep_optimization.md)
+### Wake-Sleep Optimization
 Demonstrating knowledge base compression and abstraction through dream cycles.
 
-### [LLM Knowledge Generation](llm_generation.md)
+### LLM Knowledge Generation
 Automatic fact and rule generation using language models.
 
-### [Real-time Reasoning](realtime_reasoning.md)
+### Real-time Reasoning
 Building a reactive system with DreamLog and WebSockets.
 
 ## Quick Examples

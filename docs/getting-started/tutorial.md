@@ -625,7 +625,7 @@ You've learned how to:
 
 - Explore [S-Expression Syntax](../guide/syntax.md) in depth
 - Learn about [LLM Integration](../guide/llm.md) options
-- Check out [API Reference](../api/pythonic.md) for all methods
-- See [Examples](../examples/family.md) for more use cases
+- Check out [API Reference](../api/index.md) for all methods
+- See [Examples](../examples/index.md) for more use cases
 
 Happy logic programming with DreamLog!

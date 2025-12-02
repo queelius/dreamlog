@@ -768,7 +768,5 @@ class QualityMonitor:
 
 ## Next Steps
 
-- [Examples](../examples/llm-examples.md) - LLM integration examples
-- [API Reference](../api/llm.md) - Complete LLM API
-- [Providers](../api/providers.md) - Provider implementations
-- [Templates](../api/templates.md) - Prompt template guide
+- [Examples](../examples/index.md) - LLM integration examples
+- [API Reference](../api/index.md) - Complete API documentation

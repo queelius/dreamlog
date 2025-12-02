@@ -467,5 +467,5 @@ This is equivalent to S-expressions and useful for programmatic generation.
 
 - [Knowledge Bases](knowledge.md) - Managing facts and rules
 - [Queries](queries.md) - Advanced query techniques
-- [Python API](../api/pythonic.md) - Using S-expressions from Python
-- [Examples](../examples/family.md) - Real-world usage patterns
+- [API Reference](../api/index.md) - Using S-expressions from Python
+- [Examples](../examples/index.md) - Real-world usage patterns

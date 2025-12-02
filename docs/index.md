@@ -1,14 +1,10 @@
 # DreamLog: Logic Programming with Wake-Sleep Cycles
 
-<div align="center">
-
 **A reasoning engine that dreams to improve itself, inspired by how the brain consolidates knowledge during sleep.**
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/Docs-MkDocs-blue.svg)](https://yourdocs.com)
-
-</div>
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/queelius/dreamlog/blob/master/LICENSE)
+[![Documentation](https://img.shields.io/badge/Docs-MkDocs-blue.svg)](https://queelius.github.io/dreamlog/)
 
 ## What is DreamLog?
 
@@ -226,17 +222,14 @@ This isn't just logic programming with LLMs bolted on—it's a fundamentally new
 
 ## Community
 
-- 📖 [Documentation](https://docs.dreamlog.dev)
+- 📖 [Documentation](https://queelius.github.io/dreamlog/)
 - 🐛 [Issue Tracker](https://github.com/queelius/dreamlog/issues)
 - 💬 [Discussions](https://github.com/queelius/dreamlog/discussions)
-- 🤝 [Contributing Guide](contributing.md)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](https://github.com/queelius/dreamlog/blob/master/LICENSE) for details.
 
 ---
 
-<div align="center">
-<i>Built by dreamers who believe reasoning systems should sleep, perchance to dream</i>
-</div>
+*Built by dreamers who believe reasoning systems should sleep, perchance to dream*

@@ -29,78 +29,68 @@ The DreamLog API provides a comprehensive set of classes and functions for logic
 - `subsumes()` - Subsumption checking
 - `Unifier` - Stateful unification operations
 
-### [Evaluator](evaluator.md)
+### Evaluator
 - `PrologEvaluator` - SLD resolution with backtracking
 - `Solution` - Query results with variable bindings
 - Query evaluation strategies
 
-### [Engine](engine.md)
-- `JLogEngine` - High-level API combining all components
+### Engine
+- `DreamLogEngine` - High-level API combining all components
 - `add_fact()`, `add_rule()`, `query()` methods
 - Persistence with `save_to_prefix()`, `load_from_prefix()`
 
 ## LLM Integration
 
-### [LLM Providers](llm_providers.md)
+### LLM Providers
 - `LLMProvider` - Protocol for all providers
 - `MockLLMProvider` - Testing provider
 - `OpenAIProvider` - OpenAI API integration
 - `AnthropicProvider` - Anthropic Claude integration
 - `OllamaProvider` - Local LLM support
 
-### [LLM Hook](llm_hook.md)
+### LLM Hook
 - `LLMHook` - Automatic knowledge generation
 - Context extraction and management
 - Caching and rate limiting
 
-### [Prompt Templates](prompt_templates.md)
+### Prompt Templates
 - `PromptTemplateManager` - Manage prompt templates
 - Template variables and substitution
 - Custom template creation
 
 ## Wake-Sleep System
 
-### [KB Dreamer](kb_dreamer.md)
+### KB Dreamer
 - `KnowledgeBaseDreamer` - Wake-sleep optimization
 - `DreamSession` - Dream cycle results
 - `DreamInsight` - Individual optimizations
 - Compression, abstraction, and generalization
 
-### [Configuration](config.md)
+### Configuration
 - `DreamLogConfig` - Main configuration
 - `LLMSamplingConfig` - Sampling strategies
 - YAML configuration support
 
 ## Pythonic Interface
 
-### [Pythonic API](pythonic.md)
+### Pythonic API
 - `dreamlog()` - Fluent API factory
 - Method chaining for facts and rules
 - Query execution and results
 
 ## Integration Modules
 
-### [REPL](repl.md)
-- Interactive command-line interface
+### TUI
+- Interactive terminal user interface
 - Commands for queries, facts, rules
-- Syntax highlighting and completion
+- LLM and dreaming support
 
-### [MCP Server](mcp.md)
+### MCP Server
 - Model Context Protocol integration
 - Tool definitions for DreamLog operations
 - WebSocket communication
 
-### [REST API](rest_api.md)
+### REST API
 - HTTP endpoints for DreamLog
 - WebSocket REPL support
 - JSON request/response format
-
-## Utilities
-
-### [Types](types.md)
-- Type hints and protocols
-- Common type definitions
-
-### [Exceptions](exceptions.md)
-- Custom exception classes
-- Error handling patterns

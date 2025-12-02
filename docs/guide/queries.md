@@ -608,6 +608,5 @@ async def main():
 ## Next Steps
 
 - [LLM Integration](llm.md) - AI-powered query enhancement
-- [Python API](../api/pythonic.md) - Full API reference
-- [Examples](../examples/queries.md) - Query examples
-- [Performance](../guide/performance.md) - Optimization guide
+- [API Reference](../api/index.md) - Full API reference
+- [Examples](../examples/index.md) - Query examples

@@ -585,5 +585,5 @@ if not is_valid:
 
 - [Query Evaluation](queries.md) - Advanced query techniques
 - [LLM Integration](llm.md) - AI-powered knowledge generation
-- [Python API](../api/pythonic.md) - Programmatic knowledge management
-- [Examples](../examples/academic.md) - Real-world knowledge bases
+- [API Reference](../api/index.md) - Programmatic knowledge management
+- [Examples](../examples/index.md) - Real-world knowledge bases

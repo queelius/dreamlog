@@ -20,7 +20,7 @@ HTTP API server for web applications and services.
 - JSON request/response format
 - Authentication and rate limiting
 
-### [Jupyter Integration](jupyter.md)
+### Jupyter Integration (Coming Soon)
 Magic commands for Jupyter notebooks.
 
 - `%%dreamlog` cell magic
@@ -28,21 +28,13 @@ Magic commands for Jupyter notebooks.
 - Visualization of query results
 - Dream cycle analysis
 
-### [VS Code Extension](vscode.md)
-Language server protocol implementation.
+### TUI (Terminal User Interface)
+Interactive terminal interface.
 
-- Syntax highlighting for `.dl` files
-- Auto-completion for predicates
-- Inline documentation
-- Error checking
-
-### [Command Line Tools](cli.md)
-Standalone command-line utilities.
-
-- `dreamlog` - Main CLI interface
-- `dreamlog-repl` - Interactive REPL
-- `dreamlog-server` - Start API server
-- `dreamlog-dream` - Run optimization cycles
+- `dreamlog` or `python -m dreamlog.tui` - Main TUI
+- Rich formatting and syntax highlighting
+- LLM and dreaming commands
+- Knowledge base management
 
 ## Quick Start
 
@@ -213,4 +205,4 @@ To add a new integration:
 4. Write tests
 5. Submit pull request
 
-See [Contributing Guide](../contributing.md) for details.
+See the [GitHub repository](https://github.com/queelius/dreamlog) for details.

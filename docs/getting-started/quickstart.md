@@ -238,6 +238,5 @@ In a Jupyter notebook:
 ## Next Steps
 
 - [Tutorial](tutorial.md) - Deep dive into DreamLog
-- [Python API](../api/pythonic.md) - Full API documentation
 - [LLM Integration](../guide/llm.md) - Configure AI-powered reasoning
-- [Examples](../examples/family.md) - More complex examples
+- [Examples](../examples/index.md) - More complex examples
