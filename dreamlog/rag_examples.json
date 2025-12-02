@@ -1,0 +1,247 @@
+[
+  {
+    "kb_predicates": ["parent/2"],
+    "kb_sample": "parent(john, mary). parent(mary, alice).",
+    "query": "grandparent(X, Z)",
+    "output": "grandparent(X, Z) :- parent(X, Y), parent(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2"],
+    "kb_sample": "parent(john, mary). parent(john, bob).",
+    "query": "sibling(X, Y)",
+    "output": "sibling(X, Y) :- parent(Z, X), parent(Z, Y), X \\= Y.",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2", "male/1"],
+    "kb_sample": "parent(john, mary). male(john).",
+    "query": "father(X, Y)",
+    "output": "father(X, Y) :- parent(X, Y), male(X).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2", "female/1"],
+    "kb_sample": "parent(mary, alice). female(mary).",
+    "query": "mother(X, Y)",
+    "output": "mother(X, Y) :- parent(X, Y), female(X).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2"],
+    "kb_sample": "parent(john, mary). parent(mary, alice).",
+    "query": "ancestor(X, Y)",
+    "output": "ancestor(X, Y) :- parent(X, Y).\nancestor(X, Z) :- parent(X, Y), ancestor(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2"],
+    "kb_sample": "parent(john, mary).",
+    "query": "male(john)",
+    "output": "male(john).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2"],
+    "kb_sample": "parent(mary, alice).",
+    "query": "female(mary)",
+    "output": "female(mary).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2", "sibling/2"],
+    "kb_sample": "parent(bob, charlie). sibling(alice, bob).",
+    "query": "uncle(X, Y)",
+    "output": "uncle(X, Y) :- sibling(X, Z), parent(Z, Y), male(X).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2", "sibling/2"],
+    "kb_sample": "parent(alice, charlie). sibling(alice, bob).",
+    "query": "aunt(X, Y)",
+    "output": "aunt(X, Y) :- sibling(X, Z), parent(Z, Y), female(X).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["parent/2"],
+    "kb_sample": "parent(john, mary). parent(bob, alice). parent(mary, charlie). parent(alice, charlie).",
+    "query": "cousin(X, Y)",
+    "output": "cousin(X, Y) :- parent(A, X), parent(B, Y), sibling(A, B).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["edge/2"],
+    "kb_sample": "edge(a, b). edge(b, c).",
+    "query": "path(X, Y)",
+    "output": "path(X, Y) :- edge(X, Y).\npath(X, Z) :- edge(X, Y), path(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["edge/2"],
+    "kb_sample": "edge(a, b). edge(b, c). edge(c, a).",
+    "query": "reachable(X, Y)",
+    "output": "reachable(X, Y) :- path(X, Y).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["manages/2"],
+    "kb_sample": "manages(alice, bob). manages(bob, charlie).",
+    "query": "reports_to(X, Y)",
+    "output": "reports_to(X, Y) :- manages(Y, X).\nreports_to(X, Z) :- manages(Y, X), reports_to(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["works_in/2"],
+    "kb_sample": "works_in(alice, engineering). works_in(bob, engineering).",
+    "query": "colleague(X, Y)",
+    "output": "colleague(X, Y) :- works_in(X, D), works_in(Y, D), X \\= Y.",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["in_country/2", "country_in/2"],
+    "kb_sample": "in_country(paris, france). country_in(france, europe).",
+    "query": "in_continent(X, Y)",
+    "output": "in_continent(City, Continent) :- in_country(City, Country), country_in(Country, Continent).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["edge/2"],
+    "kb_sample": "edge(a, b). edge(b, a).",
+    "query": "connected(X, Y)",
+    "output": "connected(X, Y) :- edge(X, Y).\nconnected(X, Y) :- edge(Y, X).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["teaches/2", "enrolled/2"],
+    "kb_sample": "teaches(smith, cs101). enrolled(alice, cs101).",
+    "query": "student_of(X, Y)",
+    "output": "student_of(Student, Professor) :- enrolled(Student, Course), teaches(Professor, Course).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["prerequisite/2"],
+    "kb_sample": "prerequisite(cs101, cs201). prerequisite(cs201, cs301).",
+    "query": "can_take(X, Y)",
+    "output": "can_take(Student, Course) :- completed(Student, Prereq), prerequisite(Prereq, Course).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["owns/2", "located_at/2"],
+    "kb_sample": "owns(alice, car1). located_at(car1, garage).",
+    "query": "has_item_at(X, Y)",
+    "output": "has_item_at(Person, Location) :- owns(Person, Item), located_at(Item, Location).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["ingredient/2"],
+    "kb_sample": "ingredient(flour, bread). ingredient(yeast, bread).",
+    "query": "contains(X, Y)",
+    "output": "contains(Food, Ingredient) :- ingredient(Ingredient, Food).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["likes/2"],
+    "kb_sample": "likes(alice, pizza). likes(bob, pizza).",
+    "query": "both_like(X, Y, Z)",
+    "output": "both_like(X, Y, Thing) :- likes(X, Thing), likes(Y, Thing), X \\= Y.",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["friend/2"],
+    "kb_sample": "friend(alice, bob). friend(bob, charlie).",
+    "query": "friend_of_friend(X, Y)",
+    "output": "friend_of_friend(X, Z) :- friend(X, Y), friend(Y, Z), X \\= Z.",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["part_of/2"],
+    "kb_sample": "part_of(wheel, car). part_of(tire, wheel).",
+    "query": "component_of(X, Y)",
+    "output": "component_of(X, Y) :- part_of(X, Y).\ncomponent_of(X, Z) :- part_of(X, Y), component_of(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["is_a/2"],
+    "kb_sample": "is_a(dog, mammal). is_a(mammal, animal).",
+    "query": "type_of(X, Y)",
+    "output": "type_of(X, Y) :- is_a(X, Y).\ntype_of(X, Z) :- is_a(X, Y), type_of(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["before/2"],
+    "kb_sample": "before(monday, tuesday). before(tuesday, wednesday).",
+    "query": "earlier(X, Y)",
+    "output": "earlier(X, Y) :- before(X, Y).\nearlier(X, Z) :- before(X, Y), earlier(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["married/2"],
+    "kb_sample": "married(alice, bob). parent(alice, charlie).",
+    "query": "spouse(X, Y)",
+    "output": "spouse(X, Y) :- married(X, Y).\nspouse(X, Y) :- married(Y, X).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["plays/2"],
+    "kb_sample": "plays(alice, tennis). plays(bob, tennis).",
+    "query": "opponent(X, Y)",
+    "output": "opponent(X, Y) :- plays(X, Sport), plays(Y, Sport), X \\= Y.",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["member_of/2"],
+    "kb_sample": "member_of(alice, chess_club). member_of(bob, chess_club).",
+    "query": "same_club(X, Y)",
+    "output": "same_club(X, Y) :- member_of(X, Club), member_of(Y, Club), X \\= Y.",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["border/2"],
+    "kb_sample": "border(usa, canada). border(usa, mexico).",
+    "query": "neighbor(X, Y)",
+    "output": "neighbor(X, Y) :- border(X, Y).\nneighbor(X, Y) :- border(Y, X).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["authored/2"],
+    "kb_sample": "authored(alice, paper1). authored(bob, paper1).",
+    "query": "coauthor(X, Y)",
+    "output": "coauthor(X, Y) :- authored(X, Paper), authored(Y, Paper), X \\= Y.",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["flight/3"],
+    "kb_sample": "flight(nyc, chicago, aa100). flight(chicago, la, ua200).",
+    "query": "can_fly(X, Y)",
+    "output": "can_fly(X, Y) :- flight(X, Y, _).\ncan_fly(X, Z) :- flight(X, Y, _), can_fly(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["supervisor/2"],
+    "kb_sample": "supervisor(alice, bob). supervisor(bob, charlie).",
+    "query": "indirect_supervisor(X, Y)",
+    "output": "indirect_supervisor(X, Y) :- supervisor(X, Y).\nindirect_supervisor(X, Z) :- supervisor(X, Y), indirect_supervisor(Y, Z).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["has_skill/2", "requires/2"],
+    "kb_sample": "has_skill(alice, python). requires(job1, python).",
+    "query": "qualified_for(X, Y)",
+    "output": "qualified_for(Person, Job) :- requires(Job, Skill), has_skill(Person, Skill).",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["actor_in/2"],
+    "kb_sample": "actor_in(alice, movie1). actor_in(bob, movie1).",
+    "query": "costar(X, Y)",
+    "output": "costar(X, Y) :- actor_in(X, Movie), actor_in(Y, Movie), X \\= Y.",
+    "success_count": 0
+  },
+  {
+    "kb_predicates": ["trusts/2"],
+    "kb_sample": "trusts(alice, bob). trusts(bob, charlie).",
+    "query": "transitive_trust(X, Y)",
+    "output": "transitive_trust(X, Y) :- trusts(X, Y).\ntransitive_trust(X, Z) :- trusts(X, Y), transitive_trust(Y, Z).",
+    "success_count": 0
+  }
+]

@@ -66,7 +66,7 @@ email@example.com}}
 \maketitle
 
 \begin{abstract}
-We present DreamLog, a neural-symbolic system that integrates logic programming with large language models (LLMs) through a biologically-inspired architecture featuring wake-sleep cycles, compression-based learning, and recursive knowledge generation. DreamLog addresses the fundamental challenge of undefined predicates in logic programming by automatically generating rules through recursive LLM invocation, enabling compositional reasoning where complex concepts are decomposed into simpler constituents. The system employs retrieval-augmented generation (RAG) to select relevant examples for prompting, multi-layered validation to ensure rule correctness, and error-tolerant parsing to support smaller, local models. During "sleep" phases, knowledge is consolidated through compression operators grounded in algorithmic information theory. Our architecture features a persistent learning infrastructure with experience replay and validation against ground truth. The key innovation is treating undefined predicates not as errors but as opportunities for compositional knowledge discovery, transforming the brittleness of traditional logic programming into a mechanism for exploratory learning. This approach effectively bridges symbolic reasoning and neural knowledge generation, offering a practical framework for building interpretable AI systems that learn and adapt over time.
+We present DreamLog, a neural-symbolic system that integrates logic programming with large language models (LLMs) through a biologically-inspired architecture featuring wake-sleep cycles, compression-based learning, and recursive knowledge generation. DreamLog addresses the fundamental challenge of undefined predicates in logic programming by automatically generating rules through recursive LLM invocation, enabling compositional reasoning where complex concepts are decomposed into simpler constituents. The system employs \emph{knowledge-base-aware} retrieval-augmented generation (RAG) using weighted embeddings that combine query similarity with knowledge base context, enabling example selection that considers both the query structure and the current reasoning state. Multi-layered validation ensures correctness of both generated rules \emph{and facts}, with LLM-as-judge verification extended to fact validation for common-sense consistency checking. A novel success-based learning mechanism tracks which examples lead to successful inference, progressively improving retrieval quality over time through experience. During ``sleep'' phases, knowledge is consolidated through compression operators grounded in algorithmic information theory. The key innovation is treating undefined predicates not as errors but as opportunities for compositional knowledge discovery, transforming the brittleness of traditional logic programming into a mechanism for exploratory learning. This approach effectively bridges symbolic reasoning and neural knowledge generation, offering a practical framework for building interpretable AI systems that learn and adapt over time.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -84,9 +84,9 @@ We present DreamLog, a neural-symbolic system that addresses these challenges th
 \begin{enumerate}
 \item \textbf{Recursive Knowledge Generation}: When undefined predicates are encountered during query evaluation, DreamLog automatically generates rules through recursive LLM invocation. If generated rules reference undefined predicates in their bodies, additional LLM calls define those predicates, creating a compositional knowledge-building process that decomposes complex concepts into simpler constituents.
 
-\item \textbf{RAG-Enhanced Prompt Engineering}: The system employs retrieval-augmented generation to select semantically relevant rule examples from a curated library, significantly improving LLM generation quality. Combined with adaptive template selection, this enables effective use of smaller, local models (7B-13B parameters).
+\item \textbf{KB-Aware RAG with Success-Based Learning}: The system employs knowledge-base-aware retrieval-augmented generation using weighted embeddings that combine query similarity (70\%) with knowledge base context (30\%). A success-based learning mechanism tracks which examples lead to successful inference, using logarithmically-dampened boosts to progressively improve retrieval quality while preventing dominance by any single example.
 
-\item \textbf{Multi-Layered Validation}: Generated rules undergo structural validation (syntax, variable safety), semantic validation (preventing circular rules while allowing undefined predicates), and optional LLM-as-judge verification. Error-tolerant parsing handles common LLM formatting errors, with correction-based retry for iterative refinement.
+\item \textbf{Multi-Layered Validation}: Generated rules \emph{and facts} undergo structural validation (syntax, variable safety), semantic validation (preventing circular rules while allowing undefined predicates), and optional LLM-as-judge verification. Fact verification checks consistency with common-sense knowledge. Error-tolerant parsing handles common LLM formatting errors, with correction-based retry for iterative refinement.
 
 \item \textbf{Compression-Based Learning}: Inspired by memory consolidation in biological systems, DreamLog implements wake-sleep cycles where the "wake" phase involves active query processing and knowledge acquisition, while the "sleep" phase consolidates knowledge through compression operators grounded in algorithmic information theory.
 \end{enumerate}
@@ -94,12 +94,13 @@ We present DreamLog, a neural-symbolic system that addresses these challenges th
 Our main contributions are:
 \begin{itemize}
 \item A novel architecture for compositional knowledge discovery through recursive LLM invocation, transforming undefined predicates from errors into opportunities for learning
-\item RAG-based prompt engineering with semantic example retrieval and adaptive template selection for improved generation quality
-\item Multi-layered validation that ensures rule correctness while deliberately allowing undefined body predicates to enable compositional reasoning
+\item KB-aware RAG using weighted embeddings that combine query and knowledge base context, enabling example retrieval that considers the current reasoning state
+\item Success-based learning that tracks example effectiveness and progressively improves retrieval through experience, with logarithmic dampening to prevent runaway dominance
+\item Multi-layered validation that ensures correctness of both rules \emph{and facts}, with LLM-as-judge verification extended to fact validation for common-sense consistency
 \item Error-tolerant parsing infrastructure that supports smaller, local models through robust handling of formatting inconsistencies
 \item A theoretically grounded framework based on Solomonoff induction and Kolmogorov complexity for compression-based learning in logic programs
 \item A biologically-inspired wake-sleep cycle mechanism for knowledge consolidation and continuous learning
-\item An implementation demonstrating the feasibility of the approach across multiple LLM providers
+\item An implementation demonstrating the feasibility of the approach across multiple LLM providers, with a curated library of 35 diverse rule examples
 \end{itemize}
 
 \section{Background and Related Work}
@@ -129,7 +130,7 @@ Our approach differs fundamentally by maintaining a clear separation between the
 
 \subsection{Retrieval-Augmented Generation}
 
-Recent advances in Retrieval-Augmented Generation (RAG) have shown that retrieving relevant examples or context significantly improves LLM performance on specialized tasks. DreamLog employs RAG at the prompt engineering level, using semantic similarity (TF-IDF or neural embeddings) to retrieve relevant rule examples from a curated library. This differs from traditional RAG, which typically retrieves documents, by focusing on retrieving structural patterns that guide rule synthesis.
+Recent advances in Retrieval-Augmented Generation (RAG) have shown that retrieving relevant examples or context significantly improves LLM performance on specialized tasks. DreamLog extends traditional RAG with two key innovations: (1) \emph{knowledge-base-aware retrieval} that considers both query similarity and current KB state through weighted embedding combination, and (2) \emph{success-based learning} that tracks example effectiveness over time. Unlike traditional RAG, which typically retrieves documents, DreamLog retrieves structural patterns that guide rule synthesis, with retrieval quality improving through experience.
 
 \subsection{Compositional Reasoning}
 
@@ -203,28 +204,41 @@ When the evaluator encounters an undefined predicate during query resolution, it
 \STATE \textbf{Output:} Generated facts/rules
 \IF{$predicate(q) \notin KB$}
     \STATE $context \gets extract\_context(KB, q)$
-    \STATE $examples \gets retrieve\_relevant\_examples(q)$  \COMMENT{RAG}
+    \STATE $emb \gets w_q \cdot embed(q) + w_{kb} \cdot embed(context)$  \COMMENT{KB-aware}
+    \STATE $examples \gets retrieve(normalize(emb), success\_boost)$  \COMMENT{RAG}
     \STATE $prompt \gets format\_prompt(q, context, examples)$
     \STATE $response \gets LLM(prompt)$
-    \STATE $knowledge \gets parse\_response(response)$  \COMMENT{Error-tolerant}
-    \STATE $valid \gets validate\_structural(knowledge)$
-    \IF{valid}
-        \STATE $valid \gets validate\_semantic(knowledge, KB)$
-    \ENDIF
-    \IF{valid AND use\_llm\_judge}
-        \STATE $valid \gets verify\_with\_llm(knowledge, KB)$
-    \ENDIF
-    \IF{valid}
-        \STATE $KB \gets KB \cup knowledge$
-    \ELSE
-        \STATE $knowledge \gets retry\_with\_correction(q, KB, errors)$
-    \ENDIF
+    \STATE $(facts, rules) \gets parse\_response(response)$  \COMMENT{Error-tolerant}
+    \FOR{each $fact \in facts$}
+        \STATE $valid \gets validate\_structural(fact)$
+        \IF{valid AND use\_llm\_judge}
+            \STATE $valid \gets verify\_fact\_commonsense(fact, KB)$  \COMMENT{New}
+        \ENDIF
+        \IF{valid}
+            \STATE $KB \gets KB \cup \{fact\}$
+        \ENDIF
+    \ENDFOR
+    \FOR{each $rule \in rules$}
+        \STATE $valid \gets validate\_structural(rule)$
+        \IF{valid}
+            \STATE $valid \gets validate\_semantic(rule, KB)$
+        \ENDIF
+        \IF{valid AND use\_llm\_judge}
+            \STATE $valid \gets verify\_rule\_with\_llm(rule, KB)$
+        \ENDIF
+        \IF{valid}
+            \STATE $KB \gets KB \cup \{rule\}$
+        \ELSE
+            \STATE $rule \gets retry\_with\_correction(q, KB, errors)$
+        \ENDIF
+    \ENDFOR
+    \STATE $record\_success(examples)$  \COMMENT{Success-based learning}
 \ENDIF
-\RETURN $knowledge$
+\RETURN $(facts, rules)$
 \end{algorithmic}
 \end{algorithm}
 
-This enhanced pipeline incorporates several critical innovations: (1) RAG-based example retrieval for improved prompt quality, (2) robust parsing that handles common LLM formatting errors, (3) multi-layered validation combining structural, semantic, and optional LLM-based verification, and (4) correction-based retry when generation fails.
+This enhanced pipeline incorporates several critical innovations: (1) KB-aware RAG using weighted embeddings combining query ($w_q = 0.7$) and knowledge base context ($w_{kb} = 0.3$), (2) robust parsing that handles common LLM formatting errors, (3) multi-layered validation combining structural, semantic, and optional LLM-based verification for \emph{both facts and rules}, (4) common-sense verification for generated facts (e.g., rejecting \texttt{male(mary)}), (5) correction-based retry when generation fails, and (6) success-based learning that tracks example effectiveness.
 
 \subsection{Recursive Knowledge Generation}
 
@@ -418,6 +432,40 @@ The wake-sleep architecture mirrors biological memory consolidation where:
 
 This biological analogy suggests that compression-based learning may be a fundamental principle of intelligent systems, both artificial and biological.
 
+\subsection{Success-Based Learning and Experience Replay}
+
+The success-based learning mechanism in DreamLog's RAG system draws on principles from reinforcement learning, particularly experience replay \cite{andrychowicz2017hindsight}. When examples lead to successful inference, they receive a boost in future retrieval probability:
+
+\begin{equation}
+\text{score}(e) = \text{sim}(q, e) + \beta \cdot \log(1 + \text{success\_count}(e))
+\label{eq:success_score}
+\end{equation}
+
+where $\text{sim}(q, e)$ is the cosine similarity between the query embedding and example embedding, $\beta$ is a configurable boost parameter (default 0.1), and $\text{success\_count}(e)$ tracks how often example $e$ has contributed to successful inference.
+
+The logarithmic dampening $\log(1 + n)$ serves two important purposes:
+\begin{enumerate}
+\item \textbf{Diminishing returns}: Prevents any single example from dominating retrieval, ensuring diversity
+\item \textbf{Stability}: Limits the influence of success counts relative to semantic similarity
+\end{enumerate}
+
+This mechanism can be viewed as a form of \emph{non-stationary multi-armed bandit} where:
+\begin{itemize}
+\item Each example is an arm
+\item Pulling an arm corresponds to using an example in prompt construction
+\item Reward is whether the resulting inference succeeds
+\item The similarity score provides a prior (exploitation) while success counts enable learning (exploration)
+\end{itemize}
+
+The KB-aware embedding combination further enhances this by conditioning retrieval on the current knowledge state:
+
+\begin{equation}
+\mathbf{e}_{\text{search}} = \text{normalize}(w_q \cdot \text{embed}(q) + w_{kb} \cdot \text{embed}(KB))
+\label{eq:kb_aware}
+\end{equation}
+
+where $w_q = 0.7$ and $w_{kb} = 0.3$ by default. This allows the system to retrieve different examples for the same query depending on what knowledge is already available, mirroring context-dependent memory retrieval in biological systems.
+
 \section{Implementation}
 
 \subsection{System Architecture}
@@ -496,46 +544,62 @@ class LLMHook:
 
 This design allows for different LLM providers (OpenAI, Anthropic, local models) and customizable prompt templates.
 
-\subsection{RAG-Based Example Retrieval}
+\subsection{KB-Aware RAG with Success-Based Learning}
 
-To improve prompt quality and LLM generation accuracy, DreamLog employs Retrieval-Augmented Generation (RAG) for selecting relevant examples:
+To improve prompt quality and LLM generation accuracy, DreamLog employs knowledge-base-aware Retrieval-Augmented Generation (RAG) with success-based learning:
 
 \begin{lstlisting}[language=Python]
 class ExampleRetriever:
-    def __init__(self, examples, embedding_provider):
-        self.examples = examples
-        # Precompute embeddings for all examples
-        self.embeddings = [
-            embedding_provider.embed(ex['prolog'])
-            for ex in examples
-        ]
+    def __init__(self, embedding_provider,
+                 query_weight=0.7, kb_weight=0.3,
+                 success_boost=0.1):
+        self.query_weight = query_weight
+        self.kb_weight = kb_weight
+        self.success_boost = success_boost
 
-    def retrieve(self, query, k=5, temperature=1.0):
-        # Compute query embedding
-        query_emb = self.embedding_provider.embed(query)
+    def retrieve(self, query, kb_context="",
+                 num_examples=5, temperature=1.0):
+        # KB-aware embedding combination
+        query_emb = self.embed(query)
+        if kb_context:
+            kb_emb = self.embed(kb_context)
+            search_emb = normalize(
+                self.query_weight * query_emb +
+                self.kb_weight * kb_emb
+            )
+        else:
+            search_emb = normalize(query_emb)
 
-        # Compute similarities
-        similarities = cosine_similarity(query_emb, self.embeddings)
+        # Compute similarity with success boost
+        scores = []
+        for i, ex_emb in enumerate(self.example_embeddings):
+            sim = cosine_similarity(search_emb, ex_emb)
+            # Log dampening prevents dominance
+            success = self.examples[i].get('success_count', 0)
+            sim += self.success_boost * log(1 + success)
+            scores.append(sim)
 
         # Softmax sampling with temperature
-        probs = softmax(similarities / temperature)
-
-        # Sample k examples
+        probs = softmax(scores / temperature)
         return sample_without_replacement(
-            self.examples, k, probs
+            self.examples, num_examples, probs
         )
+
+    def record_success(self, example_index):
+        self.examples[example_index]['success_count'] += 1
 \end{lstlisting}
 
-The retriever uses either TF-IDF or neural embeddings (via Ollama) to compute semantic similarity between the query and a curated library of 50+ rule examples across diverse domains (family relations, geography, programming, etc.). Examples are sampled using temperature-controlled softmax to balance relevance with diversity.
+The retriever computes weighted embeddings combining query similarity (70\%) with knowledge base context (30\%), enabling example selection that considers the current reasoning state. The success-based learning mechanism uses logarithmically-dampened boosts ($\log(1 + \text{count})$) to progressively improve retrieval while preventing runaway dominance by frequently-used examples. The curated library contains 35 examples across diverse domains including family relations, graph traversal, organizational hierarchies, academic courses, social networks, transportation, taxonomies, and temporal reasoning.
 
-\subsection{Multi-Layered Rule Validation}
+\subsection{Multi-Layered Validation for Rules and Facts}
 
-Generated rules undergo multi-stage validation to ensure correctness:
+Generated knowledge undergoes multi-stage validation to ensure correctness:
 
 \begin{enumerate}
-\item \textbf{Structural Validation}: Checks syntactic well-formedness, proper variable usage, and functor consistency
-\item \textbf{Semantic Validation}: Ensures safety (all head variables appear in body), prevents trivial circular rules, but crucially \textit{allows} undefined body predicates to enable recursive generation
-\item \textbf{LLM-as-Judge} (Optional): Uses a second LLM call to verify logical correctness with respect to the knowledge base and query intent
+\item \textbf{Structural Validation}: Checks syntactic well-formedness, proper variable usage, and functor consistency for both facts and rules
+\item \textbf{Semantic Validation}: For rules, ensures safety (all head variables appear in body), prevents trivial circular rules, but crucially \textit{allows} undefined body predicates to enable recursive generation
+\item \textbf{LLM-as-Judge for Rules} (Optional): Uses a second LLM call to verify logical correctness with respect to the knowledge base and query intent
+\item \textbf{LLM-as-Judge for Facts} (Optional): Verifies that generated facts are consistent with common sense---for example, rejecting \texttt{male(mary)} while accepting \texttt{male(john)}
 \end{enumerate}
 
 \begin{lstlisting}[language=Python]
@@ -567,6 +631,26 @@ class RuleValidator:
             is_valid=len(errors) == 0,
             errors=errors
         )
+\end{lstlisting}
+
+The \texttt{LLMJudge} class extends verification to facts, checking common-sense consistency:
+
+\begin{lstlisting}[language=Python]
+class LLMJudge:
+    def verify_fact(self, fact, query_functor, kb):
+        prompt = f"""Verify this fact is reasonable:
+        Fact: {fact}
+
+        Consider:
+        - Is it consistent with common knowledge?
+        - male/female should match typical names
+        - Geographic facts should be accurate
+
+        Respond: {{"is_correct": bool, "confidence": 0-1,
+                   "explanation": "..."}}"""
+
+        response = self.provider.generate(prompt)
+        return self._parse_judgement(response)
 \end{lstlisting}
 
 \subsection{Error-Tolerant Response Parsing}
@@ -769,11 +853,13 @@ A central contribution of DreamLog is its support for compositional knowledge bu
 
 This compositional approach mirrors human conceptual development, where complex ideas are built from simpler primitives through recursive combination. The validation system's deliberate allowance of undefined body predicates is crucial: it transforms what would traditionally be considered an error into an opportunity for further knowledge discovery.
 
-\subsection{Prompt Engineering and RAG}
+\subsection{KB-Aware RAG and Adaptive Learning}
 
-The integration of RAG for example retrieval significantly improves generation quality. By selecting examples semantically similar to the query, the system provides the LLM with relevant structural patterns. This is particularly effective for smaller, local models (7B-13B parameters) that benefit from strong in-context learning signals.
+The integration of KB-aware RAG significantly improves generation quality beyond traditional query-only retrieval. By computing weighted embeddings that combine query similarity (70\%) with knowledge base context (30\%), the system retrieves examples that are relevant not just to the query structure but also to the current reasoning state. This enables context-dependent example selection: the same query may retrieve different examples depending on what knowledge is already available.
 
-The prompt template system, combined with performance tracking, enables adaptive prompt selection based on historical success rates. This meta-learning approach allows the system to discover which prompting strategies work best for different query types and LLM models, gradually improving generation quality over time.
+The success-based learning mechanism adds a second dimension of adaptivity. As examples prove useful in practice, they receive logarithmically-dampened boosts (Equation~\ref{eq:success_score}) that increase their retrieval probability while preventing any single example from dominating. This creates a virtuous cycle where the system progressively learns which structural patterns are most effective for different query types.
+
+The curated library of 35 examples across diverse domains (family relations, graph traversal, academic courses, social networks, transportation, taxonomies, temporal reasoning) provides broad coverage while remaining manageable. Integration testing with Ollama's \texttt{nomic-embed-text} model (768-dimensional embeddings) confirms that semantic similarity effectively clusters related patterns.
 
 \subsection{Robustness to LLM Imperfections}
 
@@ -782,11 +868,12 @@ The multi-layered validation and error-tolerant parsing make DreamLog robust to 
 \begin{itemize}
 \item \textbf{Format errors}: The parser handles unquoted JSON, mixed formats, and markdown code blocks
 \item \textbf{Logical errors}: Multi-stage validation catches unsafe variables, circular rules, and malformed structures
-\item \textbf{Hallucination}: LLM-as-judge verification can detect semantically incorrect rules
+\item \textbf{Rule hallucination}: LLM-as-judge verification can detect semantically incorrect rules by checking logical consistency
+\item \textbf{Fact hallucination}: Fact verification checks common-sense consistency, rejecting implausible facts (e.g., \texttt{male(mary)})
 \item \textbf{Partial failures}: Correction-based retry enables iterative refinement
 \end{itemize}
 
-This robustness is essential for practical deployment, especially when using local or smaller models that may be less reliable than large commercial APIs.
+This robustness is essential for practical deployment, especially when using local or smaller models that may be less reliable than large commercial APIs. The extension of LLM-as-judge to fact verification provides an additional safety layer, particularly important when facts directly influence reasoning outcomes.
 
 \subsection{Biological Analogies}
 
@@ -838,18 +925,20 @@ We presented DreamLog, a neural-symbolic system that integrates logic programmin
 
 \begin{enumerate}
 \item \textbf{Recursive Knowledge Generation}: Automatically generating knowledge for undefined predicates through recursive LLM invocation, enabling compositional reasoning and exploratory knowledge discovery
-\item \textbf{RAG-Enhanced Prompting}: Using retrieval-augmented generation to select semantically relevant examples, significantly improving generation quality
-\item \textbf{Multi-Layered Validation}: Combining structural, semantic, and optional LLM-based verification to ensure rule correctness while allowing compositional knowledge building
+\item \textbf{KB-Aware RAG}: Using weighted embeddings that combine query similarity with knowledge base context, enabling context-dependent example retrieval
+\item \textbf{Success-Based Learning}: Tracking example effectiveness with logarithmically-dampened boosts, progressively improving retrieval quality through experience
+\item \textbf{Multi-Layered Validation}: Combining structural, semantic, and optional LLM-based verification for both rules \emph{and facts}, with common-sense checking for generated facts
 \item \textbf{Error-Tolerant Parsing}: Robust parsing that handles common LLM formatting errors, enabling use of smaller, local models
 \item \textbf{Compression-Based Learning}: Consolidating and compressing knowledge through biologically-inspired wake-sleep cycles grounded in algorithmic information theory
-\item \textbf{Persistent Learning}: Maintaining knowledge across sessions with experience replay and validation against ground truth
 \end{enumerate}
 
 The central insight of DreamLog is that compositional knowledge discovery through recursive generation transforms the brittleness of traditional logic programming into an opportunity for learning. By deliberately allowing undefined predicates in rule bodies, the system enables top-down decomposition of complex concepts into simpler primitives, with recursion terminating at user-provided facts or common-sense knowledge from the LLM.
 
-While significant work remains—particularly in formal verification, scalability, and theoretical guarantees—DreamLog demonstrates that neural-symbolic integration can preserve the interpretability of symbolic reasoning while leveraging the knowledge and pattern recognition capabilities of large language models. The combination of RAG-based prompting, multi-layered validation, and compositional generation provides a practical framework for building AI systems that learn and reason over structured knowledge.
+The KB-aware RAG mechanism and success-based learning represent a step toward systems that improve through use. Rather than static example retrieval, the system learns which structural patterns are most effective for different query types, with retrieval conditioned on both the query and the current knowledge state. This creates context-dependent memory access analogous to biological memory systems.
 
-The compression-based learning framework suggests that the path to artificial general intelligence may lie not in ever-larger models, but in systems that can efficiently compress and generalize knowledge through compositional reasoning—mirroring the fundamental processes observed in biological intelligence.
+While significant work remains---particularly in formal verification, scalability, and theoretical guarantees---DreamLog demonstrates that neural-symbolic integration can preserve the interpretability of symbolic reasoning while leveraging the knowledge and pattern recognition capabilities of large language models. The combination of KB-aware RAG, success-based learning, multi-layered validation, and compositional generation provides a practical framework for building AI systems that learn and reason over structured knowledge.
+
+The compression-based learning framework suggests that the path to artificial general intelligence may lie not in ever-larger models, but in systems that can efficiently compress and generalize knowledge through compositional reasoning---mirroring the fundamental processes observed in biological intelligence.
 
 % TODO: Update acknowledgments for final submission
 \section*{Acknowledgments}

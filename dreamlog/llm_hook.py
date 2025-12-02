@@ -63,8 +63,13 @@ class LLMHook:
 
         # Initialize example retriever for RAG (always enabled)
         self._debug("[LLM] Initializing RAG-based example retriever...")
-        example_retriever = ExampleRetriever(RULE_EXAMPLES, embedding_provider)
-        self._debug(f"[LLM] Precomputed embeddings for {len(RULE_EXAMPLES)} examples")
+        # Try to load from JSON file first, fall back to legacy RULE_EXAMPLES
+        example_retriever = ExampleRetriever(embedding_provider)  # Auto-loads from rag_examples.json
+        if not example_retriever.examples:
+            # Fall back to converting legacy examples
+            from .example_retriever import create_retriever_from_legacy
+            example_retriever = create_retriever_from_legacy(RULE_EXAMPLES, embedding_provider)
+        self._debug(f"[LLM] Precomputed embeddings for {len(example_retriever.examples)} examples")
 
         # Initialize prompt template library
         # Extract model name from provider if available
@@ -165,10 +170,31 @@ class LLMHook:
                 # Check if fact already exists
                 if any(f.term == fact.term for f in evaluator.kb.facts):
                     self._debug(f"  - Skipped duplicate fact: {fact.term}")
-                else:
-                    evaluator.kb.add_fact(fact)
-                    added_count += 1
-                    self._debug(f"  ✓ Added fact: {fact.term}")
+                    continue
+
+                # Run LLM judge verification for facts if enabled
+                if self.enable_llm_judge and self.llm_judge:
+                    functor = unknown_term.functor if isinstance(unknown_term, Compound) else str(unknown_term)
+                    self._debug(f"  Verifying fact with LLM judge...")
+
+                    judgement = self.llm_judge.verify_fact(
+                        fact=fact,
+                        query_functor=functor,
+                        knowledge_base=evaluator.kb,
+                        max_retries=2
+                    )
+
+                    if not judgement.is_correct:
+                        self._debug(f"  ✗ Fact rejected by LLM judge: {judgement.explanation}")
+                        if judgement.suggested_correction:
+                            self._debug(f"    Suggested: {judgement.suggested_correction}")
+                        continue
+
+                    self._debug(f"  ✓ Fact approved by LLM judge (confidence: {judgement.confidence:.2f})")
+
+                evaluator.kb.add_fact(fact)
+                added_count += 1
+                self._debug(f"  ✓ Added fact: {fact.term}")
             except Exception as e:
                 self._debug(f"  Error adding fact {fact_data}: {e}")
 

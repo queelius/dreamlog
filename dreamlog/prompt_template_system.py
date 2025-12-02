@@ -775,18 +775,32 @@ Output S-expressions:
             temperature = 1.0  # Default temperature for softmax sampling
             functor = variables.get("functor", "unknown")
 
+            # Build KB context string for retrieval
+            kb_context = ""
+            if context.kb_facts:
+                kb_context = " ".join(str(f) for f in context.kb_facts[:10])
+
             # Use retriever if available, otherwise random sampling
             if self.example_retriever:
-                sampled = self.example_retriever.retrieve(functor, num_examples, temperature=temperature)
+                sampled = self.example_retriever.retrieve(
+                    functor, num_examples, temperature=temperature, kb_context=kb_context
+                )
             else:
                 sampled = sample_examples(num_examples)
 
-            # Format examples as markdown
+            # Format examples as markdown (supports both old and new format)
             examples_text = []
             for i, ex in enumerate(sampled, 1):
                 examples_text.append(f"**Example {i}**")
-                examples_text.append(f"```prolog\n{ex['prolog']}\n```")
-                examples_text.append(f"```json\n{json.dumps(ex['json'])}\n```")
+                # New format: query, output, kb_sample
+                if "query" in ex and "output" in ex:
+                    if ex.get("kb_sample"):
+                        examples_text.append(f"KB: `{ex['kb_sample']}`")
+                    examples_text.append(f"Query: `{ex['query']}`")
+                    examples_text.append(f"```prolog\n{ex['output']}\n```")
+                # Old format: prolog, json
+                elif "prolog" in ex:
+                    examples_text.append(f"```prolog\n{ex['prolog']}\n```")
                 examples_text.append("")  # Blank line
             variables["examples"] = "\n".join(examples_text)
 

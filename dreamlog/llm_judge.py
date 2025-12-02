@@ -7,7 +7,7 @@ against the knowledge base and the original query.
 
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
-from .knowledge import Rule, KnowledgeBase
+from .knowledge import Rule, Fact, KnowledgeBase
 from .llm_providers import LLMProvider
 from .llm_response_parser import DreamLogResponseParser
 import json
@@ -89,6 +89,98 @@ class LLMJudge:
             confidence=0.0,
             explanation="Verification failed after all retries"
         )
+
+    def verify_fact(self,
+                    fact: Fact,
+                    query_functor: str,
+                    knowledge_base: KnowledgeBase,
+                    max_retries: int = 3) -> JudgementResult:
+        """
+        Verify that a generated fact is reasonable and correct.
+
+        Args:
+            fact: The generated fact to verify
+            query_functor: The functor that triggered generation
+            knowledge_base: Current knowledge base context
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            JudgementResult with verification outcome
+        """
+        prompt = self._build_fact_verification_prompt(fact, query_functor, knowledge_base)
+
+        if self.debug:
+            print(f"[LLM Judge] Fact verification prompt:\n{prompt}\n")
+
+        for attempt in range(max_retries):
+            try:
+                response = self.provider.generate(prompt)
+
+                if self.debug:
+                    print(f"[LLM Judge] Response:\n{response}\n")
+
+                result = self._parse_judgement(response)
+                return result
+
+            except Exception as e:
+                if self.debug:
+                    print(f"[LLM Judge] Attempt {attempt + 1} failed: {e}")
+
+                if attempt == max_retries - 1:
+                    return JudgementResult(
+                        is_correct=False,
+                        confidence=0.0,
+                        explanation=f"Fact verification failed: {e}"
+                    )
+
+        return JudgementResult(
+            is_correct=False,
+            confidence=0.0,
+            explanation="Fact verification failed after all retries"
+        )
+
+    def _build_fact_verification_prompt(self,
+                                        fact: Fact,
+                                        query_functor: str,
+                                        knowledge_base: KnowledgeBase) -> str:
+        """Build the prompt for fact verification"""
+        kb_context = self._format_kb_context(knowledge_base, query_functor)
+
+        prompt = f"""You are verifying the correctness of a generated Prolog fact.
+
+KNOWLEDGE BASE CONTEXT:
+{kb_context}
+
+GENERATED FACT TO VERIFY:
+{fact.term}
+
+QUERY THAT TRIGGERED THIS: {query_functor}
+
+TASK: Determine if this fact is correct and reasonable.
+
+Consider:
+1. Is this fact consistent with common knowledge/world knowledge?
+2. Does it make sense given the context of the knowledge base?
+3. Is the predicate being used correctly (e.g., male(john) not male(mary))?
+4. Would this fact help answer the original query?
+
+Common sense checks:
+- male/female predicates should match typical gender associations with names
+- parent/child relationships should be plausible
+- Geographic facts should be accurate
+- Category memberships should be correct
+
+Respond in JSON format:
+{{
+  "is_correct": true/false,
+  "confidence": 0.0-1.0,
+  "explanation": "detailed explanation of your reasoning",
+  "suggested_correction": "corrected fact if incorrect, or null if correct"
+}}
+
+Your response (JSON only):"""
+
+        return prompt
 
     def _build_verification_prompt(self,
                                    rule: Rule,

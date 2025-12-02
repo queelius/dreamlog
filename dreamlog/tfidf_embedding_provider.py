@@ -19,12 +19,15 @@ class TfIdfEmbeddingProvider:
     Completely local, no external dependencies.
     """
 
-    def __init__(self, corpus: List[Dict[str, str]]):
+    def __init__(self, corpus):
         """
         Initialize TF-IDF provider with a corpus.
 
         Args:
-            corpus: List of example dictionaries with 'prolog' and/or 'domain' keys
+            corpus: Either:
+                - List of strings (text documents)
+                - List of dicts with 'prolog' and/or 'domain' keys (legacy format)
+                - List of dicts with 'query' and/or 'kb_sample' keys (new format)
         """
         self.corpus = corpus
         self.vocabulary: Dict[str, int] = {}  # word -> index
@@ -46,13 +49,24 @@ class TfIdfEmbeddingProvider:
         tokens = re.findall(r'\w+', text)
         return tokens
 
+    def _extract_text(self, item) -> str:
+        """Extract text from a corpus item (string or dict)"""
+        if isinstance(item, str):
+            return item
+        if isinstance(item, dict):
+            # Try new format first (query, kb_sample)
+            if "query" in item or "kb_sample" in item:
+                return f"{item.get('query', '')} {item.get('kb_sample', '')} {item.get('output', '')}"
+            # Fall back to legacy format (domain, prolog)
+            return f"{item.get('domain', '')} {item.get('prolog', '')}"
+        return str(item)
+
     def _fit_corpus(self):
         """Fit the TF-IDF model on the corpus"""
         # Collect all documents
         documents = []
-        for example in self.corpus:
-            # Combine domain and prolog text
-            doc_text = f"{example.get('domain', '')} {example.get('prolog', '')}"
+        for item in self.corpus:
+            doc_text = self._extract_text(item)
             documents.append(doc_text)
 
         # Build vocabulary and document frequency

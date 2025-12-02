@@ -531,5 +531,122 @@ class TestDebugMode:
         assert result.is_correct is True
 
 
+# ==================== Test Fact Verification ====================
+
+class TestFactVerification:
+    """Test LLM judge verification of generated facts"""
+
+    def test_verify_fact_with_correct_judgement(self):
+        """When LLM approves a fact, should return positive judgement"""
+        # Given: A mock provider that approves facts
+        provider = MockLLMProvider(json.dumps({
+            "is_correct": True,
+            "confidence": 0.95,
+            "explanation": "The name 'john' is typically male, so male(john) is correct",
+            "suggested_correction": None
+        }))
+
+        judge = LLMJudge(provider)
+
+        # When: Verifying a reasonable fact
+        fact = Fact(Compound("male", [Atom("john")]))
+        kb = KnowledgeBase()
+        kb.add_fact(Fact(Compound("parent", [Atom("john"), Atom("mary")])))
+
+        result = judge.verify_fact(fact, "male", kb)
+
+        # Then: Should return correct judgement
+        assert result.is_correct is True
+        assert result.confidence == 0.95
+        assert "john" in result.explanation.lower() or "male" in result.explanation.lower()
+
+    def test_verify_fact_with_incorrect_judgement(self):
+        """When LLM rejects a fact, should return negative judgement with suggestion"""
+        # Given: A mock provider that rejects a fact
+        provider = MockLLMProvider(json.dumps({
+            "is_correct": False,
+            "confidence": 0.9,
+            "explanation": "The name 'mary' is typically female, not male",
+            "suggested_correction": "female(mary)"
+        }))
+
+        judge = LLMJudge(provider)
+
+        # When: Verifying an incorrect fact
+        fact = Fact(Compound("male", [Atom("mary")]))
+        kb = KnowledgeBase()
+
+        result = judge.verify_fact(fact, "male", kb)
+
+        # Then: Should return incorrect judgement with correction
+        assert result.is_correct is False
+        assert result.confidence == 0.9
+        assert "female" in result.suggested_correction.lower()
+
+    def test_verify_fact_prompt_includes_kb_context(self):
+        """Fact verification prompt should include KB context"""
+        provider = MockLLMProvider(json.dumps({
+            "is_correct": True,
+            "confidence": 0.9,
+            "explanation": "OK"
+        }))
+
+        judge = LLMJudge(provider)
+
+        # When: Verifying with KB context
+        fact = Fact(Compound("female", [Atom("mary")]))
+        kb = KnowledgeBase()
+        kb.add_fact(Fact(Compound("parent", [Atom("mary"), Atom("alice")])))
+
+        judge.verify_fact(fact, "female", kb)
+
+        # Then: Prompt should contain KB context
+        prompt = provider.last_prompt
+        assert "parent" in prompt.lower()
+        assert "mary" in prompt.lower()
+
+    def test_verify_fact_retries_on_failure(self):
+        """Should retry fact verification on parse failures"""
+        # Given: A provider that fails twice then succeeds
+        provider = MockLLMProvider([
+            "Not JSON",
+            json.dumps({
+                "is_correct": True,
+                "confidence": 0.85,
+                "explanation": "Eventually succeeded"
+            })
+        ])
+
+        judge = LLMJudge(provider)
+
+        # When: Verifying a fact
+        fact = Fact(Compound("male", [Atom("bob")]))
+        kb = KnowledgeBase()
+
+        result = judge.verify_fact(fact, "male", kb, max_retries=3)
+
+        # Then: Should eventually succeed
+        assert result.is_correct is True
+        assert provider.call_count == 2  # Tried 2 times
+
+    def test_verify_fact_returns_failure_after_max_retries(self):
+        """When all retries fail, should return failure"""
+        # Given: A provider that always fails
+        provider = MockLLMProvider(["Bad", "Bad", "Bad"])
+
+        judge = LLMJudge(provider)
+
+        # When: Verifying with limited retries
+        fact = Fact(Compound("test", [Atom("x")]))
+        kb = KnowledgeBase()
+
+        result = judge.verify_fact(fact, "test", kb, max_retries=3)
+
+        # Then: Should return failure
+        assert result.is_correct is False
+        assert result.confidence == 0.0
+        assert "failed" in result.explanation.lower()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
