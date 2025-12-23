@@ -98,6 +98,17 @@ class TUICommand(Enum):
     EXAMPLES = "examples"
     SUCCESS = "success"
 
+    # History and replay
+    REPLAY = "replay"
+    BOOKMARK = "bookmark"
+    BOOKMARKS = "bookmarks"
+    RUN = "run"
+    QUERY_STATS = "query-stats"
+
+    # Dream status
+    DREAM_STATUS = "dream-status"
+    AUTO_DREAM = "auto-dream"
+
 
 class Colors:
     """ANSI color codes"""
@@ -134,6 +145,20 @@ class DreamLogTUI:
         self.query_count = 0
         self.sleep_count = 0
         self.command_history = []
+
+        # Query tracking for query-aware dreaming
+        self.query_tracker = {
+            'queries': [],  # List of (query_str, timestamp, result_count)
+            'functor_counts': {},  # functor -> count
+            'last_dream_query_count': 0,  # Query count at last dream
+        }
+
+        # Bookmarks for saved queries
+        self.bookmarks = {}  # name -> query_string
+
+        # Auto-dream settings
+        self.auto_dream_enabled = False
+        self.auto_dream_threshold = 50  # Suggest dream after N queries
 
         # Setup LLM if enabled
         if self.config.llm_enabled:
@@ -308,6 +333,17 @@ class DreamLogTUI:
   /rag                 Show RAG system status and settings
   /examples [n]        List RAG examples (default: top 10 by success)
   /success [reset]     Show success counts, or reset them
+
+{self._colorize("HISTORY & REPLAY", Colors.BOLD)}
+  /replay <n>          Replay command n from history (or !! for last)
+  /bookmark <name>     Save last query with a name
+  /bookmarks           List all saved bookmarks
+  /run <name>          Run a bookmarked query
+  /query-stats         Show query frequency statistics
+
+{self._colorize("DREAM STATUS", Colors.BOLD)}
+  /dream-status        Show dream cycle metrics and suggestions
+  /auto-dream on|off   Enable/disable auto-dream suggestions
 
 {self._colorize("GENERAL", Colors.BOLD)}
   /help                Show this help
@@ -701,6 +737,10 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
             query_vars = get_vars(query)
 
             results = self.engine.query([query])
+            result_count = len(results) if results else 0
+
+            # Track query for query-aware dreaming
+            self._track_query(query_str, query, result_count)
 
             if results:
                 # Limit results to max_solutions
@@ -722,10 +762,46 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
 
                 self.stats['solutions_found'] += len(results)
                 self._print(f"\n{self._colorize(f'✓ Found {len(results)} solution(s)', Colors.GREEN)}")
+
+                # Check for auto-dream suggestion
+                self._check_auto_dream()
             else:
                 self._print(self._colorize("✗ No solutions found", Colors.GRAY))
         except Exception as e:
             self._print(self._colorize(f"✗ Query failed: {e}", Colors.RED))
+
+    def _track_query(self, query_str: str, query, result_count: int):
+        """Track query for query-aware dreaming"""
+        import time
+
+        # Store query record
+        self.query_tracker['queries'].append({
+            'query': query_str,
+            'timestamp': time.time(),
+            'results': result_count
+        })
+
+        # Track functor frequency
+        functor = query.functor if hasattr(query, 'functor') else str(query)
+        self.query_tracker['functor_counts'][functor] = \
+            self.query_tracker['functor_counts'].get(functor, 0) + 1
+
+        # Store last query for bookmark
+        self._last_query = query_str
+
+    def _check_auto_dream(self):
+        """Check if auto-dream should be suggested"""
+        if not self.auto_dream_enabled:
+            return
+
+        queries_since_dream = self.stats['queries'] - self.query_tracker['last_dream_query_count']
+
+        if queries_since_dream >= self.auto_dream_threshold:
+            self._print(self._colorize(
+                f"\n💭 Suggestion: Run /dream to optimize your knowledge base "
+                f"({queries_since_dream} queries since last dream)",
+                Colors.MAGENTA
+            ))
 
     def _cmd_llm(self, args: str):
         """Enable/disable LLM"""
@@ -936,6 +1012,10 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
                     self._print(f"  [{insight.type}] {insight.description}")
 
             self.stats['sleep_cycles'] += 1
+            self.stats['compression_ratio'] = session.compression_ratio
+
+            # Track for auto-dream
+            self.query_tracker['last_dream_query_count'] = self.stats['queries']
 
         except Exception as e:
             self._print(self._colorize(f"✗ Sleep cycle failed: {e}", Colors.RED))
@@ -1304,6 +1384,208 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
                     self._print(f"    {count:3} - {ex.get('domain', '?')}: {ex.get('query_functor', '?')}")
 
         self._print(f"\n  Use /success reset to clear counts")
+
+    # ===== History & Replay Commands =====
+
+    def _cmd_history(self, args: str):
+        """Show command history"""
+        if not self.command_history:
+            self._print(self._colorize("No command history", Colors.YELLOW))
+            return
+
+        self._print(f"\n{self._colorize('Command History', Colors.BOLD)}")
+        self._print(f"{'─' * 50}")
+
+        # Show last N commands (default 20)
+        try:
+            limit = int(args.strip()) if args.strip() else 20
+        except ValueError:
+            limit = 20
+
+        history = self.command_history[-limit:]
+        start_idx = len(self.command_history) - len(history)
+
+        for i, cmd in enumerate(history, start_idx + 1):
+            self._print(f"  {i:4}  {cmd}")
+
+        self._print(f"\n  Use /replay <n> to replay a command")
+
+    def _cmd_replay(self, args: str):
+        """Replay a command from history"""
+        args = args.strip()
+
+        if not args or args == "!!":
+            # Replay last command
+            if not self.command_history:
+                self._print(self._colorize("No command history", Colors.YELLOW))
+                return
+            cmd = self.command_history[-1]
+        else:
+            try:
+                idx = int(args)
+                if idx < 1 or idx > len(self.command_history):
+                    self._print(self._colorize(f"Invalid index: {idx} (history has {len(self.command_history)} entries)", Colors.RED))
+                    return
+                cmd = self.command_history[idx - 1]
+            except ValueError:
+                self._print(self._colorize("Usage: /replay <n> or /replay !!", Colors.YELLOW))
+                return
+
+        self._print(self._colorize(f"Replaying: {cmd}", Colors.CYAN))
+
+        # Execute the command
+        if cmd.startswith('/'):
+            self._handle_command_line(cmd)
+        elif cmd.startswith('!'):
+            self._handle_shell_command(cmd[1:])
+        else:
+            self._handle_direct_input(cmd)
+
+    def _cmd_bookmark(self, args: str):
+        """Save last query with a name"""
+        name = args.strip()
+
+        if not name:
+            self._print(self._colorize("Usage: /bookmark <name>", Colors.YELLOW))
+            return
+
+        if not hasattr(self, '_last_query') or not self._last_query:
+            self._print(self._colorize("No query to bookmark (run a query first)", Colors.YELLOW))
+            return
+
+        self.bookmarks[name] = self._last_query
+        self._print(self._colorize(f"✓ Bookmarked '{name}': {self._last_query}", Colors.GREEN))
+
+    def _cmd_bookmarks(self, args: str):
+        """List all saved bookmarks"""
+        if not self.bookmarks:
+            self._print(self._colorize("No bookmarks saved", Colors.YELLOW))
+            self._print(f"  Use /bookmark <name> after a query to save it")
+            return
+
+        self._print(f"\n{self._colorize('Saved Bookmarks', Colors.BOLD)}")
+        self._print(f"{'─' * 50}")
+
+        for name, query in self.bookmarks.items():
+            self._print(f"  {self._colorize(name, Colors.CYAN):15} {query}")
+
+        self._print(f"\n  Use /run <name> to execute a bookmark")
+
+    def _cmd_run(self, args: str):
+        """Run a bookmarked query"""
+        name = args.strip()
+
+        if not name:
+            self._print(self._colorize("Usage: /run <name>", Colors.YELLOW))
+            return
+
+        if name not in self.bookmarks:
+            self._print(self._colorize(f"Bookmark '{name}' not found", Colors.RED))
+            self._print(f"  Available: {', '.join(self.bookmarks.keys()) or 'none'}")
+            return
+
+        query = self.bookmarks[name]
+        self._print(self._colorize(f"Running bookmark '{name}':", Colors.CYAN))
+        self._execute_query(query, find_all=True)
+
+    def _cmd_query_stats(self, args: str):
+        """Show query frequency statistics"""
+        self._print(f"\n{self._colorize('Query Statistics', Colors.BOLD)}")
+        self._print(f"{'─' * 50}")
+
+        total_queries = len(self.query_tracker['queries'])
+        self._print(f"  Total queries:     {total_queries}")
+
+        if not self.query_tracker['functor_counts']:
+            self._print(f"  No functor data yet")
+            return
+
+        # Show top functors
+        sorted_functors = sorted(
+            self.query_tracker['functor_counts'].items(),
+            key=lambda x: -x[1]
+        )
+
+        self._print(f"\n  {self._colorize('Top queried predicates:', Colors.BOLD)}")
+        for functor, count in sorted_functors[:10]:
+            pct = (count / total_queries * 100) if total_queries > 0 else 0
+            bar = '█' * int(pct / 5) + '░' * (20 - int(pct / 5))
+            self._print(f"    {functor:20} {count:4} {bar} {pct:.0f}%")
+
+        # Show queries since last dream
+        queries_since_dream = total_queries - self.query_tracker['last_dream_query_count']
+        self._print(f"\n  Queries since last dream: {queries_since_dream}")
+
+    # ===== Dream Status Commands =====
+
+    def _cmd_dream_status(self, args: str):
+        """Show dream cycle metrics and suggestions"""
+        self._print(f"\n{self._colorize('Dream Status', Colors.BOLD)}")
+        self._print(f"{'─' * 50}")
+
+        # Basic stats
+        self._print(f"  Sleep cycles run:  {self.stats['sleep_cycles']}")
+        self._print(f"  Compression ratio: {self.stats['compression_ratio']:.2f}x")
+
+        # Query-aware insights
+        queries_since_dream = self.stats['queries'] - self.query_tracker['last_dream_query_count']
+        self._print(f"  Queries since dream: {queries_since_dream}")
+
+        # KB stats
+        kb = self.engine.kb
+        self._print(f"\n  {self._colorize('Knowledge Base:', Colors.BOLD)}")
+        self._print(f"    Facts: {len(kb.facts)}")
+        self._print(f"    Rules: {len(kb.rules)}")
+
+        # Analyze potential optimizations
+        if len(kb.rules) > 0 or len(kb.facts) > 3:
+            self._print(f"\n  {self._colorize('Optimization Opportunities:', Colors.BOLD)}")
+
+            # Check for compression opportunities
+            from dreamlog.kb_dreamer import KnowledgeBaseDreamer
+
+            class DummyProvider:
+                def generate(self, prompt): return ""
+
+            dreamer = KnowledgeBaseDreamer(DummyProvider())
+            suggestions = dreamer.suggest_optimizations(kb)
+
+            if suggestions:
+                for suggestion in suggestions[:5]:
+                    self._print(f"    • {suggestion}")
+            else:
+                self._print(f"    • No obvious optimizations detected")
+
+        # Auto-dream status
+        self._print(f"\n  {self._colorize('Auto-dream:', Colors.BOLD)}")
+        status = "enabled" if self.auto_dream_enabled else "disabled"
+        self._print(f"    Status: {status}")
+        self._print(f"    Threshold: {self.auto_dream_threshold} queries")
+
+        # Recommend action
+        if queries_since_dream >= self.auto_dream_threshold:
+            self._print(self._colorize(
+                f"\n  💭 Recommendation: Run /dream (KB may benefit from optimization)",
+                Colors.MAGENTA
+            ))
+
+    def _cmd_auto_dream(self, args: str):
+        """Enable/disable auto-dream suggestions"""
+        args = args.strip().lower()
+
+        if args == 'on':
+            self.auto_dream_enabled = True
+            self._print(self._colorize("✓ Auto-dream suggestions enabled", Colors.GREEN))
+        elif args == 'off':
+            self.auto_dream_enabled = False
+            self._print(self._colorize("✓ Auto-dream suggestions disabled", Colors.GREEN))
+        elif args.isdigit():
+            self.auto_dream_threshold = int(args)
+            self._print(self._colorize(f"✓ Auto-dream threshold set to {args} queries", Colors.GREEN))
+        else:
+            status = "enabled" if self.auto_dream_enabled else "disabled"
+            self._print(f"Auto-dream is {status} (threshold: {self.auto_dream_threshold} queries)")
+            self._print(f"  Use /auto-dream on|off or /auto-dream <number>")
 
 
 def main():

@@ -432,3 +432,270 @@ class TestTUIKnowledgeManagement:
         output = "\n".join(tui.output)
         # Search should either work or show not implemented
         assert len(output) > 0 or True  # Just verify no crash
+
+
+class TestTUIHistoryReplay:
+    """Test history, replay, and bookmark commands"""
+
+    @pytest.fixture
+    def tui(self):
+        """Create a TUI instance with some history"""
+        config = DreamLogConfig(llm_enabled=False, tui_color_output=False)
+        with patch('dreamlog.tui.readline'):
+            with patch('dreamlog.tui.atexit'):
+                tui = DreamLogTUI(config)
+                tui.output = []
+                tui._print = lambda x: tui.output.append(x)
+
+                # Add some command history
+                tui.command_history = [
+                    "(parent john mary)",
+                    "/facts",
+                    "/ask (parent john X)"
+                ]
+
+                return tui
+
+    def test_cmd_history(self, tui):
+        """History command should show command history"""
+        tui._cmd_history("")
+        output = "\n".join(tui.output)
+        assert "Command History" in output
+        assert "parent john mary" in output
+
+    def test_cmd_history_with_limit(self, tui):
+        """History command should respect limit argument"""
+        tui._cmd_history("2")
+        output = "\n".join(tui.output)
+        assert "Command History" in output
+
+    def test_cmd_history_empty(self):
+        """Empty history should show message"""
+        config = DreamLogConfig(llm_enabled=False, tui_color_output=False)
+        with patch('dreamlog.tui.readline'):
+            with patch('dreamlog.tui.atexit'):
+                tui = DreamLogTUI(config)
+                tui.output = []
+                tui._print = lambda x: tui.output.append(x)
+                tui._cmd_history("")
+                output = "\n".join(tui.output)
+                assert "No command history" in output
+
+    def test_cmd_replay_by_index(self, tui):
+        """Replay command should execute command by index"""
+        tui._cmd_replay("2")
+        output = "\n".join(tui.output)
+        assert "Replaying" in output
+
+    def test_cmd_replay_bang_bang(self, tui):
+        """!! should replay last command"""
+        tui._cmd_replay("!!")
+        output = "\n".join(tui.output)
+        assert "Replaying" in output
+
+    def test_cmd_replay_invalid_index(self, tui):
+        """Invalid replay index should show error"""
+        tui._cmd_replay("999")
+        output = "\n".join(tui.output)
+        assert "Invalid index" in output
+
+    def test_cmd_bookmark_no_query(self, tui):
+        """Bookmark without prior query should show message"""
+        tui._cmd_bookmark("test")
+        output = "\n".join(tui.output)
+        assert "No query to bookmark" in output
+
+    def test_cmd_bookmark_with_query(self, tui):
+        """Bookmark after query should save it"""
+        tui._last_query = "(parent john X)"
+        tui._cmd_bookmark("family_query")
+        output = "\n".join(tui.output)
+        assert "Bookmarked" in output
+        assert "family_query" in tui.bookmarks
+
+    def test_cmd_bookmarks_empty(self, tui):
+        """Empty bookmarks should show message"""
+        tui._cmd_bookmarks("")
+        output = "\n".join(tui.output)
+        assert "No bookmarks" in output
+
+    def test_cmd_bookmarks_list(self, tui):
+        """Bookmarks command should list saved bookmarks"""
+        tui.bookmarks = {
+            "family": "(parent X Y)",
+            "grandpa": "(grandparent X Z)"
+        }
+        tui._cmd_bookmarks("")
+        output = "\n".join(tui.output)
+        assert "Saved Bookmarks" in output
+        assert "family" in output
+        assert "grandpa" in output
+
+    def test_cmd_run_bookmark(self, tui):
+        """Run command should execute bookmarked query"""
+        tui.bookmarks = {"test": "(parent john X)"}
+        # Add a fact so the query can succeed
+        tui._handle_direct_input("(parent john mary)")
+        tui.output.clear()
+        tui._cmd_run("test")
+        output = "\n".join(tui.output)
+        assert "Running bookmark" in output
+
+    def test_cmd_run_missing_bookmark(self, tui):
+        """Run command with missing bookmark should show error"""
+        tui._cmd_run("nonexistent")
+        output = "\n".join(tui.output)
+        assert "not found" in output
+
+
+class TestTUIQueryTracking:
+    """Test query tracking for query-aware dreaming"""
+
+    @pytest.fixture
+    def tui(self):
+        """Create a TUI instance"""
+        config = DreamLogConfig(llm_enabled=False, tui_color_output=False)
+        with patch('dreamlog.tui.readline'):
+            with patch('dreamlog.tui.atexit'):
+                tui = DreamLogTUI(config)
+                tui.output = []
+                tui._print = lambda x: tui.output.append(x)
+
+                # Add a fact for querying
+                tui._handle_direct_input("(parent john mary)")
+                tui.output.clear()
+
+                return tui
+
+    def test_query_tracker_initialized(self, tui):
+        """Query tracker should be initialized"""
+        assert 'queries' in tui.query_tracker
+        assert 'functor_counts' in tui.query_tracker
+        assert 'last_dream_query_count' in tui.query_tracker
+
+    def test_track_query(self, tui):
+        """_track_query should record query"""
+        from dreamlog.terms import Compound, Atom
+        query = Compound("parent", [Atom("john"), Atom("mary")])
+        tui._track_query("(parent john mary)", query, 1)
+
+        assert len(tui.query_tracker['queries']) == 1
+        assert tui.query_tracker['functor_counts']['parent'] == 1
+
+    def test_query_stats_empty(self, tui):
+        """Query stats with no queries should show message"""
+        tui._cmd_query_stats("")
+        output = "\n".join(tui.output)
+        assert "Query Statistics" in output
+
+    def test_query_stats_with_data(self, tui):
+        """Query stats should show frequency data"""
+        # Run some queries
+        tui._execute_query("(parent john X)", find_all=True)
+        tui._execute_query("(parent john X)", find_all=True)
+        tui.output.clear()
+
+        tui._cmd_query_stats("")
+        output = "\n".join(tui.output)
+        assert "Query Statistics" in output
+        assert "parent" in output
+
+
+class TestTUIDreamStatus:
+    """Test dream status and auto-dream commands"""
+
+    @pytest.fixture
+    def tui(self):
+        """Create a TUI instance"""
+        config = DreamLogConfig(llm_enabled=False, tui_color_output=False)
+        with patch('dreamlog.tui.readline'):
+            with patch('dreamlog.tui.atexit'):
+                tui = DreamLogTUI(config)
+                tui.output = []
+                tui._print = lambda x: tui.output.append(x)
+                return tui
+
+    def test_cmd_dream_status(self, tui):
+        """Dream status should show metrics"""
+        tui._cmd_dream_status("")
+        output = "\n".join(tui.output)
+        assert "Dream Status" in output
+        assert "Sleep cycles" in output
+        assert "Compression ratio" in output
+
+    def test_cmd_auto_dream_on(self, tui):
+        """Auto-dream on should enable"""
+        assert tui.auto_dream_enabled is False
+        tui._cmd_auto_dream("on")
+        assert tui.auto_dream_enabled is True
+        output = "\n".join(tui.output)
+        assert "enabled" in output
+
+    def test_cmd_auto_dream_off(self, tui):
+        """Auto-dream off should disable"""
+        tui.auto_dream_enabled = True
+        tui._cmd_auto_dream("off")
+        assert tui.auto_dream_enabled is False
+        output = "\n".join(tui.output)
+        assert "disabled" in output
+
+    def test_cmd_auto_dream_threshold(self, tui):
+        """Auto-dream with number should set threshold"""
+        tui._cmd_auto_dream("100")
+        assert tui.auto_dream_threshold == 100
+        output = "\n".join(tui.output)
+        assert "100" in output
+
+    def test_cmd_auto_dream_status(self, tui):
+        """Auto-dream with no args should show status"""
+        tui._cmd_auto_dream("")
+        output = "\n".join(tui.output)
+        assert "disabled" in output or "threshold" in output
+
+    def test_check_auto_dream_disabled(self, tui):
+        """Auto-dream check should not trigger when disabled"""
+        tui.auto_dream_enabled = False
+        tui.stats['queries'] = 100
+        tui.query_tracker['last_dream_query_count'] = 0
+        tui._check_auto_dream()
+        output = "\n".join(tui.output)
+        assert "Suggestion" not in output
+
+    def test_check_auto_dream_enabled_below_threshold(self, tui):
+        """Auto-dream check should not trigger below threshold"""
+        tui.auto_dream_enabled = True
+        tui.auto_dream_threshold = 50
+        tui.stats['queries'] = 10
+        tui.query_tracker['last_dream_query_count'] = 0
+        tui._check_auto_dream()
+        output = "\n".join(tui.output)
+        assert "Suggestion" not in output
+
+    def test_check_auto_dream_enabled_above_threshold(self, tui):
+        """Auto-dream check should trigger above threshold"""
+        tui.auto_dream_enabled = True
+        tui.auto_dream_threshold = 50
+        tui.stats['queries'] = 60
+        tui.query_tracker['last_dream_query_count'] = 0
+        tui._check_auto_dream()
+        output = "\n".join(tui.output)
+        assert "Suggestion" in output or "dream" in output.lower()
+
+
+class TestTUINewCommands:
+    """Test that new TUICommand enum entries exist"""
+
+    def test_history_replay_commands_exist(self):
+        """History and replay commands should exist"""
+        from dreamlog.tui import TUICommand
+        assert TUICommand.REPLAY.value == "replay"
+        assert TUICommand.BOOKMARK.value == "bookmark"
+        assert TUICommand.BOOKMARKS.value == "bookmarks"
+        assert TUICommand.RUN.value == "run"
+        assert TUICommand.QUERY_STATS.value == "query-stats"
+
+    def test_dream_status_commands_exist(self):
+        """Dream status commands should exist"""
+        from dreamlog.tui import TUICommand
+        assert TUICommand.DREAM_STATUS.value == "dream-status"
+        assert TUICommand.AUTO_DREAM.value == "auto-dream"
