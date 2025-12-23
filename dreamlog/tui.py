@@ -93,6 +93,11 @@ class TUICommand(Enum):
     RESET = "reset"
     BENCHMARK = "benchmark"
 
+    # RAG and success-based learning
+    RAG = "rag"
+    EXAMPLES = "examples"
+    SUCCESS = "success"
+
 
 class Colors:
     """ANSI color codes"""
@@ -299,6 +304,11 @@ class DreamLogTUI:
   /history             Show command history
   /reset               Reset the TUI
 
+{self._colorize("RAG & LEARNING", Colors.BOLD)}
+  /rag                 Show RAG system status and settings
+  /examples [n]        List RAG examples (default: top 10 by success)
+  /success [reset]     Show success counts, or reset them
+
 {self._colorize("GENERAL", Colors.BOLD)}
   /help                Show this help
   /exit, /quit         Exit TUI
@@ -397,13 +407,12 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
             return
 
         try:
-            term = parse_s_expression(line)
-
-            # Check if it's a rule
+            # Check if it's a rule first (before parsing as S-expression)
             if ':-' in line:
                 self._add_rule_from_string(line)
             else:
-                # It's a fact
+                # It's a fact - parse and add
+                term = parse_s_expression(line)
                 self.engine.add_fact(term)
                 self._print(self._colorize(f"✓ Added fact: {term}", Colors.GREEN))
         except Exception as e:
@@ -1154,6 +1163,147 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
         # Store in config (would need to add embedding_model field to TUIConfig)
         self._print(self._colorize(f"✓ Embedding model set to: {args.strip()}", Colors.GREEN))
         self._print(self._colorize("Note: Embedding integration coming soon", Colors.YELLOW))
+
+    # ===== RAG & Learning Commands =====
+
+    def _get_example_retriever(self):
+        """Get the example retriever from LLM hook if available"""
+        if not self.engine.llm_hook:
+            return None
+        template_lib = getattr(self.engine.llm_hook, 'template_library', None)
+        if template_lib:
+            return getattr(template_lib, 'example_retriever', None)
+        return None
+
+    def _cmd_rag(self, args: str):
+        """Show RAG system status and settings"""
+        retriever = self._get_example_retriever()
+
+        self._print(f"\n{self._colorize('RAG System Status', Colors.BOLD)}")
+        self._print(f"{'─' * 40}")
+
+        if not retriever:
+            self._print(self._colorize("  RAG system not available (LLM not enabled)", Colors.YELLOW))
+            self._print(f"  Enable with: /llm on")
+            return
+
+        # Show settings
+        num_examples = len(retriever.examples) if retriever.examples else 0
+        self._print(f"  Examples loaded: {self._colorize(str(num_examples), Colors.GREEN)}")
+        self._print(f"  Success boost:   {self._colorize(str(retriever.success_boost), Colors.CYAN)}")
+
+        # Show KB-aware weights if available
+        if hasattr(retriever, 'kb_context_weight'):
+            query_weight = 1.0 - retriever.kb_context_weight
+            self._print(f"  Query weight:    {self._colorize(f'{query_weight:.0%}', Colors.CYAN)}")
+            self._print(f"  KB weight:       {self._colorize(f'{retriever.kb_context_weight:.0%}', Colors.CYAN)}")
+
+        # Show embedding provider info
+        if retriever.embedding_provider:
+            provider_type = type(retriever.embedding_provider).__name__
+            self._print(f"  Embedding:       {self._colorize(provider_type, Colors.MAGENTA)}")
+
+        # Count examples with success
+        if retriever.examples:
+            with_success = sum(1 for ex in retriever.examples if ex.get('success_count', 0) > 0)
+            if with_success > 0:
+                self._print(f"  With success:    {self._colorize(str(with_success), Colors.GREEN)} examples")
+
+    def _cmd_examples(self, args: str):
+        """List RAG examples, sorted by success count"""
+        retriever = self._get_example_retriever()
+
+        if not retriever:
+            self._print(self._colorize("RAG system not available (LLM not enabled)", Colors.YELLOW))
+            return
+
+        if not retriever.examples:
+            self._print(self._colorize("No examples loaded", Colors.YELLOW))
+            return
+
+        # Parse limit argument
+        try:
+            limit = int(args.strip()) if args.strip() else 10
+        except ValueError:
+            limit = 10
+
+        # Sort by success count (descending), then by domain
+        examples = sorted(
+            retriever.examples,
+            key=lambda x: (-x.get('success_count', 0), x.get('domain', ''))
+        )
+
+        self._print(f"\n{self._colorize(f'RAG Examples (top {min(limit, len(examples))} of {len(examples)})', Colors.BOLD)}")
+        self._print(f"{'─' * 60}")
+
+        for i, ex in enumerate(examples[:limit]):
+            success = ex.get('success_count', 0)
+            domain = ex.get('domain', 'unknown')
+            functor = ex.get('query_functor', 'unknown')
+
+            # Color code by success
+            if success > 5:
+                count_color = Colors.GREEN
+            elif success > 0:
+                count_color = Colors.CYAN
+            else:
+                count_color = Colors.GRAY
+
+            self._print(
+                f"  {i+1:2}. [{self._colorize(f'{success:3}', count_color)}] "
+                f"{self._colorize(domain, Colors.MAGENTA):15} "
+                f"{functor}"
+            )
+
+        self._print(f"\n  Use /examples <n> to show more")
+
+    def _cmd_success(self, args: str):
+        """Show or reset success counts for RAG examples"""
+        retriever = self._get_example_retriever()
+
+        if not retriever:
+            self._print(self._colorize("RAG system not available (LLM not enabled)", Colors.YELLOW))
+            return
+
+        if not retriever.examples:
+            self._print(self._colorize("No examples loaded", Colors.YELLOW))
+            return
+
+        args = args.strip().lower()
+
+        if args == "reset":
+            # Reset all success counts
+            for ex in retriever.examples:
+                ex['success_count'] = 0
+            self._print(self._colorize("✓ Reset all success counts to 0", Colors.GREEN))
+            return
+
+        # Show success statistics
+        self._print(f"\n{self._colorize('Success-Based Learning Statistics', Colors.BOLD)}")
+        self._print(f"{'─' * 40}")
+
+        total = len(retriever.examples)
+        with_success = sum(1 for ex in retriever.examples if ex.get('success_count', 0) > 0)
+        total_successes = sum(ex.get('success_count', 0) for ex in retriever.examples)
+
+        self._print(f"  Total examples:     {total}")
+        self._print(f"  With success > 0:   {self._colorize(str(with_success), Colors.GREEN)}")
+        self._print(f"  Total successes:    {self._colorize(str(total_successes), Colors.CYAN)}")
+
+        if total_successes > 0:
+            avg = total_successes / total
+            self._print(f"  Average per example: {avg:.2f}")
+
+        # Show top 5 by success
+        top = sorted(retriever.examples, key=lambda x: -x.get('success_count', 0))[:5]
+        if top[0].get('success_count', 0) > 0:
+            self._print(f"\n  {self._colorize('Top performers:', Colors.BOLD)}")
+            for ex in top:
+                count = ex.get('success_count', 0)
+                if count > 0:
+                    self._print(f"    {count:3} - {ex.get('domain', '?')}: {ex.get('query_functor', '?')}")
+
+        self._print(f"\n  Use /success reset to clear counts")
 
 
 def main():
