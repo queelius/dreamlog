@@ -1,5 +1,6 @@
 # tests/test_sleep_cycle.py
 import pytest
+from dreamlog.terms import Atom, Variable, Compound
 from dreamlog.factories import atom, var, compound
 from dreamlog.knowledge import KnowledgeBase, Fact, Rule
 from dreamlog.kb_dreamer import KnowledgeBaseDreamer, DreamSession
@@ -124,3 +125,89 @@ class TestVerification:
         dreamer = KnowledgeBaseDreamer()
         session = dreamer.dream(kb, verify=True)
         assert len(kb) == original_size
+
+
+class TestOperationC:
+    def test_basic_generalization(self):
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol", "dave"]:
+            kb.add_fact(compound("person", atom(name)))
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("likes", atom(name), atom("chocolate")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        session = dreamer.dream(kb, verify=True)
+        assert session.compressed is True
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        for name in ["alice", "bob", "carol"]:
+            assert ev.has_solution(compound("likes", atom(name), atom("chocolate")))
+        assert not ev.has_solution(compound("likes", atom("dave"), atom("chocolate")))
+
+    def test_mdl_rejects_small_group(self):
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("person", atom(name)))
+        kb.add_fact(compound("likes", atom("alice"), atom("chocolate")))
+        kb.add_fact(compound("likes", atom("bob"), atom("chocolate")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        dreamer.dream(kb, verify=False)
+        likes_facts = [f for f in kb.facts
+                       if hasattr(f.term, 'functor') and f.term.functor == "likes"]
+        assert len(likes_facts) == 2
+
+    def test_multi_variable_skipped(self):
+        kb = KnowledgeBase()
+        for a, b in [("a", "1"), ("b", "2"), ("c", "3")]:
+            kb.add_fact(compound("f", atom(a), atom(b)))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        dreamer.dream(kb, verify=False)
+        assert len(kb.facts) == 3
+
+    def test_no_guard_found_skipped(self):
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("likes", atom(name), atom("chocolate")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        dreamer.dream(kb, verify=False)
+        likes_facts = [f for f in kb.facts
+                       if hasattr(f.term, 'functor') and f.term.functor == "likes"]
+        assert len(likes_facts) == 3
+
+    def test_guard_selects_smallest_extension(self):
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("small_group", atom(name)))
+        for name in ["alice", "bob", "carol", "dave", "eve"]:
+            kb.add_fact(compound("big_group", atom(name)))
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("likes", atom(name), atom("chocolate")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        dreamer.dream(kb, verify=False)
+        exc_facts = [f for f in kb.facts
+                     if hasattr(f.term, 'functor')
+                     and f.term.functor.startswith("exception_")]
+        assert len(exc_facts) == 0
+
+    def test_exception_predicates_excluded(self):
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol", "dave"]:
+            kb.add_fact(compound("person", atom(name)))
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("likes", atom(name), atom("chocolate")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        dreamer.dream(kb, verify=True)
+        size_after = len(kb)
+        dreamer.dream(kb, verify=True)
+        assert len(kb) == size_after
+
+    def test_idempotent(self):
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol", "dave"]:
+            kb.add_fact(compound("person", atom(name)))
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("likes", atom(name), atom("chocolate")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        dreamer.dream(kb, verify=True)
+        size_after_first = len(kb)
+        dreamer.dream(kb, verify=True)
+        assert len(kb) == size_after_first

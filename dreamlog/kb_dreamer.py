@@ -141,7 +141,7 @@ class KnowledgeBaseDreamer:
 
         ops.extend(self._eliminate_subsumed(kb))
         ops.extend(self._prune_redundant_facts(kb))
-        # Operation C will be added in Task 7
+        ops.extend(self._generalize_facts(kb, suite))
 
         if verify and suite:
             from .evaluator import PrologEvaluator
@@ -240,3 +240,116 @@ class KnowledgeBaseDreamer:
                 kb.add_fact(fact)
 
         return ops
+
+    def _generalize_facts(self, kb: KnowledgeBase,
+                          suite: Optional['VerificationSuite'] = None
+                          ) -> List[CompressionCandidate]:
+        """Operation C: Generalize fact groups into rules with exceptions."""
+        from .anti_unification import anti_unify_many
+        from .evaluator import PrologEvaluator
+
+        ops = []
+        groups = {}
+        for fact in kb.facts:
+            term = fact.term
+            if isinstance(term, Compound):
+                key = (term.functor, term.arity)
+                groups.setdefault(key, []).append(fact)
+
+        for (functor, arity), facts in groups.items():
+            if functor.startswith("exception_"):
+                continue
+            if len(facts) < self.min_group_size:
+                continue
+
+            terms = [f.term for f in facts]
+            au_result = anti_unify_many(terms)
+
+            if au_result.shared_structure < self.shared_structure_threshold:
+                continue
+            if au_result.variables_introduced != 1:
+                continue
+
+            gen = au_result.generalized
+            if not isinstance(gen, Compound):
+                continue
+            var_pos = None
+            for i, arg in enumerate(gen.args):
+                if isinstance(arg, Variable):
+                    var_pos = i
+                    break
+            if var_pos is None:
+                continue
+
+            fact_values = set()
+            for term in terms:
+                arg = term.args[var_pos]
+                if isinstance(arg, Atom):
+                    fact_values.add(arg.value)
+
+            guard = self._find_guard(kb, functor, fact_values)
+            if guard is None:
+                continue
+
+            guard_functor, guard_values = guard
+            exceptions = guard_values - fact_values
+            cost_before = len(facts)
+            cost_after = 1 + len(exceptions)
+            if cost_after >= cost_before:
+                continue
+
+            exception_functor = f"exception_{functor}_{guard_functor}"
+            new_clauses: List[Union[Fact, Rule]] = []
+
+            rule_var = Variable("X")
+            rule_args = list(gen.args)
+            rule_args[var_pos] = rule_var
+            rule_head = Compound(functor, rule_args)
+            rule_body = [
+                Compound(guard_functor, [rule_var]),
+                Compound("not", [Compound(exception_functor, [rule_var])]),
+            ]
+            new_clauses.append(Rule(rule_head, rule_body))
+
+            for exc_val in sorted(exceptions):
+                new_clauses.append(
+                    Fact(Compound(exception_functor, [Atom(exc_val)])))
+
+            if suite is not None:
+                test_kb = kb.copy()
+                test_kb.replace_facts(facts, new_clauses)
+                result = suite.verify(test_kb, lambda k: PrologEvaluator(k))
+                if not result.passed:
+                    continue
+
+            kb.replace_facts(facts, new_clauses)
+            ops.append(CompressionCandidate(
+                operation="generalization",
+                original_clauses=list(facts),
+                new_clauses=list(new_clauses)))
+
+        return ops
+
+    def _find_guard(self, kb: KnowledgeBase, functor: str,
+                    needed_values: set) -> Optional[tuple]:
+        """Find a unary guard predicate whose extension covers needed_values."""
+        candidates = []
+        unary_groups: dict = {}
+        for fact in kb.facts:
+            term = fact.term
+            if (isinstance(term, Compound) and term.arity == 1
+                    and isinstance(term.args[0], Atom)):
+                f = term.functor
+                if f == functor or f.startswith("exception_"):
+                    continue
+                unary_groups.setdefault(f, set()).add(term.args[0].value)
+
+        for guard_f, guard_vals in unary_groups.items():
+            if needed_values.issubset(guard_vals):
+                excess = len(guard_vals - needed_values)
+                candidates.append((guard_f, guard_vals, excess))
+
+        if not candidates:
+            return None
+        candidates.sort(key=lambda c: c[2])
+        return (candidates[0][0], candidates[0][1])
