@@ -1,316 +1,242 @@
 """
-Knowledge Base Dreamer - Sleep phase knowledge optimization.
+Knowledge Base Dreamer - Sleep phase symbolic compression.
 
-This module implements the "dreaming" component of DreamLog's wake-sleep architecture.
-During sleep phases, the dreamer:
-- Discovers patterns and redundancies in the knowledge base
-- Compresses knowledge through abstraction
-- Generalizes rules for broader applicability
-- Verifies that behavior is preserved after optimization
+Implements the sleep/dream cycle via three operations:
+A. Subsumption elimination
+B. Redundant fact pruning
+C. Fact generalization with exceptions (added in Task 7)
+
+All operations are purely symbolic (no LLM). Compression is guided by
+Minimum Description Length: compress only when the result is shorter.
 """
 
-from typing import Protocol, List
-from dataclasses import dataclass
-
-
-class LLMProvider(Protocol):
-    """Protocol for LLM providers used during dreaming."""
-    def generate(self, prompt: str) -> str:
-        ...
+from typing import List, Optional, Union, Set
+from dataclasses import dataclass, field
+from .terms import Term, Atom, Variable, Compound
+from .knowledge import KnowledgeBase, Fact, Rule
+from .unification import clause_subsumes, subsumes
 
 
 @dataclass
-class DreamVerification:
-    """Results from verifying that behavior is preserved after optimization."""
-    preserved: bool
-    similarity_score: float
-    improvements: List[str]
+class CompressionCandidate:
+    """A single compression operation that was applied."""
+    operation: str
+    original_clauses: List[Union[Fact, Rule]]
+    new_clauses: List[Union[Fact, Rule]] = field(default_factory=list)
+
+    @property
+    def mdl_delta(self) -> int:
+        return len(self.new_clauses) - len(self.original_clauses)
+
+    @property
+    def is_worth_it(self) -> bool:
+        return self.mdl_delta < 0
+
+
+@dataclass
+class VerificationResult:
+    """Result of verifying a compressed KB."""
+    passed: bool
+    failures: List[tuple]
+    positive_count: int
+    negative_count: int
+
+
+@dataclass
+class VerificationSuite:
+    """Test suite for verifying KB compression preserves semantics."""
+    positive_queries: List[Term]
+    negative_queries: List[Term]
+
+    def verify(self, kb: KnowledgeBase, evaluator_factory) -> VerificationResult:
+        evaluator = evaluator_factory(kb)
+        failures = []
+        for q in self.positive_queries:
+            if not evaluator.has_solution(q):
+                failures.append(("false_negative", q))
+        for q in self.negative_queries:
+            if evaluator.has_solution(q):
+                failures.append(("false_positive", q))
+        return VerificationResult(
+            passed=len(failures) == 0, failures=failures,
+            positive_count=len(self.positive_queries),
+            negative_count=len(self.negative_queries))
+
+
+def build_verification_suite(kb: KnowledgeBase) -> VerificationSuite:
+    """Build verification suite from current KB state."""
+    positive = [fact.term for fact in kb.facts]
+
+    atom_pool: Set[str] = set()
+    fact_terms_by_key = {}
+    for fact in kb.facts:
+        term = fact.term
+        if isinstance(term, Compound):
+            key = (term.functor, term.arity)
+            fact_terms_by_key.setdefault(key, []).append(term)
+            for arg in term.args:
+                if isinstance(arg, Atom):
+                    atom_pool.add(arg.value)
+        elif isinstance(term, Atom):
+            atom_pool.add(term.value)
+
+    negative: List[Term] = []
+    max_negative = 2 * len(positive)
+    for (functor, arity), terms in fact_terms_by_key.items():
+        if len(negative) >= max_negative:
+            break
+        for pos in range(arity):
+            existing_values = set()
+            for t in terms:
+                if isinstance(t.args[pos], Atom):
+                    existing_values.add(t.args[pos].value)
+            novel_values = atom_pool - existing_values
+            if not novel_values:
+                continue
+            novel = sorted(novel_values)[0]
+            base = terms[0]
+            new_args = list(base.args)
+            new_args[pos] = Atom(novel)
+            neg_term = Compound(functor, new_args)
+            if neg_term not in [f.term for f in kb.facts]:
+                negative.append(neg_term)
+            if len(negative) >= max_negative:
+                break
+
+    return VerificationSuite(positive_queries=positive,
+                             negative_queries=negative)
 
 
 @dataclass
 class DreamSession:
-    """
-    Results from a dream cycle.
-
-    Tracks exploration paths, insights discovered, and verification results.
-    """
-    exploration_paths: int
-    insights: List['DreamInsight']
+    """Results from a dream cycle."""
+    compressed: bool
+    operations: List[CompressionCandidate]
     compression_ratio: float
-    generalization_score: float
-    verification: DreamVerification
+    verification: Optional[VerificationResult]
 
-
-@dataclass
-class DreamInsight:
-    """
-    A single insight discovered during dreaming.
-
-    Represents a discovered pattern, compression opportunity, or generalization.
-    """
-    type: str  # "abstraction", "compression", "generalization"
-    description: str
-    compression_ratio: float
-    coverage_gain: float
-    verified: bool
+    @property
+    def clauses_removed(self) -> int:
+        return sum(-op.mdl_delta for op in self.operations)
 
 
 class KnowledgeBaseDreamer:
-    """
-    Implements knowledge optimization through "dreaming".
+    """Symbolic sleep-phase compression via anti-unification and MDL."""
 
-    The dreamer explores the knowledge base to discover:
-    - Compression opportunities (redundant patterns)
-    - Abstraction opportunities (common structures)
-    - Generalization opportunities (broader applicability)
-    """
+    def __init__(self, min_group_size: int = 3,
+                 shared_structure_threshold: float = 0.1):
+        self.min_group_size = min_group_size
+        self.shared_structure_threshold = shared_structure_threshold
 
-    def __init__(self, llm_provider: LLMProvider):
-        """
-        Initialize the dreamer with an LLM provider.
+    def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
+        original_size = len(kb)
+        if original_size == 0:
+            return DreamSession(compressed=False, operations=[],
+                                compression_ratio=1.0, verification=None)
 
-        Args:
-            llm_provider: An LLM provider for generating insights and optimizations
-        """
-        self.llm_provider = llm_provider
+        snapshot = kb.copy()
+        suite = build_verification_suite(kb) if verify else None
+        result = None
+        ops: List[CompressionCandidate] = []
 
-    def dream(self, kb, dream_cycles: int = 1, exploration_samples: int = 1,
-              focus: str = "all", verify: bool = True) -> DreamSession:
-        """
-        Run a dream cycle on the knowledge base.
+        ops.extend(self._eliminate_subsumed(kb))
+        ops.extend(self._prune_redundant_facts(kb))
+        # Operation C will be added in Task 7
 
-        Args:
-            kb: The knowledge base to optimize
-            dream_cycles: Number of dream cycles to run
-            exploration_samples: Number of exploration samples per cycle
-            focus: What to focus on ("all", "compression", "abstraction", "generalization")
-            verify: Whether to verify behavior preservation
+        if verify and suite:
+            from .evaluator import PrologEvaluator
+            result = suite.verify(kb, lambda k: PrologEvaluator(k))
+            if not result.passed:
+                kb.restore_from(snapshot)
+                return DreamSession(compressed=False, operations=[],
+                                    compression_ratio=1.0,
+                                    verification=result)
 
-        Returns:
-            A DreamSession with results from the dreaming process
-        """
-        insights = []
-
-        # Detect patterns based on focus
-        if focus in ["all", "compression"]:
-            insights.extend(self._detect_compression_patterns(kb))
-
-        if focus in ["all", "abstraction"]:
-            insights.extend(self._detect_abstraction_patterns(kb))
-
-        if focus in ["all", "generalization"]:
-            insights.extend(self._detect_generalization_patterns(kb))
-
-        # Calculate metrics
-        compression_ratio = self._calculate_compression_ratio(kb, insights)
-        generalization_score = self._calculate_generalization_score(insights)
-
-        # Verify if requested
-        verification = self._verify_optimizations(kb, insights) if verify else DreamVerification(
-            preserved=True,
-            similarity_score=1.0,
-            improvements=[]
-        )
-
+        new_size = len(kb)
         return DreamSession(
-            exploration_paths=len(insights),
-            insights=insights,
-            compression_ratio=compression_ratio,
-            generalization_score=generalization_score,
-            verification=verification
-        )
+            compressed=new_size < original_size, operations=ops,
+            compression_ratio=new_size / original_size if original_size > 0 else 1.0,
+            verification=result)
 
-    def _detect_compression_patterns(self, kb) -> List[DreamInsight]:
-        """Detect compression opportunities (redundant patterns)."""
-        insights = []
+    def _eliminate_subsumed(self, kb: KnowledgeBase) -> List[CompressionCandidate]:
+        """Operation A: Remove clauses subsumed by more general clauses."""
+        ops = []
 
-        # Find rules with the same head but different bodies
-        # This indicates potential compression through abstraction
-        head_to_rules = {}
-        for rule in kb._rules:
-            head_str = str(rule.head)
-            if head_str not in head_to_rules:
-                head_to_rules[head_str] = []
-            head_to_rules[head_str].append(rule)
+        # A1: Rule-vs-rule subsumption (same body length)
+        rules_to_remove = set()
+        rules = kb.rules
+        for i, rule_a in enumerate(rules):
+            for j, rule_b in enumerate(rules):
+                if i == j or j in rules_to_remove:
+                    continue
+                if clause_subsumes(rule_a, rule_b) and rule_a != rule_b:
+                    rules_to_remove.add(j)
 
-        # Look for rules with the same head
-        for head_str, rules in head_to_rules.items():
-            if len(rules) > 1:
-                # Found redundant pattern: multiple rules derive the same conclusion
-                insight = DreamInsight(
-                    type="compression",
-                    description=f"Found {len(rules)} rules with head '{head_str}' - potential for abstraction",
-                    compression_ratio=1.0 - (1.0 / len(rules)),
-                    coverage_gain=len(rules) - 1.0,
-                    verified=False
-                )
-                insights.append(insight)
+        for idx in sorted(rules_to_remove, reverse=True):
+            removed = rules[idx]
+            kb.remove_rule_by_value(removed)
+            ops.append(CompressionCandidate(
+                operation="subsumption", original_clauses=[removed]))
 
-        return insights
+        # A2: Bodyless-rule-vs-fact subsumption
+        facts_to_remove = []
+        bodyless_rules = [r for r in kb.rules if len(r.body) == 0]
+        for fact in kb.facts:
+            for rule in bodyless_rules:
+                if subsumes(rule.head, fact.term):
+                    facts_to_remove.append(fact)
+                    break
 
-    def _detect_abstraction_patterns(self, kb) -> List[DreamInsight]:
-        """Detect abstraction opportunities (common structures in rule bodies)."""
-        insights = []
+        for fact in facts_to_remove:
+            kb.remove_fact_by_value(fact)
+            ops.append(CompressionCandidate(
+                operation="subsumption", original_clauses=[fact]))
 
-        # Find common body patterns across rules
-        body_patterns = {}
-        for rule in kb._rules:
-            # Convert body to a normalized pattern (replace specific args with placeholders)
-            if len(rule.body) >= 2:
-                # Look for pairs of predicates that appear together
-                for i, term1 in enumerate(rule.body):
-                    for term2 in rule.body[i+1:]:
-                        pattern_key = (str(term1.functor if hasattr(term1, 'functor') else term1),
-                                      str(term2.functor if hasattr(term2, 'functor') else term2))
-                        if pattern_key not in body_patterns:
-                            body_patterns[pattern_key] = []
-                        body_patterns[pattern_key].append(rule)
+        return ops
 
-        # Find patterns that appear in multiple rules
-        for pattern, rules in body_patterns.items():
-            if len(rules) >= 2:
-                insight = DreamInsight(
-                    type="abstraction",
-                    description=f"Common pattern ({pattern[0]}, {pattern[1]}) found in {len(rules)} rules",
-                    compression_ratio=1.0 - (1.0 / len(rules)),
-                    coverage_gain=float(len(rules)),
-                    verified=False
-                )
-                insights.append(insight)
+    def _prune_redundant_facts(self, kb: KnowledgeBase) -> List[CompressionCandidate]:
+        """Operation B: Remove facts derivable from remaining KB."""
+        from .evaluator import PrologEvaluator
 
-        return insights
+        ops = []
+        facts = kb.facts
 
-    def _detect_generalization_patterns(self, kb) -> List[DreamInsight]:
-        """Detect generalization opportunities (facts that could become rules)."""
-        insights = []
+        # Phase 1: Find independently redundant facts
+        redundant = []
+        for fact in facts:
+            kb.remove_fact_by_value(fact)
+            ev = PrologEvaluator(kb)
+            if ev.has_solution(fact.term):
+                redundant.append(fact)
+            kb.add_fact(fact)
 
-        # Group facts by functor
-        fact_groups = {}
-        for fact in kb._facts:
-            functor = fact.term.functor if hasattr(fact.term, 'functor') else str(fact.term)
-            if functor not in fact_groups:
-                fact_groups[functor] = []
-            fact_groups[functor].append(fact)
+        if not redundant:
+            return ops
 
-        # Find functors with many similar facts (could be generalized to a rule)
-        for functor, facts in fact_groups.items():
-            if len(facts) >= 3:
-                insight = DreamInsight(
-                    type="generalization",
-                    description=f"Found {len(facts)} facts for '{functor}' - potential for rule generalization",
-                    compression_ratio=1.0 - (1.0 / len(facts)),
-                    coverage_gain=float(len(facts)),
-                    verified=False
-                )
-                insights.append(insight)
+        # Phase 2: Batch remove
+        for fact in redundant:
+            kb.remove_fact_by_value(fact)
 
-        return insights
+        # Phase 3: Verify all still derivable
+        ev = PrologEvaluator(kb)
+        still_ok = all(ev.has_solution(f.term) for f in redundant)
 
-    def _calculate_compression_ratio(self, kb, insights: List[DreamInsight]) -> float:
-        """Calculate overall compression ratio."""
-        if not insights:
-            return 1.0
+        if still_ok:
+            for fact in redundant:
+                ops.append(CompressionCandidate(
+                    operation="pruning", original_clauses=[fact]))
+            return ops
 
-        # Average compression ratio from all insights
-        total_compression = sum(i.compression_ratio for i in insights)
-        return total_compression / len(insights)
+        # Phase 4: Fallback to one-at-a-time
+        for fact in redundant:
+            kb.add_fact(fact)
+        for fact in redundant:
+            kb.remove_fact_by_value(fact)
+            ev = PrologEvaluator(kb)
+            if ev.has_solution(fact.term):
+                ops.append(CompressionCandidate(
+                    operation="pruning", original_clauses=[fact]))
+            else:
+                kb.add_fact(fact)
 
-    def _calculate_generalization_score(self, insights: List[DreamInsight]) -> float:
-        """Calculate overall generalization score."""
-        generalization_insights = [i for i in insights if i.type == "generalization"]
-        if not generalization_insights:
-            return 0.0
-
-        return sum(i.coverage_gain for i in generalization_insights) / len(generalization_insights)
-
-    def _verify_optimizations(self, kb, insights: List[DreamInsight]) -> DreamVerification:
-        """Verify that optimizations preserve behavior."""
-        if not insights:
-            return DreamVerification(
-                preserved=True,
-                similarity_score=1.0,
-                improvements=[]
-            )
-
-        # Calculate a basic similarity score based on insight verification
-        verified_count = sum(1 for i in insights if i.verified)
-        total_count = len(insights)
-
-        # Identify potential improvements
-        improvements = []
-        for insight in insights:
-            if insight.compression_ratio > 0.5:
-                improvements.append(f"{insight.type}: {insight.description}")
-
-        return DreamVerification(
-            preserved=True,  # Conservative default
-            similarity_score=verified_count / total_count if total_count > 0 else 1.0,
-            improvements=improvements
-        )
-
-    def apply_insights(self, kb, insights: List[DreamInsight]):
-        """
-        Apply verified insights to optimize the knowledge base.
-
-        Args:
-            kb: The knowledge base to optimize
-            insights: List of verified insights to apply
-
-        Returns:
-            The optimized knowledge base
-        """
-        # Only apply verified insights
-        verified_insights = [i for i in insights if i.verified]
-
-        for insight in verified_insights:
-            if insight.type == "compression":
-                self._apply_compression(kb, insight)
-            elif insight.type == "abstraction":
-                self._apply_abstraction(kb, insight)
-            elif insight.type == "generalization":
-                self._apply_generalization(kb, insight)
-
-        return kb
-
-    def _apply_compression(self, kb, insight: DreamInsight):
-        """Apply a compression insight to the KB."""
-        # Placeholder - actual implementation would merge redundant rules
-        pass
-
-    def _apply_abstraction(self, kb, insight: DreamInsight):
-        """Apply an abstraction insight to the KB."""
-        # Placeholder - actual implementation would create abstract rules
-        pass
-
-    def _apply_generalization(self, kb, insight: DreamInsight):
-        """Apply a generalization insight to the KB."""
-        # Placeholder - actual implementation would convert facts to rules
-        pass
-
-    def suggest_optimizations(self, kb) -> List[str]:
-        """
-        Suggest optimizations without applying them.
-
-        Args:
-            kb: The knowledge base to analyze
-
-        Returns:
-            List of human-readable optimization suggestions
-        """
-        suggestions = []
-
-        # Run detection
-        compression = self._detect_compression_patterns(kb)
-        abstraction = self._detect_abstraction_patterns(kb)
-        generalization = self._detect_generalization_patterns(kb)
-
-        for insight in compression:
-            suggestions.append(f"[Compression] {insight.description}")
-
-        for insight in abstraction:
-            suggestions.append(f"[Abstraction] {insight.description}")
-
-        for insight in generalization:
-            suggestions.append(f"[Generalization] {insight.description}")
-
-        return suggestions
+        return ops
