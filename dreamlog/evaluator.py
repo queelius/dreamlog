@@ -7,10 +7,14 @@ Implements SLD resolution for query evaluation with proper backtracking.
 from typing import List, Dict, Any, Iterator, Optional, Callable, Set
 from dataclasses import dataclass
 from contextlib import contextmanager
-from .terms import Term, Variable
+from .terms import Term, Variable, Compound
 from .factories import atom, var, compound
 from .knowledge import KnowledgeBase, Fact, Rule
 from .unification import unify, compose_substitutions, apply_substitution, is_ground
+
+
+class FlounderingError(Exception):
+    """Raised when not/1 is applied to a non-ground goal."""
 
 
 @dataclass
@@ -134,7 +138,31 @@ class PrologEvaluator:
                 
                 # Apply global bindings to the current goal
                 current_goal = current_goal.substitute(global_bindings)
-        
+
+                # Handle negation as failure: not/1
+                if (isinstance(current_goal.term, Compound)
+                        and current_goal.term.functor == "not"
+                        and current_goal.term.arity == 1):
+                    inner_term = current_goal.term.args[0]
+                    # current_goal.term is already post-substitution
+                    inner_resolved = inner_term.substitute(global_bindings)
+
+                    # Floundering check
+                    if inner_resolved.get_variables():
+                        raise FlounderingError(
+                            f"not/1 applied to non-ground goal: {inner_resolved}")
+
+                    # Evaluate with hook suppressed
+                    naf_evaluator = PrologEvaluator(self.kb, unknown_hook=None)
+                    naf_evaluator._max_recursion_depth = self._max_recursion_depth
+                    if not naf_evaluator.has_solution(inner_resolved):
+                        # Inner goal failed -> not/1 succeeds
+                        new_remaining = [g.substitute(global_bindings)
+                                         for g in remaining_goals]
+                        yield from self._solve_goals(
+                            new_remaining, global_bindings)
+                    return
+
                 # Try to solve the current goal
                 solutions_found = False
         
@@ -238,7 +266,13 @@ class PrologEvaluator:
         for solution in self.query(goals):
             return solution
         return None
-    
+
+    def has_solution(self, term: Term) -> bool:
+        """Check if a term is derivable. Stops at first solution."""
+        for _ in self.query([term]):
+            return True
+        return False
+
     def _detect_simple_cycle(self, new_goals: List[Goal], current_goal: Goal) -> bool:
         """
         Detect simple cycles in goal expansion to prevent infinite recursion.

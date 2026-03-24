@@ -95,6 +95,28 @@ def subsumes(general: Term, specific: Term) -> bool:
     return result is not None
 
 
+def clause_subsumes(general: 'Rule', specific: 'Rule') -> bool:
+    """Check if general clause subsumes specific (same-body-length only)."""
+    from .knowledge import Rule
+
+    if len(general.body) != len(specific.body):
+        return False
+
+    head_bindings = unify(general.head, specific.head,
+                          mode=UnificationMode.SUBSUME)
+    if head_bindings is None:
+        return False
+
+    for gen_goal, spec_goal in zip(general.body, specific.body):
+        gen_substituted = gen_goal.substitute(head_bindings)
+        goal_bindings = unify(gen_substituted, spec_goal,
+                              mode=UnificationMode.SUBSUME)
+        if goal_bindings is None:
+            return False
+
+    return True
+
+
 def apply_substitution(term: Term, bindings: Dict[str, Term]) -> Term:
     """Apply substitution to a term"""
     return term.substitute(bindings)
