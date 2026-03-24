@@ -86,3 +86,48 @@ def anti_unify(term1: Term, term2: Term) -> AntiUnificationResult:
         variables_introduced=variables_introduced,
         shared_structure=shared_structure,
     )
+
+
+def anti_unify_many(terms: List[Term]) -> AntiUnificationResult:
+    """Compute the lgg of multiple terms via pairwise folding.
+
+    Folds `anti_unify` across the list, composing substitutions at each
+    step so that every original term can be recovered from the final
+    generalization.
+
+    Args:
+        terms: Non-empty list of terms to anti-unify.
+
+    Returns:
+        AntiUnificationResult where substitutions[i] recovers terms[i].
+
+    Raises:
+        ValueError: If the list is empty.
+    """
+    if not terms:
+        raise ValueError("Cannot anti-unify empty list")
+    if len(terms) == 1:
+        return AntiUnificationResult(
+            generalized=terms[0], substitutions=[{}],
+            variables_introduced=0, shared_structure=1.0)
+
+    acc = anti_unify(terms[0], terms[1])
+    all_subs = [acc.substitutions[0], acc.substitutions[1]]
+
+    for i in range(2, len(terms)):
+        prev_gen = acc.generalized
+        acc = anti_unify(prev_gen, terms[i])
+        bridge = acc.substitutions[0]
+        new_all_subs = []
+        for old_sub in all_subs:
+            composed = {}
+            for var_name, term in bridge.items():
+                composed[var_name] = term.substitute(old_sub)
+            new_all_subs.append(composed)
+        new_all_subs.append(acc.substitutions[1])
+        all_subs = new_all_subs
+
+    return AntiUnificationResult(
+        generalized=acc.generalized, substitutions=all_subs,
+        variables_introduced=acc.variables_introduced,
+        shared_structure=acc.shared_structure)

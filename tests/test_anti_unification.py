@@ -5,7 +5,7 @@ Tests for DreamLog anti-unification (least general generalization).
 import pytest
 from dreamlog.terms import Compound, Atom, Variable
 from dreamlog.factories import atom, var, compound
-from dreamlog.anti_unification import node_count, anti_unify
+from dreamlog.anti_unification import node_count, anti_unify, anti_unify_many
 
 
 class TestNodeCount:
@@ -101,3 +101,38 @@ class TestAntiUnifyTwoTerms:
         t2 = compound("f", atom("a"), atom("c"))
         result = anti_unify(t1, t2)
         assert abs(result.shared_structure - 2.0 / 3.0) < 0.01
+
+
+class TestAntiUnifyMany:
+    def test_single_term(self):
+        t = compound("f", atom("a"))
+        result = anti_unify_many([t])
+        assert result.generalized == t
+        assert len(result.substitutions) == 1
+        assert result.variables_introduced == 0
+
+    def test_two_terms(self):
+        t1 = compound("f", atom("a"))
+        t2 = compound("f", atom("b"))
+        result = anti_unify_many([t1, t2])
+        assert result.generalized.functor == "f"
+        assert isinstance(result.generalized.args[0], Variable)
+        assert len(result.substitutions) == 2
+
+    def test_three_terms_preserves_shared(self):
+        terms = [compound("f", atom("a"), atom(v)) for v in ["x", "y", "z"]]
+        result = anti_unify_many(terms)
+        assert result.generalized.functor == "f"
+        assert result.generalized.args[0] == atom("a")
+        assert isinstance(result.generalized.args[1], Variable)
+
+    def test_substitution_recovery_many(self):
+        terms = [compound("f", atom("a"), atom(v)) for v in ["x", "y", "z"]]
+        result = anti_unify_many(terms)
+        for i, t in enumerate(terms):
+            recovered = result.generalized.substitute(result.substitutions[i])
+            assert recovered == t
+
+    def test_empty_list_raises(self):
+        with pytest.raises(ValueError):
+            anti_unify_many([])
