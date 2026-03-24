@@ -298,6 +298,54 @@ class KnowledgeBase:
         for rule in self._rules:
             self._index_rule(rule)
     
+    def copy(self) -> 'KnowledgeBase':
+        """Deep copy for rollback."""
+        new_kb = KnowledgeBase()
+        for fact in self._facts:
+            new_kb.add_fact(fact)
+        for rule in self._rules:
+            new_kb.add_rule(rule)
+        return new_kb
+
+    def restore_from(self, other: 'KnowledgeBase') -> None:
+        """Replace contents with another KB's contents."""
+        self.clear()
+        for fact in other._facts:
+            self.add_fact(fact)
+        for rule in other._rules:
+            self.add_rule(rule)
+
+    def remove_fact_by_value(self, fact: Fact) -> None:
+        """Remove a fact by equality."""
+        try:
+            idx = self._facts.index(fact)
+        except ValueError:
+            raise ValueError(f"Fact not found: {fact}")
+        self.remove_fact(idx)
+
+    def remove_rule_by_value(self, rule: Rule) -> None:
+        """Remove a rule by equality."""
+        try:
+            idx = self._rules.index(rule)
+        except ValueError:
+            raise ValueError(f"Rule not found: {rule}")
+        self.remove_rule(idx)
+
+    def replace_facts(self, old: List[Fact],
+                      new: List[Union[Fact, Rule]]) -> None:
+        """Atomic replacement: remove old facts, add new facts/rules."""
+        for fact in old:
+            self.remove_fact_by_value(fact)
+        for item in new:
+            if isinstance(item, Fact):
+                self.add_fact(item)
+            elif isinstance(item, Rule):
+                self.add_rule(item)
+            elif isinstance(item, Term):
+                self.add_fact(item)
+            else:
+                raise TypeError(f"Expected Fact or Rule, got {type(item)}")
+
     def to_prefix(self) -> str:
         """Export knowledge base to prefix notation JSON"""
         data = []
