@@ -7,7 +7,7 @@ Implements SLD resolution for query evaluation with proper backtracking.
 from typing import List, Dict, Any, Iterator, Optional, Callable, Set
 from dataclasses import dataclass
 from contextlib import contextmanager
-from .terms import Term, Variable, Compound
+from .terms import Term, Atom, Variable, Compound
 from .factories import atom, var, compound
 from .knowledge import KnowledgeBase, Fact, Rule
 from .unification import unify, compose_substitutions, apply_substitution, is_ground
@@ -15,6 +15,10 @@ from .unification import unify, compose_substitutions, apply_substitution, is_gr
 
 class FlounderingError(Exception):
     """Raised when not/1 is applied to a non-ground goal."""
+
+
+class InstantiationError(Exception):
+    """Raised when call/N receives a non-ground or invalid functor."""
 
 
 @dataclass
@@ -161,6 +165,26 @@ class PrologEvaluator:
                                          for g in remaining_goals]
                         yield from self._solve_goals(
                             new_remaining, global_bindings)
+                    return
+
+                # Handle call/N meta-predicate
+                if (isinstance(current_goal.term, Compound)
+                        and current_goal.term.functor == "call"):
+                    if current_goal.term.arity < 2:
+                        raise InstantiationError(
+                            "call/N requires at least 2 arguments: call(Functor, Arg1, ...)")
+                    functor_arg = current_goal.term.args[0].substitute(global_bindings)
+                    if isinstance(functor_arg, Variable):
+                        raise InstantiationError(
+                            f"call/N: first argument is unbound variable: {functor_arg}")
+                    if not isinstance(functor_arg, Atom):
+                        raise InstantiationError(
+                            f"call/N: first argument must be an atom, got: {functor_arg}")
+                    remaining_args = list(current_goal.term.args[1:])
+                    constructed = Compound(functor_arg.value, remaining_args)
+                    new_goal = Goal(constructed, current_goal.bindings)
+                    new_goals = [new_goal] + list(remaining_goals)
+                    yield from self._solve_goals(new_goals, global_bindings)
                     return
 
                 # Try to solve the current goal
