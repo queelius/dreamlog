@@ -10,7 +10,7 @@ All operations are purely symbolic (no LLM). Compression is guided by
 Minimum Description Length: compress only when the result is shorter.
 """
 
-from typing import List, Optional, Union, Set
+from typing import Dict, List, Optional, Union, Set
 from dataclasses import dataclass, field
 from .terms import Term, Atom, Variable, Compound
 from .knowledge import KnowledgeBase, Fact, Rule
@@ -199,6 +199,11 @@ class KnowledgeBaseDreamer:
         ops.extend(self._eliminate_subsumed(kb))
         ops.extend(self._prune_redundant_facts(kb))
         ops.extend(self._generalize_facts(kb, suite))
+
+        # Extend verification for rule-derived queries before Operation D
+        if verify and suite:
+            extend_verification_for_rules(suite, kb)
+        ops.extend(self._invent_predicates(kb, suite))
 
         if verify and suite:
             from .evaluator import PrologEvaluator
@@ -452,3 +457,118 @@ class KnowledgeBaseDreamer:
             return None
         candidates.sort(key=lambda c: c[2])
         return (candidates[0][0], candidates[0][1])
+
+    def _invent_predicates(self, kb: KnowledgeBase,
+                           suite: Optional['VerificationSuite'] = None
+                           ) -> List[CompressionCandidate]:
+        """Operation D: Invent predicates from structurally identical rule sets."""
+        from .skeleton import extract_skeleton
+        from .evaluator import PrologEvaluator
+
+        ops = []
+
+        # Group rules by head functor
+        pred_rules: Dict[str, List[Rule]] = {}
+        for rule in kb.rules:
+            if isinstance(rule.head, Compound):
+                f = rule.head.functor
+                if f.startswith("_invented_") or f.startswith("exception_"):
+                    continue
+                pred_rules.setdefault(f, []).append(rule)
+
+        # Extract skeletons and group
+        skeleton_groups: Dict = {}
+        for pred, rules in pred_rules.items():
+            if not rules:
+                continue
+            skeleton, fmap = extract_skeleton(pred, rules)
+            if skeleton.param_count != 1:
+                continue
+            skeleton_groups.setdefault(skeleton, []).append((pred, rules, fmap))
+
+        for skeleton, members in skeleton_groups.items():
+            n = len(members)
+            k = len(skeleton.rules)
+            if k <= 1:
+                continue
+            if k + n >= n * k:
+                continue
+
+            invented_name = self._next_invented_name(kb)
+            template_pred, template_rules, template_fmap = members[0]
+            param_functor = template_fmap["PARAM_0"]
+
+            # Sort template rules by body length for determinism
+            sorted_template = sorted(template_rules, key=lambda r: len(r.body))
+
+            invented_rules = []
+            for rule in sorted_template:
+                param_var = Variable("R")
+                old_head = rule.head
+                new_head_args = [param_var] + list(old_head.args)
+                new_head = Compound(invented_name, new_head_args)
+
+                new_body = []
+                for goal in rule.body:
+                    if isinstance(goal, Compound):
+                        if goal.functor == template_pred:
+                            new_args = [param_var] + list(goal.args)
+                            new_body.append(Compound(invented_name, new_args))
+                        elif goal.functor == param_functor:
+                            call_args = [param_var] + list(goal.args)
+                            new_body.append(Compound("call", call_args))
+                        else:
+                            new_body.append(goal)
+                    else:
+                        new_body.append(goal)
+
+                invented_rules.append(Rule(new_head, new_body))
+
+            wrapper_rules = []
+            for pred, rules, fmap in members:
+                actual_functor = fmap["PARAM_0"]
+                head_arity = rules[0].head.arity if isinstance(rules[0].head, Compound) else 0
+                wrapper_vars = [Variable(f"_W{i}") for i in range(head_arity)]
+                wrapper_head = Compound(pred, wrapper_vars)
+                wrapper_body_args = [Atom(actual_functor)] + wrapper_vars
+                wrapper_body = [Compound(invented_name, wrapper_body_args)]
+                wrapper_rules.append(Rule(wrapper_head, wrapper_body))
+
+            all_original = []
+            for pred, rules, fmap in members:
+                all_original.extend(rules)
+            all_new = invented_rules + wrapper_rules
+
+            if suite is not None:
+                test_kb = kb.copy()
+                for rule in all_original:
+                    test_kb.remove_rule_by_value(rule)
+                for rule in all_new:
+                    test_kb.add_rule(rule)
+                result = suite.verify(test_kb, lambda k: PrologEvaluator(k))
+                if not result.passed:
+                    continue
+
+            for rule in all_original:
+                kb.remove_rule_by_value(rule)
+            for rule in all_new:
+                kb.add_rule(rule)
+
+            ops.append(CompressionCandidate(
+                operation="invention",
+                original_clauses=all_original,
+                new_clauses=all_new))
+
+        return ops
+
+    def _next_invented_name(self, kb: KnowledgeBase) -> str:
+        """Find the next available _invented_N name."""
+        max_n = -1
+        for rule in kb.rules:
+            if isinstance(rule.head, Compound) and rule.head.functor.startswith("_invented_"):
+                try:
+                    n = int(rule.head.functor.split("_invented_")[1])
+                    max_n = max(max_n, n)
+                except (ValueError, IndexError):
+                    pass
+        return f"_invented_{max_n + 1}"

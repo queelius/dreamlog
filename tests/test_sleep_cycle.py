@@ -302,3 +302,116 @@ class TestSubgroupDiscovery:
                         if hasattr(f.term, 'functor') and f.term.functor == "config"]
         assert len(config_facts) == 0  # compressed into rule
         assert session.compressed is True
+
+
+class TestOperationD:
+    def _make_transitive_closure_kb(self, n_predicates=3):
+        """Create KB with N structurally identical transitive closure predicates."""
+        kb = KnowledgeBase()
+        preds = [("ancestor", "parent"), ("reachable", "edge"), ("connected", "link")]
+        for head, base in preds[:n_predicates]:
+            kb.add_rule(Rule(
+                compound(head, var("X"), var("Y")),
+                [compound(base, var("X"), var("Y"))]))
+            kb.add_rule(Rule(
+                compound(head, var("X"), var("Z")),
+                [compound(base, var("X"), var("Y")),
+                 compound(head, var("Y"), var("Z"))]))
+        kb.add_fact(compound("parent", atom("john"), atom("mary")))
+        kb.add_fact(compound("parent", atom("mary"), atom("alice")))
+        kb.add_fact(compound("edge", atom("a"), atom("b")))
+        kb.add_fact(compound("edge", atom("b"), atom("c")))
+        kb.add_fact(compound("link", atom("x"), atom("y")))
+        return kb
+
+    def test_three_predicates_compressed(self):
+        kb = self._make_transitive_closure_kb(3)
+        assert len(kb.rules) == 6
+        dreamer = KnowledgeBaseDreamer()
+        session = dreamer.dream(kb, verify=True)
+        assert len(kb.rules) == 5
+        assert session.compressed is True
+
+    def test_two_predicates_k2_rejected(self):
+        kb = self._make_transitive_closure_kb(2)
+        assert len(kb.rules) == 4
+        dreamer = KnowledgeBaseDreamer()
+        session = dreamer.dream(kb, verify=False)
+        assert len(kb.rules) == 4
+
+    def test_two_predicates_k3_accepted(self):
+        kb = KnowledgeBase()
+        for head, base in [("f", "g"), ("p", "q")]:
+            kb.add_rule(Rule(compound(head, var("X")),
+                             [compound(base, var("X"))]))
+            kb.add_rule(Rule(compound(head, var("X")),
+                             [compound(base, var("Y")),
+                              compound(head, var("Y"))]))
+            kb.add_rule(Rule(compound(head, var("X")),
+                             [compound(base, var("X")),
+                              compound(base, var("Y"))]))
+        original_count = len(kb.rules)
+        dreamer = KnowledgeBaseDreamer()
+        session = dreamer.dream(kb, verify=False)
+        assert len(kb.rules) < original_count
+
+    def test_invented_excluded_from_future(self):
+        kb = self._make_transitive_closure_kb(3)
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=True)
+        size_after = len(kb.rules)
+        dreamer.dream(kb, verify=True)
+        assert len(kb.rules) == size_after
+
+    def test_different_skeletons_not_grouped(self):
+        kb = KnowledgeBase()
+        kb.add_rule(Rule(compound("f", var("X")),
+                         [compound("g", var("X"))]))
+        kb.add_rule(Rule(compound("h", var("X"), var("Y")),
+                         [compound("j", var("X"), var("Y"))]))
+        dreamer = KnowledgeBaseDreamer()
+        session = dreamer.dream(kb, verify=False)
+        assert len(kb.rules) == 2
+
+    def test_single_rule_predicates_skipped(self):
+        kb = KnowledgeBase()
+        for head, base in [("f", "g"), ("h", "j"), ("k", "m")]:
+            kb.add_rule(Rule(compound(head, var("X")),
+                             [compound(base, var("X"))]))
+        dreamer = KnowledgeBaseDreamer()
+        session = dreamer.dream(kb, verify=False)
+        assert len(kb.rules) == 3
+
+    def test_derived_queries_still_work(self):
+        kb = self._make_transitive_closure_kb(3)
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=True)
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        assert ev.has_solution(compound("ancestor", atom("john"), atom("alice")))
+        assert ev.has_solution(compound("reachable", atom("a"), atom("c")))
+        assert ev.has_solution(compound("ancestor", atom("john"), atom("mary")))
+
+    def test_facts_preserved(self):
+        kb = KnowledgeBase()
+        kb.add_fact(compound("ancestor", atom("adam"), atom("eve")))
+        for head, base in [("ancestor", "parent"), ("reachable", "edge"),
+                           ("connected", "link")]:
+            kb.add_rule(Rule(compound(head, var("X"), var("Y")),
+                             [compound(base, var("X"), var("Y"))]))
+            kb.add_rule(Rule(compound(head, var("X"), var("Z")),
+                             [compound(base, var("X"), var("Y")),
+                              compound(head, var("Y"), var("Z"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        anc_facts = [f for f in kb.facts
+                     if isinstance(f.term, Compound) and f.term.functor == "ancestor"]
+        assert len(anc_facts) == 1
+
+    def test_idempotent(self):
+        kb = self._make_transitive_closure_kb(3)
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=True)
+        size_first = len(kb)
+        dreamer.dream(kb, verify=True)
+        assert len(kb) == size_first
