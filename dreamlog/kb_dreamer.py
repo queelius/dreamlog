@@ -244,89 +244,131 @@ class KnowledgeBaseDreamer:
     def _generalize_facts(self, kb: KnowledgeBase,
                           suite: Optional['VerificationSuite'] = None
                           ) -> List[CompressionCandidate]:
-        """Operation C: Generalize fact groups into rules with exceptions."""
-        from .anti_unification import anti_unify_many
+        """Operation C: Generalize fact subgroups into rules with exceptions.
+
+        Uses argument-position partitioning to find compressible subgroups
+        within each functor/arity group. For each argument position p, facts
+        are grouped by their constant pattern (all args except position p).
+        Each subgroup where exactly position p varies is a compression candidate.
+        """
         from .evaluator import PrologEvaluator
 
         ops = []
-        groups = {}
+
+        # Group facts by functor/arity
+        groups: dict = {}
         for fact in kb.facts:
             term = fact.term
             if isinstance(term, Compound):
                 key = (term.functor, term.arity)
                 groups.setdefault(key, []).append(fact)
 
-        for (functor, arity), facts in groups.items():
+        for (functor, arity), all_facts in groups.items():
             if functor.startswith("exception_"):
                 continue
-            if len(facts) < self.min_group_size:
+            if len(all_facts) < self.min_group_size:
                 continue
 
-            terms = [f.term for f in facts]
-            au_result = anti_unify_many(terms)
+            # Try each argument position as the varying one
+            for var_pos in range(arity):
+                # Partition by constant pattern (all args except var_pos)
+                subgroups: dict = {}
+                for fact in all_facts:
+                    term = fact.term
+                    pattern = tuple(
+                        term.args[i] for i in range(arity) if i != var_pos)
+                    subgroups.setdefault(pattern, []).append(fact)
 
-            if au_result.shared_structure < self.shared_structure_threshold:
-                continue
-            if au_result.variables_introduced != 1:
-                continue
+                for pattern, facts in subgroups.items():
+                    if len(facts) < self.min_group_size:
+                        continue
 
-            gen = au_result.generalized
-            if not isinstance(gen, Compound):
-                continue
-            var_pos = None
-            for i, arg in enumerate(gen.args):
-                if isinstance(arg, Variable):
-                    var_pos = i
-                    break
-            if var_pos is None:
-                continue
+                    # Check all values at var_pos are atoms
+                    fact_values = set()
+                    all_atoms = True
+                    for fact in facts:
+                        arg = fact.term.args[var_pos]
+                        if isinstance(arg, Atom):
+                            fact_values.add(arg.value)
+                        else:
+                            all_atoms = False
+                            break
+                    if not all_atoms:
+                        continue
 
-            fact_values = set()
-            for term in terms:
-                arg = term.args[var_pos]
-                if isinstance(arg, Atom):
-                    fact_values.add(arg.value)
+                    # Find guard predicate
+                    guard = self._find_guard(kb, functor, fact_values)
+                    if guard is None:
+                        continue
 
-            guard = self._find_guard(kb, functor, fact_values)
-            if guard is None:
-                continue
+                    guard_functor, guard_values = guard
+                    exceptions = guard_values - fact_values
+                    cost_before = len(facts)
+                    cost_after = 1 + len(exceptions)
+                    if cost_after >= cost_before:
+                        continue
 
-            guard_functor, guard_values = guard
-            exceptions = guard_values - fact_values
-            cost_before = len(facts)
-            cost_after = 1 + len(exceptions)
-            if cost_after >= cost_before:
-                continue
+                    # Build the constant args for the rule head
+                    constant_args = list(pattern)
 
-            exception_functor = f"exception_{functor}_{guard_functor}"
-            new_clauses: List[Union[Fact, Rule]] = []
+                    # Build exception functor name from constants
+                    constant_str = "_".join(
+                        a.value if isinstance(a, Atom) else str(a)
+                        for a in constant_args) if constant_args else ""
+                    exception_functor = (
+                        f"exception_{functor}_{constant_str}_{guard_functor}"
+                        if constant_str
+                        else f"exception_{functor}_{guard_functor}")
 
-            rule_var = Variable("X")
-            rule_args = list(gen.args)
-            rule_args[var_pos] = rule_var
-            rule_head = Compound(functor, rule_args)
-            rule_body = [
-                Compound(guard_functor, [rule_var]),
-                Compound("not", [Compound(exception_functor, [rule_var])]),
-            ]
-            new_clauses.append(Rule(rule_head, rule_body))
+                    new_clauses: List[Union[Fact, Rule]] = []
 
-            for exc_val in sorted(exceptions):
-                new_clauses.append(
-                    Fact(Compound(exception_functor, [Atom(exc_val)])))
+                    # Build generalizing rule
+                    rule_var = Variable("X")
+                    rule_args = []
+                    pattern_idx = 0
+                    for i in range(arity):
+                        if i == var_pos:
+                            rule_args.append(rule_var)
+                        else:
+                            rule_args.append(constant_args[pattern_idx])
+                            pattern_idx += 1
 
-            if suite is not None:
-                test_kb = kb.copy()
-                test_kb.replace_facts(facts, new_clauses)
-                result = suite.verify(test_kb, lambda k: PrologEvaluator(k))
-                if not result.passed:
-                    continue
+                    rule_head = Compound(functor, rule_args)
+                    rule_body = [
+                        Compound(guard_functor, [rule_var]),
+                        Compound("not", [
+                            Compound(exception_functor, [rule_var])]),
+                    ]
+                    new_clauses.append(Rule(rule_head, rule_body))
 
-            kb.replace_facts(facts, new_clauses)
-            ops.append(CompressionCandidate(
-                operation="generalization",
-                original_clauses=list(facts),
-                new_clauses=list(new_clauses)))
+                    for exc_val in sorted(exceptions):
+                        new_clauses.append(
+                            Fact(Compound(exception_functor, [Atom(exc_val)])))
+
+                    # Verify candidate
+                    if suite is not None:
+                        test_kb = kb.copy()
+                        test_kb.replace_facts(facts, new_clauses)
+                        result = suite.verify(
+                            test_kb, lambda k: PrologEvaluator(k))
+                        if not result.passed:
+                            continue
+
+                    # Apply (greedy: remove these facts, later subgroups
+                    # will work on remaining facts)
+                    kb.replace_facts(facts, new_clauses)
+                    ops.append(CompressionCandidate(
+                        operation="generalization",
+                        original_clauses=list(facts),
+                        new_clauses=list(new_clauses)))
+
+                    # Rebuild all_facts since KB changed
+                    all_facts = [
+                        f for f in kb.facts
+                        if isinstance(f.term, Compound)
+                        and f.term.functor == functor
+                        and f.term.arity == arity]
+                    break  # restart position scan with updated facts
 
         return ops
 

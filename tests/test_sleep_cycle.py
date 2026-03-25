@@ -155,8 +155,10 @@ class TestOperationC:
                        if hasattr(f.term, 'functor') and f.term.functor == "likes"]
         assert len(likes_facts) == 2
 
-    def test_multi_variable_skipped(self):
+    def test_no_shared_constants_skipped(self):
+        """Facts with no shared constant in any position can't form subgroups."""
         kb = KnowledgeBase()
+        # Each fact differs in BOTH positions, no constant pattern subgroup >= 3
         for a, b in [("a", "1"), ("b", "2"), ("c", "3")]:
             kb.add_fact(compound("f", atom(a), atom(b)))
         dreamer = KnowledgeBaseDreamer(min_group_size=3)
@@ -211,3 +213,73 @@ class TestOperationC:
         size_after_first = len(kb)
         dreamer.dream(kb, verify=True)
         assert len(kb) == size_after_first
+
+
+class TestSubgroupDiscovery:
+    """Tests for argument-position partitioning in Operation C."""
+
+    def test_mixed_values_subgroup_found(self):
+        """likes group with chocolate and vanilla: chocolate subgroup compresses."""
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol", "dave"]:
+            kb.add_fact(compound("person", atom(name)))
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("likes", atom(name), atom("chocolate")))
+        kb.add_fact(compound("likes", atom("eve"), atom("vanilla")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        session = dreamer.dream(kb, verify=False)
+        assert session.compressed is True
+        # The vanilla fact should still be there as-is
+        vanilla_facts = [f for f in kb.facts
+                         if hasattr(f.term, 'functor') and f.term.functor == "likes"]
+        assert len(vanilla_facts) == 1
+        assert vanilla_facts[0].term.args[1] == atom("vanilla")
+
+    def test_mixed_values_correctness(self):
+        """After subgroup compression, queries still work correctly."""
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol", "dave"]:
+            kb.add_fact(compound("person", atom(name)))
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("likes", atom(name), atom("chocolate")))
+        kb.add_fact(compound("likes", atom("eve"), atom("vanilla")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        dreamer.dream(kb, verify=True)
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        for name in ["alice", "bob", "carol"]:
+            assert ev.has_solution(compound("likes", atom(name), atom("chocolate")))
+        assert not ev.has_solution(compound("likes", atom("dave"), atom("chocolate")))
+        assert ev.has_solution(compound("likes", atom("eve"), atom("vanilla")))
+
+    def test_higher_arity_subgroup(self):
+        """3-arity facts with shared args in positions 0 and 2."""
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol", "dave"]:
+            kb.add_fact(compound("person", atom(name)))
+        # config(app, <key>, true) - varying position 1
+        for key in ["debug", "verbose", "logging"]:
+            kb.add_fact(compound("config", atom("app"), atom(key), atom("true")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        session = dreamer.dream(kb, verify=False)
+        # Should find subgroup where position 1 varies, positions 0,2 constant
+        config_facts = [f for f in kb.facts
+                        if hasattr(f.term, 'functor') and f.term.functor == "config"]
+        # Original 3 facts should be compressed (if guard found)
+        # person/1 covers {alice, bob, carol, dave}, not {debug, verbose, logging}
+        # No guard covers the config keys, so this should NOT compress
+        assert len(config_facts) == 3
+
+    def test_higher_arity_with_guard(self):
+        """3-arity facts compress when a guard exists for the varying values."""
+        kb = KnowledgeBase()
+        for key in ["debug", "verbose", "logging", "color"]:
+            kb.add_fact(compound("setting", atom(key)))
+        for key in ["debug", "verbose", "logging"]:
+            kb.add_fact(compound("config", atom("app"), atom(key), atom("true")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        session = dreamer.dream(kb, verify=False)
+        config_facts = [f for f in kb.facts
+                        if hasattr(f.term, 'functor') and f.term.functor == "config"]
+        assert len(config_facts) == 0  # compressed into rule
+        assert session.compressed is True
