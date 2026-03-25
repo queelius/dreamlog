@@ -126,6 +126,25 @@ class TestVerification:
         session = dreamer.dream(kb, verify=True)
         assert len(kb) == original_size
 
+    def test_rule_derived_queries_in_suite(self):
+        """Verification suite includes queries derived from rules, not just facts."""
+        from dreamlog.kb_dreamer import build_verification_suite, extend_verification_for_rules
+        from dreamlog.evaluator import PrologEvaluator
+        kb = KnowledgeBase()
+        kb.add_fact(compound("parent", atom("john"), atom("mary")))
+        kb.add_fact(compound("parent", atom("mary"), atom("alice")))
+        kb.add_rule(Rule(compound("anc", var("X"), var("Y")),
+                         [compound("parent", var("X"), var("Y"))]))
+        kb.add_rule(Rule(compound("anc", var("X"), var("Z")),
+                         [compound("parent", var("X"), var("Y")),
+                          compound("anc", var("Y"), var("Z"))]))
+        suite = build_verification_suite(kb)
+        extend_verification_for_rules(suite, kb)
+        # Should have positive queries for derived facts like anc(john, mary)
+        ev = PrologEvaluator(kb)
+        assert any(ev.has_solution(q) for q in suite.positive_queries
+                   if isinstance(q, Compound) and q.functor == "anc")
+
 
 class TestOperationC:
     def test_basic_generalization(self):

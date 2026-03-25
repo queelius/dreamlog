@@ -107,6 +107,63 @@ def build_verification_suite(kb: KnowledgeBase) -> VerificationSuite:
                              negative_queries=negative)
 
 
+def extend_verification_for_rules(suite: VerificationSuite,
+                                  kb: KnowledgeBase,
+                                  max_queries: int = 50) -> None:
+    """Extend verification suite with rule-derived positive/negative queries.
+
+    For each rule-defined predicate, generate ground queries using atom values
+    from the KB and test which are derivable.
+    """
+    from .evaluator import PrologEvaluator
+
+    ev = PrologEvaluator(kb)
+
+    atom_values = set()
+    for fact in kb.facts:
+        if isinstance(fact.term, Compound):
+            for arg in fact.term.args:
+                if isinstance(arg, Atom):
+                    atom_values.add(arg.value)
+
+    if not atom_values:
+        return
+
+    atoms = sorted(atom_values)
+
+    rule_preds = {}
+    for rule in kb.rules:
+        if isinstance(rule.head, Compound):
+            key = (rule.head.functor, rule.head.arity)
+            rule_preds[key] = True
+
+    added = 0
+    for (functor, arity) in rule_preds:
+        if added >= max_queries:
+            break
+        if functor.startswith("_invented_") or functor.startswith("exception_"):
+            continue
+        if arity == 1:
+            candidates = [Compound(functor, [Atom(a)]) for a in atoms[:10]]
+        elif arity == 2:
+            candidates = [Compound(functor, [Atom(a), Atom(b)])
+                          for a in atoms[:8] for b in atoms[:8]]
+        else:
+            continue
+
+        for candidate in candidates:
+            if added >= max_queries:
+                break
+            if ev.has_solution(candidate):
+                if candidate not in suite.positive_queries:
+                    suite.positive_queries.append(candidate)
+                    added += 1
+            else:
+                if candidate not in suite.negative_queries:
+                    suite.negative_queries.append(candidate)
+                    added += 1
+
+
 @dataclass
 class DreamSession:
     """Results from a dream cycle."""
