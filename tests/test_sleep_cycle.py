@@ -415,3 +415,149 @@ class TestOperationD:
         size_first = len(kb)
         dreamer.dream(kb, verify=True)
         assert len(kb) == size_first
+
+
+class TestOperationE:
+    def test_three_rules_shared_prefix(self):
+        """3 rules sharing a 2-goal prefix: extracted (K=2, N=3, savings=1)."""
+        kb = KnowledgeBase()
+        # grandparent(X, Z) :- parent(X, Y), parent(Y, Z).
+        kb.add_rule(Rule(compound("grandparent", var("X"), var("Z")),
+                         [compound("parent", var("X"), var("Y")),
+                          compound("parent", var("Y"), var("Z"))]))
+        # great_gp(X, W) :- parent(X, Y), parent(Y, Z), parent(Z, W).
+        kb.add_rule(Rule(compound("great_gp", var("X"), var("W")),
+                         [compound("parent", var("X"), var("Y")),
+                          compound("parent", var("Y"), var("Z")),
+                          compound("parent", var("Z"), var("W"))]))
+        # great_uncle(X, W) :- parent(X, Y), parent(Y, Z), brother(Z, W).
+        kb.add_rule(Rule(compound("great_uncle", var("X"), var("W")),
+                         [compound("parent", var("X"), var("Y")),
+                          compound("parent", var("Y"), var("Z")),
+                          compound("brother", var("Z"), var("W"))]))
+        # Add facts for verification
+        kb.add_fact(compound("parent", atom("john"), atom("mary")))
+        kb.add_fact(compound("parent", atom("mary"), atom("alice")))
+        kb.add_fact(compound("parent", atom("alice"), atom("bob")))
+        kb.add_fact(compound("brother", atom("alice"), atom("charlie")))
+
+        dreamer = KnowledgeBaseDreamer()
+        session = dreamer.dream(kb, verify=True)
+
+        # Should have extracted the common prefix
+        extracted_rules = [r for r in kb.rules
+                           if isinstance(r.head, Compound)
+                           and r.head.functor.startswith("_extracted_")]
+        assert len(extracted_rules) >= 1
+
+        # Verify queries still work
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        assert ev.has_solution(compound("grandparent", atom("john"), atom("alice")))
+        assert ev.has_solution(compound("great_gp", atom("john"), atom("bob")))
+        assert ev.has_solution(compound("great_uncle", atom("john"), atom("charlie")))
+
+    def test_two_rules_k3_extracted(self):
+        """2 rules sharing a 3-goal sub-sequence: extracted (K=3, N=2, savings=1)."""
+        kb = KnowledgeBase()
+        kb.add_rule(Rule(compound("f", var("X"), var("W")),
+                         [compound("a", var("X"), var("Y")),
+                          compound("b", var("Y"), var("Z")),
+                          compound("c", var("Z"), var("W"))]))
+        kb.add_rule(Rule(compound("g", var("X"), var("W")),
+                         [compound("a", var("X"), var("Y")),
+                          compound("b", var("Y"), var("Z")),
+                          compound("c", var("Z"), var("W"))]))
+        dreamer = KnowledgeBaseDreamer()
+        session = dreamer.dream(kb, verify=False)
+        extracted = [r for r in kb.rules
+                     if isinstance(r.head, Compound)
+                     and r.head.functor.startswith("_extracted_")]
+        assert len(extracted) >= 1
+
+    def test_two_rules_k2_rejected(self):
+        """2 rules sharing a 2-goal sub-sequence: rejected (K=2, N=2, savings=0)."""
+        kb = KnowledgeBase()
+        kb.add_rule(Rule(compound("f", var("X"), var("Z")),
+                         [compound("a", var("X"), var("Y")),
+                          compound("b", var("Y"), var("Z"))]))
+        kb.add_rule(Rule(compound("g", var("X"), var("Z")),
+                         [compound("a", var("X"), var("Y")),
+                          compound("b", var("Y"), var("Z"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        extracted = [r for r in kb.rules
+                     if isinstance(r.head, Compound)
+                     and r.head.functor.startswith("_extracted_")]
+        assert len(extracted) == 0
+
+    def test_interface_variables(self):
+        """Extracted predicate exposes only interface vars, hides internal ones."""
+        kb = KnowledgeBase()
+        # f(X, W) :- a(X, Y), b(Y, Z), c(Z, W) -- Y and Z are internal to prefix a,b
+        # g(X, W) :- a(X, Y), b(Y, Z), d(Z, W)
+        # h(X, W) :- a(X, Y), b(Y, Z), e(Z, W)
+        for head, tail_f in [("f", "c"), ("g", "d"), ("h", "e")]:
+            kb.add_rule(Rule(compound(head, var("X"), var("W")),
+                             [compound("a", var("X"), var("Y")),
+                              compound("b", var("Y"), var("Z")),
+                              compound(tail_f, var("Z"), var("W"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        extracted = [r for r in kb.rules
+                     if isinstance(r.head, Compound)
+                     and r.head.functor.startswith("_extracted_")]
+        assert len(extracted) == 1
+        # Interface should be (X, Z) -- X from head, Z connects to remaining body
+        # Y is internal to the sub-sequence
+        assert extracted[0].head.arity == 2
+
+    def test_subsequence_at_end(self):
+        """Sub-sequence at end of body (not just prefix) is detected."""
+        kb = KnowledgeBase()
+        # f(X, W) :- start(X, Y), common(Y, Z), common2(Z, W)
+        # g(X, W) :- other(X, Y), common(Y, Z), common2(Z, W)
+        # h(X, W) :- third(X, Y), common(Y, Z), common2(Z, W)
+        for head, start_f in [("f", "start"), ("g", "other"), ("h", "third")]:
+            kb.add_rule(Rule(compound(head, var("X"), var("W")),
+                             [compound(start_f, var("X"), var("Y")),
+                              compound("common", var("Y"), var("Z")),
+                              compound("common2", var("Z"), var("W"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        extracted = [r for r in kb.rules
+                     if isinstance(r.head, Compound)
+                     and r.head.functor.startswith("_extracted_")]
+        assert len(extracted) >= 1
+
+    def test_generated_predicates_excluded(self):
+        """_extracted_, _invented_, exception_ predicates are skipped."""
+        kb = KnowledgeBase()
+        for name in ["alice", "bob", "carol", "dave"]:
+            kb.add_fact(compound("person", atom(name)))
+        for name in ["alice", "bob", "carol"]:
+            kb.add_fact(compound("likes", atom(name), atom("chocolate")))
+        dreamer = KnowledgeBaseDreamer(min_group_size=3)
+        dreamer.dream(kb, verify=True)
+        size_after = len(kb)
+        dreamer.dream(kb, verify=True)
+        assert len(kb) == size_after
+
+    def test_idempotent(self):
+        kb = KnowledgeBase()
+        kb.add_rule(Rule(compound("grandparent", var("X"), var("Z")),
+                         [compound("parent", var("X"), var("Y")),
+                          compound("parent", var("Y"), var("Z"))]))
+        kb.add_rule(Rule(compound("great_gp", var("X"), var("W")),
+                         [compound("parent", var("X"), var("Y")),
+                          compound("parent", var("Y"), var("Z")),
+                          compound("parent", var("Z"), var("W"))]))
+        kb.add_rule(Rule(compound("great_uncle", var("X"), var("W")),
+                         [compound("parent", var("X"), var("Y")),
+                          compound("parent", var("Y"), var("Z")),
+                          compound("brother", var("Z"), var("W"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        size_first = len(kb)
+        dreamer.dream(kb, verify=False)
+        assert len(kb) == size_first
