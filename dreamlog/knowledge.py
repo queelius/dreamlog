@@ -112,6 +112,9 @@ class KnowledgeBase:
         # Index for efficient lookup by functor/arity
         self._fact_index: Dict[tuple[str, int], List[Fact]] = {}
         self._rule_index: Dict[tuple[str, int], List[Rule]] = {}
+
+        # Usage frequency tracking (clause hash -> count)
+        self._usage_counts: Dict[int, int] = {}
     
     def add_fact(self, fact: Union[Fact, Term]) -> None:
         """
@@ -298,6 +301,23 @@ class KnowledgeBase:
         for rule in self._rules:
             self._index_rule(rule)
     
+    def record_usage(self, clause: Union[Fact, Rule]) -> None:
+        """Increment usage counter for a clause."""
+        key = hash(clause)
+        self._usage_counts[key] = self._usage_counts.get(key, 0) + 1
+
+    def get_usage(self, clause: Union[Fact, Rule]) -> int:
+        """Get usage count for a clause (0 if never used)."""
+        return self._usage_counts.get(hash(clause), 0)
+
+    def reset_usage(self) -> None:
+        """Clear all usage counters."""
+        self._usage_counts.clear()
+
+    def total_queries_tracked(self) -> int:
+        """Total usage events recorded."""
+        return sum(self._usage_counts.values())
+
     def copy(self) -> 'KnowledgeBase':
         """Deep copy for rollback."""
         new_kb = KnowledgeBase()
@@ -305,6 +325,7 @@ class KnowledgeBase:
             new_kb.add_fact(fact)
         for rule in self._rules:
             new_kb.add_rule(rule)
+        new_kb._usage_counts = dict(self._usage_counts)
         return new_kb
 
     def restore_from(self, other: 'KnowledgeBase') -> None:
@@ -314,6 +335,7 @@ class KnowledgeBase:
             self.add_fact(fact)
         for rule in other._rules:
             self.add_rule(rule)
+        self._usage_counts = dict(other._usage_counts)
 
     def remove_fact_by_value(self, fact: Fact) -> None:
         """Remove a fact by equality."""

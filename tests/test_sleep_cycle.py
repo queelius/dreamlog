@@ -6,6 +6,72 @@ from dreamlog.knowledge import KnowledgeBase, Fact, Rule
 from dreamlog.kb_dreamer import KnowledgeBaseDreamer, DreamSession
 
 
+class TestUsageTracking:
+    def test_record_and_get_usage(self):
+        kb = KnowledgeBase()
+        f = Fact(compound("a", atom("x")))
+        kb.add_fact(f)
+        assert kb.get_usage(f) == 0
+        kb.record_usage(f)
+        assert kb.get_usage(f) == 1
+        kb.record_usage(f)
+        assert kb.get_usage(f) == 2
+
+    def test_get_usage_unknown_clause(self):
+        kb = KnowledgeBase()
+        f = Fact(compound("a", atom("x")))
+        assert kb.get_usage(f) == 0
+
+    def test_reset_usage(self):
+        kb = KnowledgeBase()
+        f = Fact(compound("a", atom("x")))
+        kb.add_fact(f)
+        kb.record_usage(f)
+        kb.record_usage(f)
+        assert kb.get_usage(f) == 2
+        kb.reset_usage()
+        assert kb.get_usage(f) == 0
+
+    def test_total_queries_tracked(self):
+        kb = KnowledgeBase()
+        f1 = Fact(compound("a", atom("x")))
+        f2 = Fact(compound("b", atom("y")))
+        kb.add_fact(f1)
+        kb.add_fact(f2)
+        kb.record_usage(f1)
+        kb.record_usage(f1)
+        kb.record_usage(f2)
+        assert kb.total_queries_tracked() == 3
+
+    def test_copy_preserves_usage(self):
+        kb = KnowledgeBase()
+        f = Fact(compound("a", atom("x")))
+        kb.add_fact(f)
+        kb.record_usage(f)
+        kb.record_usage(f)
+        copy = kb.copy()
+        assert copy.get_usage(f) == 2
+
+    def test_restore_from_restores_usage(self):
+        kb = KnowledgeBase()
+        f = Fact(compound("a", atom("x")))
+        kb.add_fact(f)
+        kb.record_usage(f)
+        snapshot = kb.copy()
+        kb.record_usage(f)
+        kb.record_usage(f)
+        assert kb.get_usage(f) == 3
+        kb.restore_from(snapshot)
+        assert kb.get_usage(f) == 1
+
+    def test_rule_usage(self):
+        kb = KnowledgeBase()
+        r = Rule(compound("a", var("X")), [compound("b", var("X"))])
+        kb.add_rule(r)
+        kb.record_usage(r)
+        assert kb.get_usage(r) == 1
+
+
 class TestOperationA:
     def test_specific_rule_removed(self):
         kb = KnowledgeBase()
@@ -561,3 +627,45 @@ class TestOperationE:
         size_first = len(kb)
         dreamer.dream(kb, verify=False)
         assert len(kb) == size_first
+
+
+class TestEvaluatorUsageRecording:
+    def test_fact_usage_recorded(self):
+        from dreamlog.evaluator import PrologEvaluator
+        kb = KnowledgeBase()
+        kb.add_fact(compound("parent", atom("john"), atom("mary")))
+        ev = PrologEvaluator(kb)
+        list(ev.query([compound("parent", atom("john"), atom("mary"))]))
+        f = kb.facts[0]
+        assert kb.get_usage(f) >= 1
+
+    def test_rule_usage_recorded(self):
+        from dreamlog.evaluator import PrologEvaluator
+        kb = KnowledgeBase()
+        kb.add_fact(compound("parent", atom("john"), atom("mary")))
+        r = Rule(compound("anc", var("X"), var("Y")),
+                 [compound("parent", var("X"), var("Y"))])
+        kb.add_rule(r)
+        ev = PrologEvaluator(kb)
+        list(ev.query([compound("anc", atom("john"), atom("mary"))]))
+        assert kb.get_usage(r) >= 1
+
+    def test_usage_accumulates_across_queries(self):
+        from dreamlog.evaluator import PrologEvaluator
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        ev = PrologEvaluator(kb)
+        list(ev.query([compound("a", atom("x"))]))
+        list(ev.query([compound("a", atom("x"))]))
+        list(ev.query([compound("a", atom("x"))]))
+        assert kb.get_usage(kb.facts[0]) >= 3
+
+    def test_unused_fact_has_zero_usage(self):
+        from dreamlog.evaluator import PrologEvaluator
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        kb.add_fact(compound("b", atom("y")))
+        ev = PrologEvaluator(kb)
+        list(ev.query([compound("a", atom("x"))]))
+        assert kb.get_usage(kb.facts[0]) >= 1  # a(x) used
+        assert kb.get_usage(kb.facts[1]) == 0   # b(y) never queried
