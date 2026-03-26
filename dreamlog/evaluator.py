@@ -197,8 +197,9 @@ class PrologEvaluator:
                     bindings = unify(current_goal.term, renamed_fact.term, current_goal.bindings)
                     if bindings is not None:
                         solutions_found = True
+                        self.kb.record_usage(fact)
                         new_global_bindings = compose_substitutions(global_bindings, bindings)
-                        
+
                         # Apply bindings to remaining goals
                         new_remaining_goals = []
                         for goal in remaining_goals:
@@ -215,7 +216,8 @@ class PrologEvaluator:
                     bindings = unify(current_goal.term, renamed_rule.head, current_goal.bindings)
                     if bindings is not None:
                         solutions_found = True
-                        
+                        self.kb.record_usage(rule)
+
                         # Create new goals from the rule body
                         new_goals = []
                         for body_term in renamed_rule.body:
