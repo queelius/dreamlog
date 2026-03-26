@@ -1037,6 +1037,7 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
                         "generalization": "Fact generalization",
                         "invention": "Predicate invention",
                         "extraction": "Body pattern extraction",
+                        "dead_clause": "Dead clause pruned",
                     }.get(op.operation, op.operation)
                     delta = op.mdl_delta
                     sign = "+" if delta > 0 else ""

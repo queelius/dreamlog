@@ -629,6 +629,93 @@ class TestOperationE:
         assert len(kb) == size_first
 
 
+class TestOperationF:
+    def test_dead_fact_removed(self):
+        """Fact with 0 usage after queries is pruned."""
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        kb.add_fact(compound("b", atom("y")))  # never queried
+        # Simulate wake phase: query a(x) enough times
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        for _ in range(15):
+            list(ev.query([compound("a", atom("x"))]))
+        # b(y) has 0 usage, a(x) has 15
+        assert kb.get_usage(kb.facts[1]) == 0
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        remaining = [f.term for f in kb.facts]
+        assert compound("a", atom("x")) in remaining
+        assert compound("b", atom("y")) not in remaining
+
+    def test_dead_rule_removed(self):
+        """Rule with 0 usage after queries is pruned."""
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        r_used = Rule(compound("b", var("X")), [compound("a", var("X"))])
+        r_dead = Rule(compound("c", var("X")), [compound("d", var("X"))])
+        kb.add_rule(r_used)
+        kb.add_rule(r_dead)
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        for _ in range(15):
+            list(ev.query([compound("b", atom("x"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        assert len(kb.rules) == 1  # dead rule removed
+
+    def test_used_clauses_preserved(self):
+        """Clauses with usage > 0 are kept."""
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        kb.add_fact(compound("b", atom("y")))
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        for _ in range(10):
+            list(ev.query([compound("a", atom("x"))]))
+            list(ev.query([compound("b", atom("y"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        assert len(kb.facts) == 2  # both used, both kept
+
+    def test_threshold_prevents_premature_pruning(self):
+        """Not enough queries -> skip dead clause pruning."""
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        kb.add_fact(compound("b", atom("y")))
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        list(ev.query([compound("a", atom("x"))]))  # only 1 query
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        assert len(kb.facts) == 2  # not enough data, keep both
+
+    def test_generated_predicates_not_pruned(self):
+        """_invented_, _extracted_, exception_ predicates skipped even if 0 usage."""
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        # Simulate generated predicates
+        from dreamlog.terms import Compound, Atom, Variable
+        kb.add_rule(Rule(Compound("_invented_0", [Variable("R"), Variable("X")]),
+                         [Compound("call", [Variable("R"), Variable("X")])]))
+        kb.add_fact(Fact(Compound("exception_likes_person", [Atom("dave")])))
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        for _ in range(15):
+            list(ev.query([compound("a", atom("x"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        # Generated predicates should survive even with 0 usage
+        inv_rules = [r for r in kb.rules
+                     if isinstance(r.head, Compound)
+                     and r.head.functor.startswith("_invented_")]
+        assert len(inv_rules) == 1
+        exc_facts = [f for f in kb.facts
+                     if isinstance(f.term, Compound)
+                     and f.term.functor.startswith("exception_")]
+        assert len(exc_facts) == 1
+
+
 class TestEvaluatorUsageRecording:
     def test_fact_usage_recorded(self):
         from dreamlog.evaluator import PrologEvaluator

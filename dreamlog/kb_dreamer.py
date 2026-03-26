@@ -192,9 +192,15 @@ class KnowledgeBaseDreamer:
                                 compression_ratio=1.0, verification=None)
 
         snapshot = kb.copy()
+        # Save wake-phase usage data before dream operations inflate it
+        wake_usage = dict(kb._usage_counts)
         suite = build_verification_suite(kb) if verify else None
         result = None
         ops: List[CompressionCandidate] = []
+
+        # Operation F runs first, using only wake-phase usage data
+        # (before verification queries inflate usage counts)
+        ops.extend(self._prune_dead_clauses(kb))
 
         ops.extend(self._eliminate_subsumed(kb))
         ops.extend(self._prune_redundant_facts(kb))
@@ -214,6 +220,9 @@ class KnowledgeBaseDreamer:
                 return DreamSession(compressed=False, operations=[],
                                     compression_ratio=1.0,
                                     verification=result)
+
+        # Restore wake-phase usage data (discard usage from verification queries)
+        kb._usage_counts = wake_usage
 
         new_size = len(kb)
         return DreamSession(
@@ -819,3 +828,56 @@ class KnowledgeBaseDreamer:
                 except (ValueError, IndexError):
                     pass
         return f"_extracted_{max_n + 1}"
+
+    # ── Operation F: Dead clause pruning ──
+
+    def _prune_dead_clauses(self, kb: KnowledgeBase,
+                            min_query_threshold: int = 10
+                            ) -> List[CompressionCandidate]:
+        """Operation F: Remove clauses with 0 usage after sufficient queries."""
+        ops = []
+
+        if kb.total_queries_tracked() < min_query_threshold:
+            return ops
+
+        # Find dead facts
+        dead_facts = []
+        for fact in kb.facts:
+            if isinstance(fact.term, Compound):
+                f = fact.term.functor
+                if f.startswith("exception_") or f.startswith("_extracted_"):
+                    continue
+            if kb.get_usage(fact) == 0:
+                dead_facts.append(fact)
+
+        # Find dead rules
+        dead_rules = []
+        for rule in kb.rules:
+            if isinstance(rule.head, Compound):
+                f = rule.head.functor
+                if (f.startswith("_invented_") or f.startswith("_extracted_")
+                        or f.startswith("exception_")):
+                    continue
+            if kb.get_usage(rule) == 0:
+                dead_rules.append(rule)
+
+        # Remove dead facts
+        for fact in dead_facts:
+            kb.remove_fact_by_value(fact)
+            ops.append(CompressionCandidate(
+                operation="dead_clause", original_clauses=[fact]))
+
+        # Remove dead rules
+        for rule in dead_rules:
+            kb.remove_rule_by_value(rule)
+            ops.append(CompressionCandidate(
+                operation="dead_clause", original_clauses=[rule]))
+
+        return ops
+
+    def _frequency_score(self, kb: KnowledgeBase,
+                         clauses: List[Union[Fact, Rule]]) -> float:
+        """Compute frequency-weighted score for a set of clauses."""
+        import math
+        total = sum(kb.get_usage(c) for c in clauses)
+        return 1.0 + math.log2(total + 1)
