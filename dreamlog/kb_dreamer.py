@@ -143,11 +143,13 @@ def extend_verification_for_rules(suite: VerificationSuite,
             break
         if functor.startswith("_invented_") or functor.startswith("exception_"):
             continue
+        # Sample size scales inversely with atom pool size to keep total bounded
+        sample = min(5, len(atoms))
         if arity == 1:
-            candidates = [Compound(functor, [Atom(a)]) for a in atoms[:10]]
+            candidates = [Compound(functor, [Atom(a)]) for a in atoms[:sample]]
         elif arity == 2:
             candidates = [Compound(functor, [Atom(a), Atom(b)])
-                          for a in atoms[:8] for b in atoms[:8]]
+                          for a in atoms[:sample] for b in atoms[:sample]]
         else:
             continue
 

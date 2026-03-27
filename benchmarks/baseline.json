@@ -1,0 +1,143 @@
+{
+  "scenarios": [
+    {
+      "name": "family_small",
+      "clauses_before": 12,
+      "clauses_after": 12,
+      "facts_before": 11,
+      "facts_after": 11,
+      "rules_before": 1,
+      "rules_after": 1,
+      "body_goals_before": 2,
+      "body_goals_after": 2,
+      "compression_ratio": 1.0,
+      "op_summary": {},
+      "correctness_passed": 3,
+      "correctness_total": 3,
+      "elapsed_ms": 38.1062300875783
+    },
+    {
+      "name": "family_with_guards",
+      "clauses_before": 43,
+      "clauses_after": 39,
+      "facts_before": 34,
+      "facts_after": 29,
+      "rules_before": 9,
+      "rules_after": 10,
+      "body_goals_before": 18,
+      "body_goals_after": 16,
+      "compression_ratio": 0.9069767441860465,
+      "op_summary": {
+        "pruning": 1,
+        "generalization": 1,
+        "invention": 1,
+        "extraction": 1
+      },
+      "correctness_passed": 4,
+      "correctness_total": 4,
+      "elapsed_ms": 236.94893391802907
+    },
+    {
+      "name": "transitive_closures",
+      "clauses_before": 22,
+      "clauses_after": 20,
+      "facts_before": 14,
+      "facts_after": 14,
+      "rules_before": 8,
+      "rules_after": 6,
+      "body_goals_before": 12,
+      "body_goals_after": 7,
+      "compression_ratio": 0.9090909090909091,
+      "op_summary": {
+        "invention": 1
+      },
+      "correctness_passed": 5,
+      "correctness_total": 5,
+      "elapsed_ms": 98.07325713336468
+    },
+    {
+      "name": "body_patterns",
+      "clauses_before": 11,
+      "clauses_after": 12,
+      "facts_before": 7,
+      "facts_after": 7,
+      "rules_before": 4,
+      "rules_after": 5,
+      "body_goals_before": 11,
+      "body_goals_after": 9,
+      "compression_ratio": 1.0909090909090908,
+      "op_summary": {
+        "extraction": 1
+      },
+      "correctness_passed": 5,
+      "correctness_total": 5,
+      "elapsed_ms": 66.48239307105541
+    },
+    {
+      "name": "dead_clauses",
+      "clauses_before": 16,
+      "clauses_after": 7,
+      "facts_before": 13,
+      "facts_after": 5,
+      "rules_before": 3,
+      "rules_after": 2,
+      "body_goals_before": 4,
+      "body_goals_after": 3,
+      "compression_ratio": 0.4375,
+      "op_summary": {
+        "dead_clause": 9
+      },
+      "correctness_passed": 3,
+      "correctness_total": 3,
+      "elapsed_ms": 24.06942704692483
+    },
+    {
+      "name": "cascading",
+      "clauses_before": 26,
+      "clauses_after": 23,
+      "facts_before": 17,
+      "facts_after": 13,
+      "rules_before": 9,
+      "rules_after": 10,
+      "body_goals_before": 17,
+      "body_goals_after": 15,
+      "compression_ratio": 0.8846153846153846,
+      "op_summary": {
+        "pruning": 1,
+        "generalization": 1,
+        "invention": 1,
+        "extraction": 1
+      },
+      "correctness_passed": 6,
+      "correctness_total": 6,
+      "elapsed_ms": 137.7107659354806
+    },
+    {
+      "name": "stress",
+      "clauses_before": 185,
+      "clauses_after": 155,
+      "facts_before": 174,
+      "facts_after": 144,
+      "rules_before": 11,
+      "rules_after": 11,
+      "body_goals_before": 20,
+      "body_goals_after": 16,
+      "compression_ratio": 0.8378378378378378,
+      "op_summary": {
+        "generalization": 1,
+        "invention": 1,
+        "extraction": 1
+      },
+      "correctness_passed": 5,
+      "correctness_total": 5,
+      "elapsed_ms": 6252.537210006267
+    }
+  ],
+  "totals": {
+    "clauses_before": 315,
+    "clauses_after": 268,
+    "body_goals_before": 84,
+    "body_goals_after": 68,
+    "all_correct": true
+  }
+}

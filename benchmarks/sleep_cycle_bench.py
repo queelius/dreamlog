@@ -9,14 +9,17 @@ for comparing future improvements (LLM-assisted compression, etc.).
 Run:
     python benchmarks/sleep_cycle_bench.py
     python benchmarks/sleep_cycle_bench.py --verbose
-    python benchmarks/sleep_cycle_bench.py --scenario family
+    python benchmarks/sleep_cycle_bench.py --scenario family_with_guards
+    python benchmarks/sleep_cycle_bench.py --json > baseline.json
 """
 
+import json
+import math
 import time
 import sys
 import argparse
-from dataclasses import dataclass, field
-from typing import List, Tuple
+from dataclasses import dataclass, field, asdict
+from typing import List, Tuple, Dict
 
 sys.path.insert(0, ".")
 
@@ -36,75 +39,67 @@ class BenchmarkResult:
     facts_after: int
     rules_before: int
     rules_after: int
-    compression_ratio: float
-    operations: List[Tuple[str, int]]  # (name, mdl_delta)
-    verification_queries: int
-    verification_passed: bool
-    correctness_checks_passed: int
-    correctness_checks_total: int
     body_goals_before: int
     body_goals_after: int
+    compression_ratio: float
+    op_summary: Dict[str, int]  # operation -> count
+    correctness_passed: int
+    correctness_total: int
     elapsed_ms: float
 
 
-def scenario_family_small() -> Tuple[str, KnowledgeBase, List[Tuple[str, Compound, bool]]]:
-    """Small family KB: 11 parent facts, 1 grandparent rule."""
+# ============================================================
+# Scenarios
+# ============================================================
+
+def scenario_family_small():
+    """Small family KB. Too small for any operation to fire. Baseline."""
     kb = KnowledgeBase()
-    parents = [
-        ("john", "mary"), ("john", "tom"), ("mary", "alice"),
-        ("tom", "bob"), ("alice", "charlie"), ("john", "sam"),
-        ("sam", "sarah"), ("sarah", "ben"), ("sarah", "jessica"),
-        ("sam", "will"), ("jessica", "alice"),
-    ]
-    for p, c in parents:
+    for p, c in [("john","mary"),("john","tom"),("mary","alice"),
+                 ("tom","bob"),("alice","charlie"),("john","sam"),
+                 ("sam","sarah"),("sarah","ben"),("sarah","jessica"),
+                 ("sam","will"),("jessica","alice")]:
         kb.add_fact(compound("parent", atom(p), atom(c)))
     kb.add_rule(Rule(compound("grandparent", var("X"), var("Z")),
                      [compound("parent", var("X"), var("Y")),
                       compound("parent", var("Y"), var("Z"))]))
-
     checks = [
-        ("parent(john, mary)", compound("parent", atom("john"), atom("mary")), True),
-        ("grandparent(john, alice)", compound("grandparent", atom("john"), atom("alice")), True),
-        ("grandparent(alice, john)", compound("grandparent", atom("alice"), atom("john")), False),
+        ("parent(john,mary)", compound("parent", atom("john"), atom("mary")), True),
+        ("grandparent(john,alice)", compound("grandparent", atom("john"), atom("alice")), True),
+        ("grandparent(alice,john)", compound("grandparent", atom("alice"), atom("john")), False),
     ]
     return "family_small", kb, checks
 
 
-def scenario_family_with_guards() -> Tuple[str, KnowledgeBase, List[Tuple[str, Compound, bool]]]:
-    """Family KB with gender facts as guards for Operation C."""
+def scenario_family_with_guards():
+    """Exercises Ops B, C, D, E together. 8 people, gender guards, 3 transitive
+    closures with different base relations, shared body prefixes."""
     kb = KnowledgeBase()
-    people = ["alice", "bob", "carol", "dave", "eve", "frank", "grace", "henry"]
+    people = ["alice","bob","carol","dave","eve","frank","grace","henry"]
     for name in people:
         kb.add_fact(compound("person", atom(name)))
-    for name in ["alice", "carol", "eve", "grace"]:
+    for name in ["alice","carol","eve","grace"]:
         kb.add_fact(compound("female", atom(name)))
-    for name in ["bob", "dave", "frank", "henry"]:
+    for name in ["bob","dave","frank","henry"]:
         kb.add_fact(compound("male", atom(name)))
-
-    # Most people like chocolate (Op C target)
-    for name in ["alice", "bob", "carol", "dave", "eve", "frank"]:
+    for name in ["alice","bob","carol","dave","eve","frank"]:
         kb.add_fact(compound("likes", atom(name), atom("chocolate")))
-
-    # Parents
-    for p, c in [("alice", "bob"), ("alice", "carol"), ("bob", "dave"),
-                 ("bob", "eve"), ("carol", "frank"), ("carol", "grace")]:
+    for p, c in [("alice","bob"),("alice","carol"),("bob","dave"),
+                 ("bob","eve"),("carol","frank"),("carol","grace")]:
         kb.add_fact(compound("parent", atom(p), atom(c)))
-
-    # Different base relations for each transitive closure (Op D needs different PARAM_0)
-    for a, b in [("alice", "bob"), ("bob", "dave"), ("dave", "henry")]:
+    for a, b in [("alice","bob"),("bob","dave"),("dave","henry")]:
         kb.add_fact(compound("follows", atom(a), atom(b)))
-    for a, b in [("alice", "carol"), ("carol", "frank")]:
+    for a, b in [("alice","carol"),("carol","frank")]:
         kb.add_fact(compound("manages", atom(a), atom(b)))
 
-    # Three transitive closures with DIFFERENT base relations (Op D target)
-    for head, base in [("ancestor", "parent"), ("reachable", "follows"), ("connected", "manages")]:
+    # 3 transitive closures with DIFFERENT base relations (Op D)
+    for head, base in [("ancestor","parent"),("reachable","follows"),("connected","manages")]:
         kb.add_rule(Rule(compound(head, var("X"), var("Y")),
                          [compound(base, var("X"), var("Y"))]))
         kb.add_rule(Rule(compound(head, var("X"), var("Z")),
                          [compound(base, var("X"), var("Y")),
                           compound(head, var("Y"), var("Z"))]))
-
-    # Grandparent + great-grandparent + great-uncle (Op E target)
+    # Shared body prefix rules (Op E)
     kb.add_rule(Rule(compound("grandparent", var("X"), var("Z")),
                      [compound("parent", var("X"), var("Y")),
                       compound("parent", var("Y"), var("Z"))]))
@@ -117,30 +112,25 @@ def scenario_family_with_guards() -> Tuple[str, KnowledgeBase, List[Tuple[str, C
                       compound("parent", var("Y"), var("Z")),
                       compound("male", var("Z")),
                       compound("parent", var("Z"), var("W"))]))
-
-    # Redundant fact (Op B target)
+    # Redundant fact (Op B)
     kb.add_fact(compound("ancestor", atom("alice"), atom("bob")))
-
     checks = [
-        ("ancestor(alice, dave)", compound("ancestor", atom("alice"), atom("dave")), True),
-        ("ancestor(alice, grace)", compound("ancestor", atom("alice"), atom("grace")), True),
-        ("grandparent(alice, dave)", compound("grandparent", atom("alice"), atom("dave")), True),
-        ("likes(alice, chocolate)", compound("likes", atom("alice"), atom("chocolate")), True),
-        ("likes(henry, chocolate)", compound("likes", atom("henry"), atom("chocolate")), False),
-        ("ancestor(henry, alice)", compound("ancestor", atom("henry"), atom("alice")), False),
+        ("ancestor(alice,dave)", compound("ancestor", atom("alice"), atom("dave")), True),
+        ("grandparent(alice,dave)", compound("grandparent", atom("alice"), atom("dave")), True),
+        ("likes(alice,chocolate)", compound("likes", atom("alice"), atom("chocolate")), True),
+        ("likes(henry,chocolate)", compound("likes", atom("henry"), atom("chocolate")), False),
     ]
     return "family_with_guards", kb, checks
 
 
-def scenario_transitive_closures() -> Tuple[str, KnowledgeBase, List[Tuple[str, Compound, bool]]]:
-    """Multiple structurally identical transitive closure predicates (Op D target)."""
+def scenario_transitive_closures():
+    """4 structurally identical transitive closure predicates (Op D target)."""
     kb = KnowledgeBase()
-
     preds = [
-        ("ancestor", "parent", [("a","b"),("b","c"),("c","d"),("d","e")]),
-        ("reachable", "edge", [("x","y"),("y","z"),("z","w")]),
-        ("connected", "link", [("p","q"),("q","r"),("r","s"),("s","t")]),
-        ("above", "over", [("1","2"),("2","3"),("3","4")]),
+        ("ancestor","parent",[("a","b"),("b","c"),("c","d"),("d","e")]),
+        ("reachable","edge",[("x","y"),("y","z"),("z","w")]),
+        ("connected","link",[("p","q"),("q","r"),("r","s"),("s","t")]),
+        ("above","over",[("1","2"),("2","3"),("3","4")]),
     ]
     for head, base, facts in preds:
         for a, b in facts:
@@ -150,27 +140,23 @@ def scenario_transitive_closures() -> Tuple[str, KnowledgeBase, List[Tuple[str, 
         kb.add_rule(Rule(compound(head, var("X"), var("Z")),
                          [compound(base, var("X"), var("Y")),
                           compound(head, var("Y"), var("Z"))]))
-
     checks = [
-        ("ancestor(a, e)", compound("ancestor", atom("a"), atom("e")), True),
-        ("reachable(x, w)", compound("reachable", atom("x"), atom("w")), True),
-        ("connected(p, t)", compound("connected", atom("p"), atom("t")), True),
-        ("above(1, 4)", compound("above", atom("1"), atom("4")), True),
-        ("ancestor(e, a)", compound("ancestor", atom("e"), atom("a")), False),
+        ("ancestor(a,e)", compound("ancestor", atom("a"), atom("e")), True),
+        ("reachable(x,w)", compound("reachable", atom("x"), atom("w")), True),
+        ("connected(p,t)", compound("connected", atom("p"), atom("t")), True),
+        ("above(1,4)", compound("above", atom("1"), atom("4")), True),
+        ("ancestor(e,a)", compound("ancestor", atom("e"), atom("a")), False),
     ]
     return "transitive_closures", kb, checks
 
 
-def scenario_body_patterns() -> Tuple[str, KnowledgeBase, List[Tuple[str, Compound, bool]]]:
-    """Rules sharing body sub-sequences (Op E target)."""
+def scenario_body_patterns():
+    """4 rules sharing body sub-sequence parent(X,Y),parent(Y,Z) (Op E target)."""
     kb = KnowledgeBase()
-
     for p, c in [("a","b"),("b","c"),("c","d"),("d","e"),("e","f")]:
         kb.add_fact(compound("parent", atom(p), atom(c)))
     kb.add_fact(compound("brother", atom("d"), atom("x")))
     kb.add_fact(compound("sister", atom("d"), atom("y")))
-
-    # All share parent(X,Y), parent(Y,Z) prefix
     kb.add_rule(Rule(compound("grandparent", var("X"), var("Z")),
                      [compound("parent", var("X"), var("Y")),
                       compound("parent", var("Y"), var("Z"))]))
@@ -186,125 +172,152 @@ def scenario_body_patterns() -> Tuple[str, KnowledgeBase, List[Tuple[str, Compou
                      [compound("parent", var("X"), var("Y")),
                       compound("parent", var("Y"), var("Z")),
                       compound("sister", var("Z"), var("W"))]))
-
     checks = [
-        ("grandparent(a, c)", compound("grandparent", atom("a"), atom("c")), True),
-        ("great_gp(a, d)", compound("great_gp", atom("a"), atom("d")), True),
-        ("great_uncle(b, x)", compound("great_uncle", atom("b"), atom("x")), True),
-        ("great_aunt(b, y)", compound("great_aunt", atom("b"), atom("y")), True),
-        ("grandparent(c, a)", compound("grandparent", atom("c"), atom("a")), False),
+        ("grandparent(a,c)", compound("grandparent", atom("a"), atom("c")), True),
+        ("great_gp(a,d)", compound("great_gp", atom("a"), atom("d")), True),
+        ("great_uncle(b,x)", compound("great_uncle", atom("b"), atom("x")), True),
+        ("great_aunt(b,y)", compound("great_aunt", atom("b"), atom("y")), True),
+        ("grandparent(c,a)", compound("grandparent", atom("c"), atom("a")), False),
     ]
     return "body_patterns", kb, checks
 
 
-def scenario_dead_clauses() -> Tuple[str, KnowledgeBase, List[Tuple[str, Compound, bool]]]:
-    """KB with unused clauses after wake-phase queries (Op F target)."""
+def scenario_dead_clauses():
+    """KB with dead clauses after broad wake phase (Op F target).
+    Many alive predicates + some dead ones. Coverage > 50% so Op F fires."""
     kb = KnowledgeBase()
-
-    # Used facts
+    # Alive: parent, anc, person, likes (4 used functors)
     for p, c in [("a","b"),("b","c"),("c","d")]:
         kb.add_fact(compound("parent", atom(p), atom(c)))
+    for n in ["a","b","c","d"]:
+        kb.add_fact(compound("person", atom(n)))
+    for n in ["a","b","c"]:
+        kb.add_fact(compound("likes", atom(n), atom("chocolate")))
     kb.add_rule(Rule(compound("anc", var("X"), var("Y")),
                      [compound("parent", var("X"), var("Y"))]))
     kb.add_rule(Rule(compound("anc", var("X"), var("Z")),
                      [compound("parent", var("X"), var("Y")),
                       compound("anc", var("Y"), var("Z"))]))
-
-    # Dead facts (never queried)
-    for v in ["stale1", "stale2", "stale3", "stale4", "stale5"]:
+    # Dead: unused, dead_pred (2 dead functors)
+    # Total: 6 functors, 4 used = 67% coverage > 50%
+    for v in ["s1","s2","s3"]:
         kb.add_fact(compound("unused", atom(v)))
-
-    # Dead rules (never fire)
     kb.add_rule(Rule(compound("dead_pred", var("X")),
                      [compound("nonexistent", var("X"))]))
-    kb.add_rule(Rule(compound("also_dead", var("X")),
-                     [compound("nope", var("X"))]))
 
-    # Simulate wake phase: exercise used predicates broadly
+    # Wake phase: exercise all alive predicates
     ev = PrologEvaluator(kb)
     for _ in range(5):
         list(ev.query([compound("anc", atom("a"), atom("d"))]))
         list(ev.query([compound("parent", atom("a"), atom("b"))]))
-        list(ev.query([compound("parent", atom("b"), atom("c"))]))
-        list(ev.query([compound("parent", atom("c"), atom("d"))]))
-        # Do NOT query unused/dead_pred/also_dead
+        list(ev.query([compound("person", atom("a"))]))
+        list(ev.query([compound("likes", atom("a"), atom("chocolate"))]))
 
     checks = [
-        ("anc(a, d)", compound("anc", atom("a"), atom("d")), True),
-        ("parent(a, b)", compound("parent", atom("a"), atom("b")), True),
+        ("anc(a,d)", compound("anc", atom("a"), atom("d")), True),
+        ("parent(a,b)", compound("parent", atom("a"), atom("b")), True),
+        ("likes(a,chocolate)", compound("likes", atom("a"), atom("chocolate")), True),
     ]
     return "dead_clauses", kb, checks
 
 
-def scenario_mixed_large() -> Tuple[str, KnowledgeBase, List[Tuple[str, Compound, bool]]]:
-    """Larger mixed KB exercising all operations."""
+def scenario_cascading():
+    """Designed so multiple operations interact. Op B prunes a redundant fact,
+    Op C generalizes remaining facts, Op D invents from rule sets,
+    Op E extracts body patterns. All in one dream cycle."""
     kb = KnowledgeBase()
-
-    # 20 person facts
-    names = [f"person_{i}" for i in range(20)]
-    for name in names:
-        kb.add_fact(compound("person", atom(name)))
-
-    # 15 of them like chocolate (Op C)
-    for name in names[:15]:
-        kb.add_fact(compound("likes", atom(name), atom("chocolate")))
-
-    # Some like vanilla too (mixed subgroups)
-    for name in names[10:18]:
-        kb.add_fact(compound("likes", atom(name), atom("vanilla")))
-
-    # Parent chain
-    for i in range(len(names) - 1):
-        kb.add_fact(compound("parent", atom(names[i]), atom(names[i+1])))
-
-    # 3 transitive closures (Op D)
-    for head, base in [("ancestor", "parent"), ("reaches", "parent"), ("above", "parent")]:
+    # Guard predicate
+    for n in ["a","b","c","d","e"]:
+        kb.add_fact(compound("node", atom(n)))
+    # Facts for Op C: most nodes are active
+    for n in ["a","b","c","d"]:
+        kb.add_fact(compound("active", atom(n), atom("true")))
+    # 3 transitive closures with different base relations (Op D)
+    for a, b in [("a","b"),("b","c"),("c","d")]:
+        kb.add_fact(compound("edge", atom(a), atom(b)))
+    for a, b in [("a","c"),("c","e")]:
+        kb.add_fact(compound("link", atom(a), atom(b)))
+    for a, b in [("a","d"),("d","e")]:
+        kb.add_fact(compound("path", atom(a), atom(b)))
+    for head, base in [("reach_e","edge"),("reach_l","link"),("reach_p","path")]:
         kb.add_rule(Rule(compound(head, var("X"), var("Y")),
                          [compound(base, var("X"), var("Y"))]))
         kb.add_rule(Rule(compound(head, var("X"), var("Z")),
                          [compound(base, var("X"), var("Y")),
                           compound(head, var("Y"), var("Z"))]))
-
-    # 3 rules with shared body prefix (Op E)
-    kb.add_rule(Rule(compound("grandparent", var("X"), var("Z")),
-                     [compound("parent", var("X"), var("Y")),
-                      compound("parent", var("Y"), var("Z"))]))
-    kb.add_rule(Rule(compound("great_gp", var("X"), var("W")),
-                     [compound("parent", var("X"), var("Y")),
-                      compound("parent", var("Y"), var("Z")),
-                      compound("parent", var("Z"), var("W"))]))
-    kb.add_rule(Rule(compound("great_great_gp", var("X"), var("V")),
-                     [compound("parent", var("X"), var("Y")),
-                      compound("parent", var("Y"), var("Z")),
-                      compound("parent", var("Z"), var("W")),
-                      compound("parent", var("W"), var("V"))]))
-
-    # Redundant facts (Op B)
-    kb.add_fact(compound("ancestor", atom(names[0]), atom(names[1])))
-
-    # Simulate wake phase: exercise the full KB broadly for Op F
-    ev = PrologEvaluator(kb)
-    for i in range(min(5, len(names) - 5)):
-        list(ev.query([compound("ancestor", atom(names[i]), atom(names[i+3]))]))
-        list(ev.query([compound("reaches", atom(names[i]), atom(names[i+2]))]))
-        list(ev.query([compound("above", atom(names[i]), atom(names[i+1]))]))
-        list(ev.query([compound("grandparent", atom(names[i]), atom(names[i+2]))]))
-        list(ev.query([compound("great_gp", atom(names[i]), atom(names[i+3]))]))
-        list(ev.query([compound("likes", atom(names[i]), atom("chocolate"))]))
-        list(ev.query([compound("likes", atom(names[i+10]), atom("vanilla"))]))
-        list(ev.query([compound("person", atom(names[i]))]))
+    # Rules with shared body prefix (Op E)
+    kb.add_rule(Rule(compound("two_hop", var("X"), var("Z")),
+                     [compound("edge", var("X"), var("Y")),
+                      compound("edge", var("Y"), var("Z"))]))
+    kb.add_rule(Rule(compound("three_hop", var("X"), var("W")),
+                     [compound("edge", var("X"), var("Y")),
+                      compound("edge", var("Y"), var("Z")),
+                      compound("edge", var("Z"), var("W"))]))
+    kb.add_rule(Rule(compound("hop_then_link", var("X"), var("W")),
+                     [compound("edge", var("X"), var("Y")),
+                      compound("edge", var("Y"), var("Z")),
+                      compound("link", var("Z"), var("W"))]))
+    # Redundant fact (Op B)
+    kb.add_fact(compound("reach_e", atom("a"), atom("b")))
 
     checks = [
-        (f"ancestor({names[0]}, {names[5]})",
-         compound("ancestor", atom(names[0]), atom(names[5])), True),
-        (f"likes({names[0]}, chocolate)",
-         compound("likes", atom(names[0]), atom("chocolate")), True),
-        (f"likes({names[19]}, chocolate)",
-         compound("likes", atom(names[19]), atom("chocolate")), False),
-        (f"grandparent({names[0]}, {names[2]})",
-         compound("grandparent", atom(names[0]), atom(names[2])), True),
+        ("reach_e(a,d)", compound("reach_e", atom("a"), atom("d")), True),
+        ("reach_l(a,e)", compound("reach_l", atom("a"), atom("e")), True),
+        ("two_hop(a,c)", compound("two_hop", atom("a"), atom("c")), True),
+        ("three_hop(a,d)", compound("three_hop", atom("a"), atom("d")), True),
+        ("active(a,true)", compound("active", atom("a"), atom("true")), True),
+        ("active(e,true)", compound("active", atom("e"), atom("true")), False),
     ]
-    return "mixed_large", kb, checks
+    return "cascading", kb, checks
+
+
+def scenario_stress():
+    """Larger KB: 50 entities, 100+ facts, multiple rule patterns."""
+    kb = KnowledgeBase()
+    n = 50
+    names = [f"e{i}" for i in range(n)]
+    # Type facts
+    for name in names:
+        kb.add_fact(compound("entity", atom(name)))
+    # Category: most are type_a, some type_b (Op C)
+    for name in names[:40]:
+        kb.add_fact(compound("category", atom(name), atom("type_a")))
+    for name in names[40:]:
+        kb.add_fact(compound("category", atom(name), atom("type_b")))
+    # Chain relations
+    for i in range(n - 1):
+        kb.add_fact(compound("next", atom(names[i]), atom(names[i+1])))
+    for i in range(0, n - 1, 2):
+        kb.add_fact(compound("skip", atom(names[i]), atom(names[min(i+2, n-1)])))
+    # 4 transitive closures (Op D)
+    for head, base in [("chain","next"),("skip_chain","skip"),
+                       ("forward","next"),("hop","skip")]:
+        kb.add_rule(Rule(compound(head, var("X"), var("Y")),
+                         [compound(base, var("X"), var("Y"))]))
+        kb.add_rule(Rule(compound(head, var("X"), var("Z")),
+                         [compound(base, var("X"), var("Y")),
+                          compound(head, var("Y"), var("Z"))]))
+    # 3 rules with shared body prefix (Op E)
+    kb.add_rule(Rule(compound("two_next", var("X"), var("Z")),
+                     [compound("next", var("X"), var("Y")),
+                      compound("next", var("Y"), var("Z"))]))
+    kb.add_rule(Rule(compound("three_next", var("X"), var("W")),
+                     [compound("next", var("X"), var("Y")),
+                      compound("next", var("Y"), var("Z")),
+                      compound("next", var("Z"), var("W"))]))
+    kb.add_rule(Rule(compound("next_then_skip", var("X"), var("W")),
+                     [compound("next", var("X"), var("Y")),
+                      compound("next", var("Y"), var("Z")),
+                      compound("skip", var("Z"), var("W"))]))
+
+    checks = [
+        (f"chain(e0,e10)", compound("chain", atom("e0"), atom("e10")), True),
+        (f"two_next(e0,e2)", compound("two_next", atom("e0"), atom("e2")), True),
+        (f"category(e0,type_a)", compound("category", atom("e0"), atom("type_a")), True),
+        (f"category(e0,type_b)", compound("category", atom("e0"), atom("type_b")), False),
+        (f"chain(e10,e0)", compound("chain", atom("e10"), atom("e0")), False),
+    ]
+    return "stress", kb, checks
 
 
 SCENARIOS = {
@@ -313,9 +326,14 @@ SCENARIOS = {
     "transitive_closures": scenario_transitive_closures,
     "body_patterns": scenario_body_patterns,
     "dead_clauses": scenario_dead_clauses,
-    "mixed_large": scenario_mixed_large,
+    "cascading": scenario_cascading,
+    "stress": scenario_stress,
 }
 
+
+# ============================================================
+# Runner
+# ============================================================
 
 def run_benchmark(scenario_fn, verbose=False) -> BenchmarkResult:
     name, kb, correctness_checks = scenario_fn()
@@ -323,7 +341,6 @@ def run_benchmark(scenario_fn, verbose=False) -> BenchmarkResult:
     facts_before = len(kb.facts)
     rules_before = len(kb.rules)
     clauses_before = facts_before + rules_before
-
     body_goals_before = sum(len(r.body) for r in kb.rules)
 
     if verbose:
@@ -339,13 +356,17 @@ def run_benchmark(scenario_fn, verbose=False) -> BenchmarkResult:
     facts_after = len(kb.facts)
     rules_after = len(kb.rules)
     clauses_after = facts_after + rules_after
+    body_goals_after = sum(len(r.body) for r in kb.rules)
 
-    ops = [(op.operation, op.mdl_delta) for op in session.operations]
+    # Aggregate operations by type
+    op_summary: Dict[str, int] = {}
+    for op in session.operations:
+        op_summary[op.operation] = op_summary.get(op.operation, 0) + 1
 
-    if verbose and ops:
+    if verbose and op_summary:
         print(f"  Operations:")
-        for op_name, delta in ops:
-            print(f"    {op_name}: {delta:+d}")
+        for op_name, count in sorted(op_summary.items()):
+            print(f"    {op_name}: {count}x")
 
     # Correctness checks
     ev = PrologEvaluator(kb)
@@ -358,12 +379,6 @@ def run_benchmark(scenario_fn, verbose=False) -> BenchmarkResult:
         elif verbose:
             print(f"  FAIL: {label} = {result}, expected {expected}")
 
-    body_goals_after = sum(len(r.body) for r in kb.rules)
-
-    verification_count = 0
-    if session.verification:
-        verification_count = session.verification.positive_count + session.verification.negative_count
-
     result = BenchmarkResult(
         name=name,
         clauses_before=clauses_before,
@@ -372,20 +387,18 @@ def run_benchmark(scenario_fn, verbose=False) -> BenchmarkResult:
         facts_after=facts_after,
         rules_before=rules_before,
         rules_after=rules_after,
-        compression_ratio=session.compression_ratio,
-        operations=ops,
-        verification_queries=verification_count,
-        verification_passed=session.verification.passed if session.verification else True,
-        correctness_checks_passed=passed,
-        correctness_checks_total=total,
         body_goals_before=body_goals_before,
         body_goals_after=body_goals_after,
+        compression_ratio=session.compression_ratio,
+        op_summary=op_summary,
+        correctness_passed=passed,
+        correctness_total=total,
         elapsed_ms=elapsed,
     )
 
     if verbose:
-        print(f"  {clauses_before} -> {clauses_after} (ratio: {session.compression_ratio:.2f}, {elapsed:.1f}ms)")
-        print(f"  Correctness: {passed}/{total}")
+        print(f"  {clauses_before} -> {clauses_after} clauses, {body_goals_before} -> {body_goals_after} body goals")
+        print(f"  Ratio: {session.compression_ratio:.2f}, Time: {elapsed:.1f}ms, Correct: {passed}/{total}")
 
     return result
 
@@ -394,60 +407,78 @@ def print_summary(results: List[BenchmarkResult]):
     print(f"\n{'='*80}")
     print(f"  SLEEP CYCLE BENCHMARK RESULTS")
     print(f"{'='*80}")
-    print(f"  {'Scenario':<25} {'Clause':>12} {'Body goals':>12} {'Ops':>5} {'Correct':>9} {'Time':>8}")
-    print(f"  {'-'*25} {'-'*12} {'-'*12} {'-'*5} {'-'*9} {'-'*8}")
+    print(f"  {'Scenario':<22} {'Clauses':>11} {'Body goals':>11} {'Ops':>5} {'OK':>6} {'Time':>8}")
+    print(f"  {'-'*22} {'-'*11} {'-'*11} {'-'*5} {'-'*6} {'-'*8}")
 
     all_correct = True
     for r in results:
-        correct_str = f"{r.correctness_checks_passed}/{r.correctness_checks_total}"
-        ops_count = len(r.operations)
         clause_str = f"{r.clauses_before}->{r.clauses_after}"
         body_str = f"{r.body_goals_before}->{r.body_goals_after}"
-        status = "" if r.correctness_checks_passed == r.correctness_checks_total else " FAIL"
+        ops_count = sum(r.op_summary.values())
+        ok_str = f"{r.correctness_passed}/{r.correctness_total}"
+        status = "" if r.correctness_passed == r.correctness_total else " FAIL"
         if status:
             all_correct = False
-        print(f"  {r.name:<25} {clause_str:>12} {body_str:>12} {ops_count:>5} {correct_str:>9} {r.elapsed_ms:>7.1f}ms{status}")
+        print(f"  {r.name:<22} {clause_str:>11} {body_str:>11} {ops_count:>5} {ok_str:>6} {r.elapsed_ms:>7.1f}ms{status}")
 
     # Operation breakdown
-    op_counts = {}
+    op_totals: Dict[str, int] = {}
     for r in results:
-        for op_name, delta in r.operations:
-            op_counts.setdefault(op_name, {"count": 0, "delta": 0})
-            op_counts[op_name]["count"] += 1
-            op_counts[op_name]["delta"] += delta
+        for op_name, count in r.op_summary.items():
+            op_totals[op_name] = op_totals.get(op_name, 0) + count
 
-    print(f"\n  Operation totals across all scenarios:")
-    for op_name, stats in sorted(op_counts.items()):
-        print(f"    {op_name:<25} fired {stats['count']:>3}x, total delta: {stats['delta']:+d}")
+    if op_totals:
+        print(f"\n  Operations across all scenarios:")
+        for op_name, count in sorted(op_totals.items()):
+            print(f"    {op_name:<25} {count:>3}x")
 
-    total_clauses_before = sum(r.clauses_before for r in results)
-    total_clauses_after = sum(r.clauses_after for r in results)
-    total_bg_before = sum(r.body_goals_before for r in results)
-    total_bg_after = sum(r.body_goals_after for r in results)
-    total_time = sum(r.elapsed_ms for r in results)
-    print(f"\n  Clauses:    {total_clauses_before} -> {total_clauses_after} ({total_clauses_after/total_clauses_before:.2f})")
-    print(f"  Body goals: {total_bg_before} -> {total_bg_after} ({total_bg_after/total_bg_before:.2f})" if total_bg_before > 0 else "")
-    print(f"  Time: {total_time:.1f}ms")
-    print(f"  Correctness: {'ALL PASSED' if all_correct else 'SOME FAILED'}")
+    tc = sum(r.clauses_before for r in results)
+    ta = sum(r.clauses_after for r in results)
+    tb = sum(r.body_goals_before for r in results)
+    tba = sum(r.body_goals_after for r in results)
+    tt = sum(r.elapsed_ms for r in results)
+    print(f"\n  Totals:")
+    print(f"    Clauses:    {tc} -> {ta} ({ta/tc:.2f})")
+    if tb > 0:
+        print(f"    Body goals: {tb} -> {tba} ({tba/tb:.2f})")
+    print(f"    Time:       {tt:.0f}ms")
+    print(f"    Correct:    {'ALL PASSED' if all_correct else 'SOME FAILED'}")
     print(f"{'='*80}")
+
+
+def results_to_json(results: List[BenchmarkResult]) -> str:
+    data = {
+        "scenarios": [asdict(r) for r in results],
+        "totals": {
+            "clauses_before": sum(r.clauses_before for r in results),
+            "clauses_after": sum(r.clauses_after for r in results),
+            "body_goals_before": sum(r.body_goals_before for r in results),
+            "body_goals_after": sum(r.body_goals_after for r in results),
+            "all_correct": all(r.correctness_passed == r.correctness_total for r in results),
+        }
+    }
+    return json.dumps(data, indent=2)
 
 
 def main():
     parser = argparse.ArgumentParser(description="DreamLog sleep cycle benchmarks")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Detailed output per scenario")
+    parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument("--scenario", "-s", help="Run a single scenario")
+    parser.add_argument("--json", action="store_true", help="Output JSON for comparison")
     args = parser.parse_args()
 
     if args.scenario:
         if args.scenario not in SCENARIOS:
-            print(f"Unknown scenario: {args.scenario}")
-            print(f"Available: {', '.join(SCENARIOS.keys())}")
+            print(f"Unknown: {args.scenario}. Available: {', '.join(SCENARIOS.keys())}")
             sys.exit(1)
         results = [run_benchmark(SCENARIOS[args.scenario], verbose=args.verbose)]
     else:
         results = [run_benchmark(fn, verbose=args.verbose) for fn in SCENARIOS.values()]
 
-    print_summary(results)
+    if args.json:
+        print(results_to_json(results))
+    else:
+        print_summary(results)
 
 
 if __name__ == "__main__":
