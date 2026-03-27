@@ -200,7 +200,17 @@ class KnowledgeBaseDreamer:
 
         # Operation F runs first, using only wake-phase usage data
         # (before verification queries inflate usage counts)
-        ops.extend(self._prune_dead_clauses(kb))
+        dead_ops = self._prune_dead_clauses(kb)
+        ops.extend(dead_ops)
+        # Remove dead clauses from verification suite (they're dead by definition)
+        if suite and dead_ops:
+            dead_terms = set()
+            for op in dead_ops:
+                for clause in op.original_clauses:
+                    if isinstance(clause, Fact):
+                        dead_terms.add(clause.term)
+            suite.positive_queries = [
+                q for q in suite.positive_queries if q not in dead_terms]
 
         ops.extend(self._eliminate_subsumed(kb))
         ops.extend(self._prune_redundant_facts(kb))
@@ -708,7 +718,16 @@ class KnowledgeBaseDreamer:
             k = key[0]  # length stored as first element of key
             if n < 2 or k < 2:
                 continue
-            savings = (k - 1) * (n - 1) - 1
+            body_goal_savings = (k - 1) * (n - 1) - 1
+            # Also check clause count: extraction adds 1 rule but may enable
+            # trivial wrapper elimination. Count rules that become single-goal
+            # wrappers (body = just the extracted call).
+            wrappers_created = sum(1 for rule, start in unique_occs
+                                   if len(rule.body) == k)  # entire body is the subseq
+            # Net clause change: +1 (extracted) - wrappers_created (if they become
+            # redundant with the extracted predicate, a later dream cycle removes them)
+            # For now, require positive body-goal savings
+            savings = body_goal_savings
             if savings > best_savings:
                 best_savings = savings
                 best = (key, unique_occs)
@@ -834,10 +853,41 @@ class KnowledgeBaseDreamer:
     def _prune_dead_clauses(self, kb: KnowledgeBase,
                             min_query_threshold: int = 10
                             ) -> List[CompressionCandidate]:
-        """Operation F: Remove clauses with 0 usage after sufficient queries."""
+        """Operation F: Remove clauses with 0 usage after sufficient queries.
+
+        Requires both a minimum total query count AND that at least 50% of
+        distinct predicates have been queried. This prevents pruning in KBs
+        where the wake phase only exercised a narrow subset of predicates.
+        """
         ops = []
 
         if kb.total_queries_tracked() < min_query_threshold:
+            return ops
+
+        # Check predicate coverage: at least 50% of predicates must have usage
+        all_functors = set()
+        used_functors = set()
+        for fact in kb.facts:
+            if isinstance(fact.term, Compound):
+                f = fact.term.functor
+                if not (f.startswith("exception_") or f.startswith("_extracted_")
+                        or f.startswith("_invented_")):
+                    all_functors.add(f)
+                    if kb.get_usage(fact) > 0:
+                        used_functors.add(f)
+        for rule in kb.rules:
+            if isinstance(rule.head, Compound):
+                f = rule.head.functor
+                if not (f.startswith("exception_") or f.startswith("_extracted_")
+                        or f.startswith("_invented_")):
+                    all_functors.add(f)
+                    if kb.get_usage(rule) > 0:
+                        used_functors.add(f)
+
+        if len(all_functors) == 0:
+            return ops
+        coverage = len(used_functors) / len(all_functors)
+        if coverage < 0.5:
             return ops
 
         # Find dead facts
