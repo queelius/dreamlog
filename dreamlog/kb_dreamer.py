@@ -1023,12 +1023,30 @@ class KnowledgeBaseDreamer:
                     if rule is None:
                         continue
 
+                # Structural validation: head and all body goals must be
+                # well-formed Compound terms with valid functors
+                if not isinstance(rule.head, Compound) or not rule.head.functor:
+                    continue
+                if not rule.body:
+                    continue
+                if any(not isinstance(g, Compound) or not g.functor for g in rule.body):
+                    continue
+                # All body functors must exist in the KB (as fact or rule heads)
+                kb_functors = set()
+                for f in kb.facts:
+                    if isinstance(f.term, Compound):
+                        kb_functors.add(f.term.functor)
+                for r in kb.rules:
+                    if isinstance(r.head, Compound):
+                        kb_functors.add(r.head.functor)
+                if any(g.functor not in kb_functors for g in rule.body):
+                    continue
+
                 # Check: rule must derive at least one existing fact
                 test_kb = kb.copy()
                 test_kb.add_rule(rule)
                 ev = PrologEvaluator(test_kb)
 
-                # Find facts the rule could derive
                 derivable_facts = []
                 for fact in kb.facts:
                     if (isinstance(fact.term, Compound)
@@ -1045,11 +1063,9 @@ class KnowledgeBaseDreamer:
                     if not result.passed:
                         continue
 
-                # MDL: rule + removal of derivable facts must decrease count
-                if len(derivable_facts) < 2:  # need to derive 2+ facts to justify the rule
+                if len(derivable_facts) < 2:
                     continue
 
-                # Apply: add rule, then let Op B handle pruning derivable facts
                 kb.add_rule(rule)
                 ops.append(CompressionCandidate(
                     operation="llm_compression",
