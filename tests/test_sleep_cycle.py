@@ -756,3 +756,60 @@ class TestEvaluatorUsageRecording:
         list(ev.query([compound("a", atom("x"))]))
         assert kb.get_usage(kb.facts[0]) >= 1  # a(x) used
         assert kb.get_usage(kb.facts[1]) == 0   # b(y) never queried
+
+
+class TestLLMNaming:
+    def test_invented_predicate_renamed(self):
+        """LLM suggests name for _invented_0, it gets renamed."""
+        from tests.mock_provider import MockLLMProvider  # noqa: F811
+        kb = KnowledgeBase()
+        for head, base in [("ancestor","parent"),("reachable","edge"),("connected","link")]:
+            kb.add_rule(Rule(compound(head, var("X"), var("Y")),
+                             [compound(base, var("X"), var("Y"))]))
+            kb.add_rule(Rule(compound(head, var("X"), var("Z")),
+                             [compound(base, var("X"), var("Y")),
+                              compound(head, var("Y"), var("Z"))]))
+        kb.add_fact(compound("parent", atom("a"), atom("b")))
+        kb.add_fact(compound("edge", atom("x"), atom("y")))
+        kb.add_fact(compound("link", atom("p"), atom("q")))
+
+        mock = MockLLMProvider(responses=["transitive_closure"])
+        dreamer = KnowledgeBaseDreamer(llm_client=mock)
+        session = dreamer.dream(kb, verify=True)
+
+        # _invented_0 should be renamed to transitive_closure
+        rule_functors = {r.head.functor for r in kb.rules if isinstance(r.head, Compound)}
+        assert "transitive_closure" in rule_functors
+        assert "_invented_0" not in rule_functors
+
+    def test_no_llm_skips_naming(self):
+        """Without LLM client, naming is skipped."""
+        kb = KnowledgeBase()
+        for head, base in [("ancestor","parent"),("reachable","edge"),("connected","link")]:
+            kb.add_rule(Rule(compound(head, var("X"), var("Y")),
+                             [compound(base, var("X"), var("Y"))]))
+            kb.add_rule(Rule(compound(head, var("X"), var("Z")),
+                             [compound(base, var("X"), var("Y")),
+                              compound(head, var("Y"), var("Z"))]))
+        dreamer = KnowledgeBaseDreamer()  # no llm_client
+        dreamer.dream(kb, verify=False)
+        rule_functors = {r.head.functor for r in kb.rules if isinstance(r.head, Compound)}
+        # Should have _invented_0, not a named version
+        assert any(f.startswith("_invented_") for f in rule_functors)
+
+    def test_bad_name_keeps_original(self):
+        """If LLM suggests invalid name, keep _invented_N."""
+        from tests.mock_provider import MockLLMProvider  # noqa: F811
+        kb = KnowledgeBase()
+        for head, base in [("ancestor","parent"),("reachable","edge"),("connected","link")]:
+            kb.add_rule(Rule(compound(head, var("X"), var("Y")),
+                             [compound(base, var("X"), var("Y"))]))
+            kb.add_rule(Rule(compound(head, var("X"), var("Z")),
+                             [compound(base, var("X"), var("Y")),
+                              compound(head, var("Y"), var("Z"))]))
+        # LLM returns something with spaces/special chars
+        mock = MockLLMProvider(responses=["this is not a valid name!!!"])
+        dreamer = KnowledgeBaseDreamer(llm_client=mock)
+        dreamer.dream(kb, verify=False)
+        rule_functors = {r.head.functor for r in kb.rules if isinstance(r.head, Compound)}
+        assert any(f.startswith("_invented_") for f in rule_functors)

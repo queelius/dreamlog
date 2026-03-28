@@ -183,9 +183,11 @@ class KnowledgeBaseDreamer:
     """Symbolic sleep-phase compression via anti-unification and MDL."""
 
     def __init__(self, min_group_size: int = 3,
-                 shared_structure_threshold: float = 0.1):
+                 shared_structure_threshold: float = 0.1,
+                 llm_client=None):
         self.min_group_size = min_group_size
         self.shared_structure_threshold = shared_structure_threshold
+        self.llm_client = llm_client
 
     def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
         original_size = len(kb)
@@ -223,6 +225,9 @@ class KnowledgeBaseDreamer:
             extend_verification_for_rules(suite, kb)
         ops.extend(self._invent_predicates(kb, suite))
         ops.extend(self._extract_body_patterns(kb, suite))
+
+        # LLM-assisted naming (after symbolic ops, before final verify)
+        self._name_invented_predicates(kb)
 
         if verify and suite:
             from .evaluator import PrologEvaluator
@@ -849,6 +854,80 @@ class KnowledgeBaseDreamer:
                 except (ValueError, IndexError):
                     pass
         return f"_extracted_{max_n + 1}"
+
+    # ── LLM-assisted naming ──
+
+    def _name_invented_predicates(self, kb: KnowledgeBase) -> None:
+        """Ask LLM to suggest names for _invented_N and _extracted_N predicates."""
+        if not self.llm_client:
+            return
+
+        import re
+        for prefix in ("_invented_", "_extracted_"):
+            # Find all generated predicates
+            generated = {}
+            for rule in kb.rules:
+                if isinstance(rule.head, Compound) and rule.head.functor.startswith(prefix):
+                    generated.setdefault(rule.head.functor, []).append(rule)
+
+            for old_name, rules in generated.items():
+                # Build prompt showing the predicate's rules and usage
+                rules_str = "\n".join(str(r) for r in rules)
+                wrappers = [r for r in kb.rules
+                            if isinstance(r.head, Compound)
+                            and any(isinstance(g, Compound) and g.functor == old_name
+                                    for g in r.body)]
+                wrappers_str = "\n".join(str(r) for r in wrappers)
+
+                prompt = (
+                    f"This predicate was discovered by compressing a knowledge base:\n\n"
+                    f"{rules_str}\n\n"
+                    f"It is used as:\n{wrappers_str}\n\n"
+                    f"Suggest a short, descriptive name (lowercase, underscores, "
+                    f"no spaces). Reply with just the name."
+                )
+
+                try:
+                    suggested = self.llm_client.complete(prompt).strip().lower()
+                    # Validate: must be a valid identifier
+                    if not re.match(r'^[a-z][a-z0-9_]*$', suggested):
+                        continue
+                    if len(suggested) > 50:
+                        continue
+                    # Check name doesn't collide with existing predicates
+                    existing = {r.head.functor for r in kb.rules
+                                if isinstance(r.head, Compound)}
+                    existing.update(f.term.functor for f in kb.facts
+                                    if isinstance(f.term, Compound))
+                    if suggested in existing:
+                        continue
+                    # Rename throughout KB
+                    self._rename_predicate(kb, old_name, suggested)
+                except Exception:
+                    continue  # Keep original name on any error
+
+    def _rename_predicate(self, kb: KnowledgeBase, old_name: str,
+                          new_name: str) -> None:
+        """Rename a predicate throughout the KB."""
+        def rename_term(term):
+            if isinstance(term, Compound):
+                functor = new_name if term.functor == old_name else term.functor
+                new_args = [rename_term(a) for a in term.args]
+                return Compound(functor, new_args)
+            return term
+
+        # Rename in rules
+        new_rules = []
+        old_rules = list(kb.rules)
+        for rule in old_rules:
+            new_head = rename_term(rule.head)
+            new_body = [rename_term(g) for g in rule.body]
+            new_rules.append((rule, Rule(new_head, new_body)))
+
+        for old_rule, new_rule in new_rules:
+            if old_rule != new_rule:
+                kb.remove_rule_by_value(old_rule)
+                kb.add_rule(new_rule)
 
     # ── Operation F: Dead clause pruning ──
 
