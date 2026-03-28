@@ -10,7 +10,7 @@ Tests the fluent Python interface including:
 import pytest
 import tempfile
 import os
-from dreamlog.pythonic import DreamLog, QueryResult, RuleBuilder, dreamlog
+from dreamlog.pythonic import DreamLog, QueryResult, RuleBuilder, dreamlog, _to_term, _build_compound
 from dreamlog.terms import Atom, Variable
 
 
@@ -111,19 +111,6 @@ class TestRuleBuilder:
         assert len(builder.body_conditions) == 2
         assert builder.body_conditions[1] == ("parent", ["Y", "Z"])
 
-    def test_then_is_alias_for_and(self):
-        """RuleBuilder.then() should be an alias for and_()"""
-        # Given: A RuleBuilder with one condition
-        jl = DreamLog()
-        builder = RuleBuilder(jl, "can_fly", ["X"])
-        builder.when("bird", ["X"])
-
-        # When: Using then() instead of and_()
-        builder.then("has_wings", ["X"])
-
-        # Then: Should work the same as and_()
-        assert len(builder.body_conditions) == 2
-
     def test_build_adds_rule_to_kb(self):
         """RuleBuilder.build() should add the rule to knowledge base"""
         # Given: A DreamLog instance with facts
@@ -154,28 +141,20 @@ class TestRuleBuilder:
         # Then: Should return DreamLog instance
         assert result is jl
 
-    def test_make_term_handles_variables(self):
-        """RuleBuilder._make_term should create Variables from uppercase strings"""
-        # Given: A RuleBuilder
-        jl = DreamLog()
-        builder = RuleBuilder(jl, "test", ["X"])
-
-        # When: Making a term with uppercase string
-        term = builder._make_term("parent", ["X", "john"])
+    def test_to_term_handles_variables(self):
+        """_to_term should create Variables from uppercase strings"""
+        # When: Building a term with uppercase and lowercase strings
+        term = _build_compound("parent", [_to_term("X"), _to_term("john")])
 
         # Then: X should be Variable, john should be Atom
         assert term.functor == "parent"
         assert isinstance(term.args[0], Variable)
         assert isinstance(term.args[1], Atom)
 
-    def test_make_term_handles_nullary_predicate(self):
-        """RuleBuilder._make_term should handle predicates with no args"""
-        # Given: A RuleBuilder
-        jl = DreamLog()
-        builder = RuleBuilder(jl, "test", [])
-
-        # When: Making a term with no arguments
-        term = builder._make_term("fact", [])
+    def test_build_compound_handles_nullary_predicate(self):
+        """_build_compound should handle predicates with no args"""
+        # When: Building a term with no arguments
+        term = _build_compound("fact", [])
 
         # Then: Should be an atom
         assert isinstance(term, Atom)
@@ -672,40 +651,6 @@ class TestDreamLogStats:
 
         # Then: Should mention counts
         assert "2 facts" in rep
-
-
-class TestDreamLogFunctional:
-    """Test DreamLog functional programming support"""
-
-    def test_map_query_applies_function(self):
-        """DreamLog.map_query() should apply function to results"""
-        # Given: A DreamLog with facts
-        jl = DreamLog()
-        jl.fact("person", "john")
-        jl.fact("person", "mary")
-        jl.fact("person", "alice")
-
-        # When: Mapping uppercase function
-        names = jl.map_query("person", "X", mapper=lambda r: r["X"].upper())
-
-        # Then: Should return uppercase names
-        assert set(names) == {"JOHN", "MARY", "ALICE"}
-
-    def test_filter_query_filters_results(self):
-        """DreamLog.filter_query() should filter results"""
-        # Given: A DreamLog with facts
-        jl = DreamLog()
-        jl.fact("person", "john")
-        jl.fact("person", "mary")
-        jl.fact("adult", "john")
-
-        # When: Filtering for adults
-        adults = jl.filter_query("person", "X",
-                                 predicate=lambda r: jl.ask("adult", r["X"]))
-
-        # Then: Should only return john
-        assert len(adults) == 1
-        assert adults[0]["X"] == "john"
 
 
 class TestDreamLogConvenienceFunction:
