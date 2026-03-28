@@ -10,7 +10,6 @@ from .factories import atom, var, compound, term_from_prefix
 from .knowledge import KnowledgeBase, Fact, Rule
 from .evaluator import PrologEvaluator, Solution
 from .llm_hook import LLMHook
-from .llm_providers import LLMProvider
 import json
 
 
@@ -261,7 +260,7 @@ def create_family_kb() -> DreamLogEngine:
     return engine
 
 
-def create_engine_with_llm(llm_provider: LLMProvider) -> DreamLogEngine:
+def create_engine_with_llm(llm_provider) -> DreamLogEngine:
     """Create a DreamLog engine with LLM integration"""
     llm_hook = LLMHook(llm_provider)
     return DreamLogEngine(llm_hook)

@@ -26,7 +26,7 @@ from dreamlog.engine import DreamLogEngine
 from dreamlog.knowledge import KnowledgeBase, Fact, Rule
 from dreamlog.terms import Term, Atom, Variable, Compound
 from dreamlog.prefix_parser import parse_s_expression
-from dreamlog.llm_providers import create_provider
+from dreamlog.llm_client import LLMClient
 from dreamlog.llm_hook import LLMHook
 from dreamlog.embedding_providers import OllamaEmbeddingProvider, TfIdfEmbeddingProvider
 from dreamlog.prompt_template_system import RULE_EXAMPLES
@@ -194,8 +194,8 @@ class DreamLogTUI:
             if api_key:
                 provider_kwargs['api_key'] = api_key
 
-            provider = create_provider(
-                provider_type=self.config.provider.provider,
+            provider = LLMClient(
+                provider=self.config.provider.provider,
                 **provider_kwargs
             )
             # Pass debug callback to route LLM debug messages through TUI
@@ -845,11 +845,11 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
         if args:
             # Set model
             model_name = args.strip()
-            provider.set_parameter("model", model_name)
+            provider.model = model_name
             self._print(self._colorize(f"✓ Model set to: {model_name}", Colors.GREEN))
         else:
             # Get current model
-            current_model = provider.get_parameter("model", "unknown")
+            current_model = getattr(provider, "model", "unknown")
             self._print(f"Current model: {self._colorize(current_model, Colors.CYAN)}")
 
     def _cmd_models(self, args: str):
@@ -888,15 +888,14 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
                         self._print(f"  • {self._colorize(name, Colors.CYAN)}")
                         self._print(f"    Size: {size:.1f} GB, Parameters: {param_size}")
 
-                    current = provider.get_parameter("model", "unknown")
+                    current = getattr(provider, "model", "unknown")
                     self._print(f"\nCurrent: {self._colorize(current, Colors.GREEN)}")
 
             except Exception as e:
                 self._print(self._colorize(f"✗ Error fetching models: {e}", Colors.RED))
         else:
             # For non-Ollama providers, just show current model
-            metadata = provider.get_metadata()
-            current_model = metadata.get('model', 'unknown')
+            current_model = getattr(provider, "model", "unknown")
             self._print(f"Provider: {self._colorize(provider_class, Colors.CYAN)}")
             self._print(f"Current model: {self._colorize(current_model, Colors.GREEN)}")
             self._print(self._colorize("\nNote: Model listing only supported for Ollama", Colors.GRAY))
@@ -917,13 +916,13 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
                     self._print(self._colorize("✗ Temperature should be between 0.0 and 2.0", Colors.RED))
                     return
 
-                provider.set_parameter("temperature", temp)
+                provider.temperature = temp
                 self._print(self._colorize(f"✓ Temperature set to: {temp}", Colors.GREEN))
             except ValueError:
                 self._print(self._colorize(f"✗ Invalid temperature: {args}", Colors.RED))
         else:
             # Get current temperature
-            current = provider.get_parameter("temperature", 0.1)
+            current = getattr(provider, "temperature", 0.1)
             self._print(f"Current temperature: {self._colorize(str(current), Colors.CYAN)}")
 
     def _cmd_max_tokens(self, args: str):
@@ -942,13 +941,13 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
                     self._print(self._colorize("✗ Max tokens must be positive", Colors.RED))
                     return
 
-                provider.set_parameter("max_tokens", max_tok)
+                provider.max_tokens = max_tok
                 self._print(self._colorize(f"✓ Max tokens set to: {max_tok}", Colors.GREEN))
             except ValueError:
                 self._print(self._colorize(f"✗ Invalid number: {args}", Colors.RED))
         else:
             # Get current max tokens
-            current = provider.get_parameter("max_tokens", 500)
+            current = getattr(provider, "max_tokens", 500)
             self._print(f"Current max tokens: {self._colorize(str(current), Colors.CYAN)}")
 
     def _cmd_provider(self, args: str):
@@ -958,24 +957,17 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
             return
 
         provider = self.engine.llm_hook.provider
-        metadata = provider.get_metadata()
 
         self._print(self._colorize("\nLLM Provider Information:", Colors.BOLD))
-        self._print(f"  Class: {self._colorize(metadata.get('provider_class', 'unknown'), Colors.CYAN)}")
-        self._print(f"  Model: {self._colorize(metadata.get('model', 'unknown'), Colors.CYAN)}")
+        self._print(f"  Provider: {self._colorize(getattr(provider, 'provider', 'unknown'), Colors.CYAN)}")
+        self._print(f"  Model: {self._colorize(getattr(provider, 'model', 'unknown'), Colors.CYAN)}")
 
-        params = metadata.get('parameters', {})
-        if params:
-            self._print(self._colorize("\n  Parameters:", Colors.BOLD))
-            for key, value in params.items():
-                if key not in ['model', 'api_key']:  # Don't show sensitive data
-                    self._print(f"    {key}: {value}")
-
-        capabilities = metadata.get('capabilities', [])
-        if capabilities:
-            self._print(self._colorize("\n  Capabilities:", Colors.BOLD))
-            for cap in capabilities:
-                self._print(f"    • {cap}")
+        self._print(self._colorize("\n  Parameters:", Colors.BOLD))
+        self._print(f"    temperature: {getattr(provider, 'temperature', 'unknown')}")
+        self._print(f"    max_tokens: {getattr(provider, 'max_tokens', 'unknown')}")
+        base_url = getattr(provider, 'base_url', None)
+        if base_url:
+            self._print(f"    base_url: {base_url}")
 
     def _cmd_sleep(self, args: str):
         """Run full sleep cycle (all compression operations)"""

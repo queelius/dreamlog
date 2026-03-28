@@ -6,7 +6,7 @@ from unittest.mock import Mock, MagicMock
 
 from dreamlog.validation_feedback import OutputValidator, ValidationResult
 from dreamlog.llm_retry_wrapper import RetryConfig, RetryLLMProvider, create_retry_provider
-from dreamlog.llm_providers import LLMResponse
+from dreamlog.llm_response_parser import LLMResponse
 
 
 class TestOutputValidator:
@@ -103,7 +103,9 @@ class TestRetryLLMProvider:
         """Create a mock LLM provider"""
         provider = Mock()
         provider.model = "test-model"
-        provider.get_metadata = Mock(return_value={"provider_type": "test"})
+        provider.temperature = 0.1
+        provider.max_tokens = 500
+        provider.provider = "test"
         return provider
 
     def test_initialization(self, mock_provider):

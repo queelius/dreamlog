@@ -1,168 +1,98 @@
-"""
-Mock LLM Provider for Testing
-
-This mock provider returns deterministic responses for testing DreamLog
-without requiring actual LLM API calls.
-"""
-
+"""Mock LLM provider for deterministic testing."""
 import json
-import re
-from typing import Optional, Dict, Any
-from dreamlog.llm_providers import BaseLLMProvider
 
 
-class MockLLMProvider(BaseLLMProvider):
-    """
-    Mock provider for testing
-    
-    Generates deterministic responses based on the term.
-    Used only in tests to avoid API calls and ensure reproducible results.
-    """
-    
-    def __init__(self, knowledge_domain: str = "general", **kwargs):
-        # Set defaults for mock provider
-        defaults = {
-            "model": "mock-model-v1.0",
-            "temperature": 0.1,
-            "max_tokens": 500,
-            "deterministic": True,
-            "knowledge_domain": knowledge_domain
-        }
-        
-        # Merge defaults with provided kwargs
-        merged_kwargs = {**defaults, **kwargs}
-        
-        # Initialize base provider with all parameters
-        super().__init__(**merged_kwargs)
+class MockLLMProvider:
+    """Deterministic mock matching the LLMClient interface."""
+    def __init__(self, responses=None, model="mock-model", temperature=0.1, max_tokens=500,
+                 knowledge_domain="general", **kwargs):
+        self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.provider = "mock"
+        self._responses = list(responses) if responses else []
+        self._custom_responses = {}  # keyword -> JSON string
+        self.call_count = 0
+        self.last_prompt = None
+        self.knowledge_domain = knowledge_domain
 
-        # Mock-specific attributes
-        self.knowledge_domain = knowledge_domain  # Store knowledge domain
-        self.custom_responses = {}  # For test-specific responses
-        self.call_count = 0  # For tracking calls in tests
-        self.domains = {
-            "family": {
-                "parent": [
-                    ["fact", ["parent", "john", "mary"]],
-                    ["fact", ["parent", "mary", "alice"]],
-                    ["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]
-                ],
-                "sibling": [
-                    ["fact", ["sibling", "alice", "bob"]],
-                    ["rule", ["sibling", "X", "Y"], [["parent", "Z", "X"], ["parent", "Z", "Y"], ["different", "X", "Y"]]]
-                ],
-                "grandparent": [
-                    ["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]
-                ],
-                "healthy": [
-                    # Return rules only - facts should be added manually by users
-                    ["rule", ["healthy", "X"], [["exercises", "X"], ["eats_well", "X"]]]
-                ],
-                "uncle": [
-                    ["rule", ["uncle", "X", "Y"], [["brother", "X", "Z"], ["parent", "Z", "Y"]]],
-                    ["rule", ["uncle", "X", "Y"], [["male", "X"], ["sibling", "X", "Z"], ["parent", "Z", "Y"]]]
-                ]
-            },
-            "academic": {
-                "enrolled": [
-                    ["fact", ["enrolled", "alice", "cs101"]],
-                    ["fact", ["enrolled", "bob", "cs101"]],
-                    ["rule", ["classmates", "X", "Y"], [["enrolled", "X", "C"], ["enrolled", "Y", "C"], ["different", "X", "Y"]]]
-                ],
-                "passing": [
-                    ["fact", ["passing", "alice", "cs101"]],
-                    ["rule", ["passing", "X", "C"], [["grade", "X", "C", "G"], ["greater", "G", "60"]]]
-                ]
-            }
-        }
-    
-    def add_response(self, key: str, facts=None, rules=None):
-        """Add a custom response for a specific key (for testing)"""
-        response = []
-        if facts:
-            for fact in facts:
-                response.append(["fact", fact])
-        if rules:
-            for rule in rules:
-                response.append(["rule"] + rule)
-        self.custom_responses[key.lower()] = json.dumps(response)
-    
-    def _call_api(self, prompt: str, **kwargs) -> str:
-        """Simulate API call with deterministic response"""
-        # Track calls for testing
+    def complete(self, prompt, **kwargs):
         self.call_count += 1
-        # Check custom responses first
-        for key, response in self.custom_responses.items():
-            if key in prompt.lower():
+        self.last_prompt = prompt
+        if self._responses:
+            return self._responses[min(self.call_count - 1, len(self._responses) - 1)]
+        # Check custom keyword-keyed responses
+        prompt_lower = prompt.lower()
+        for key, response in self._custom_responses.items():
+            if key in prompt_lower:
                 return response
-        
-        # Check for grandparent specifically (common test case) - but only if it's in the query, not the example
-        if 'query:' in prompt.lower() and 'grandparent' in prompt.lower().split('query:')[1].split('\n')[0]:
+        return self._match_prompt(prompt)
+
+    def add_response(self, response, facts=None, rules=None):
+        """Add a response. Either a raw string, or a keyword with facts/rules."""
+        if facts is not None or rules is not None:
+            # Keyword-keyed response: response is the keyword
+            items = []
+            if facts:
+                for fact in facts:
+                    items.append(["fact", fact])
+            if rules:
+                for rule in rules:
+                    items.append(["rule"] + rule)
+            self._custom_responses[response.lower()] = json.dumps(items)
+        else:
+            self._responses.append(response)
+
+    def generate_knowledge(self, term, context=None, max_items=5):
+        """Legacy compatibility: generate structured knowledge."""
+        from dreamlog.llm_response_parser import LLMResponse
+        raw = self.complete(f"Query: {term}\n{context or ''}")
+        return LLMResponse.from_text(raw)
+
+    def _match_prompt(self, prompt):
+        """Return domain-appropriate response based on prompt keywords."""
+        prompt_lower = prompt.lower()
+
+        # Check for grandparent specifically (common test case)
+        if 'query:' in prompt_lower and 'grandparent' in prompt_lower.split('query:')[1].split('\n')[0]:
             return json.dumps([["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]])
-        
-        # Extract functor from prompt - try multiple patterns
-        functor = None
-        
-        # Pattern 1: "Query: (functor ...)" or "Query: functor"
-        query_match = re.search(r'query:\s*\(?(\w+)', prompt.lower())
-        if query_match:
-            functor = query_match.group(1)
-        
-        # Pattern 2: "term: functor" 
-        if not functor:
-            term_match = re.search(r'term:\s*(\w+)', prompt.lower())
-            if term_match:
-                functor = term_match.group(1)
-        
-        # Pattern 3: Look for domain-specific functors directly
-        if not functor and self.knowledge_domain in self.domains:
-            domain_data = self.domains[self.knowledge_domain]
-            for key in domain_data.keys():
-                if key in prompt.lower():
-                    functor = key
-                    break
-        
-        # Return domain data if we found a functor
-        knowledge_domain = self.get_parameter("knowledge_domain", "general")
-        if functor and knowledge_domain in self.domains:
-            domain_data = self.domains[knowledge_domain]
-            if functor in domain_data:
-                return json.dumps(domain_data[functor])
-        
-        # Check for specific dream/optimization requests
-        if "compression" in prompt.lower() or "optimize" in prompt.lower() or "_compress" in prompt.lower():
-            return json.dumps({
-                "compressed_rule": "(sibling X Y) :- (parent Z X), (parent Z Y), (different X Y)",
-                "explanation": "Merged brother and sister rules into general sibling rule"
-            })
-        
-        if "abstraction" in prompt.lower() or "_find_abstractions" in prompt.lower():
-            return json.dumps([{
-                "original_rules": ["(brother X Y) :- ...", "(sister X Y) :- ..."],
-                "abstract_rule": "(sibling X Y) :- (parent Z X), (parent Z Y), (different X Y)",
-                "benefit": "More general rule covers both cases"
-            }])
-        
-        if "_test_queries" in prompt.lower():
-            return json.dumps(["(parent john X)", "(sibling X Y)"])
-        
-        if "_evaluate_diff" in prompt.lower():
-            return json.dumps({"is_improvement": True, "is_acceptable": True, "reason": "Good optimization"})
-        
-        # Default response
-        return json.dumps([
-            ["fact", ["predicate", "value1", "value2"]],
-            ["fact", ["predicate", "value3", "value4"]]
-        ])
-    
-    def get_metadata(self) -> Dict[str, Any]:
-        """Enhanced metadata for mock provider"""
-        base_metadata = super().get_metadata()
-        base_metadata.update({
-            "provider_type": "mock",
-            "deterministic": self.get_parameter("deterministic", True),
-            "knowledge_domain": self.get_parameter("knowledge_domain", "general"),
-            "call_count": self.call_count,
-            "available_domains": list(self.domains.keys()),
-            "capabilities": ["knowledge_generation", "text_completion", "deterministic_responses"]
-        })
-        return base_metadata
+
+        if "compression" in prompt_lower or "redundan" in prompt_lower:
+            return json.dumps([])
+        if "name" in prompt_lower and "predicate" in prompt_lower:
+            return "transitive_closure"
+        if "rule" in prompt_lower or "derive" in prompt_lower:
+            return json.dumps([["rule", ["father", "X", "Y"],
+                               [["parent", "X", "Y"], ["male", "X"]]]])
+
+        # Domain-specific responses for family domain
+        if self.knowledge_domain == "family":
+            for functor in ["parent", "sibling", "grandparent", "uncle", "healthy"]:
+                if functor in prompt_lower:
+                    return self._family_response(functor)
+
+        return json.dumps([])
+
+    def _family_response(self, functor):
+        """Return family domain responses."""
+        responses = {
+            "parent": json.dumps([
+                ["fact", ["parent", "john", "mary"]],
+                ["fact", ["parent", "mary", "alice"]],
+                ["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]
+            ]),
+            "sibling": json.dumps([
+                ["fact", ["sibling", "alice", "bob"]],
+                ["rule", ["sibling", "X", "Y"], [["parent", "Z", "X"], ["parent", "Z", "Y"], ["different", "X", "Y"]]]
+            ]),
+            "grandparent": json.dumps([
+                ["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]
+            ]),
+            "healthy": json.dumps([
+                ["rule", ["healthy", "X"], [["exercises", "X"], ["eats_well", "X"]]]
+            ]),
+            "uncle": json.dumps([
+                ["rule", ["uncle", "X", "Y"], [["brother", "X", "Z"], ["parent", "Z", "Y"]]]
+            ]),
+        }
+        return responses.get(functor, json.dumps([]))

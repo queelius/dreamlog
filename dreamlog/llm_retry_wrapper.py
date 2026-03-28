@@ -16,7 +16,7 @@ from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass
 import time
 
-from .llm_providers import LLMProvider, LLMResponse
+from .llm_response_parser import LLMResponse
 from .validation_feedback import OutputValidator
 from .llm_response_parser import parse_llm_response
 
@@ -33,12 +33,12 @@ class RetryConfig:
     verbose: bool = False
 
 
-class RetryLLMProvider(LLMProvider):
+class RetryLLMProvider:
     """
     Wrapper that adds retry logic and JSON validation to any LLM provider
     """
     
-    def __init__(self, base_provider: LLMProvider, config: Optional[RetryConfig] = None):
+    def __init__(self, base_provider, config: Optional[RetryConfig] = None):
         self.base_provider = base_provider
         self.config = config or RetryConfig()
         self.model = getattr(base_provider, 'model', 'unknown')
@@ -181,14 +181,14 @@ Please provide a correctly formatted JSON array:"""
         
         responses = []
         # Use parameter methods for clean temperature management
-        original_temp = self.base_provider.get_parameter('temperature', 0.7)
-        
+        original_temp = getattr(self.base_provider, 'temperature', 0.7)
+
         # Generate multiple samples
         for i in range(self.config.max_samples):
             # Vary temperature slightly for diversity
             temp_variation = 0.1 * (i - self.config.max_samples // 2)
             varied_temp = max(0.1, original_temp + temp_variation)
-            self.base_provider.set_parameter('temperature', varied_temp)
+            self.base_provider.temperature = varied_temp
             
             response = self.base_provider.generate_knowledge(term, context)
             parsed = self._try_parse_response(response.raw_response)
@@ -209,7 +209,7 @@ Please provide a correctly formatted JSON array:"""
                     print(f"[RETRY]   Sample {i+1}: Parse failed")
         
         # Restore original temperature
-        self.base_provider.set_parameter('temperature', original_temp)
+        self.base_provider.temperature = original_temp
         
         # Return best response
         if responses:
@@ -228,26 +228,26 @@ Please provide a correctly formatted JSON array:"""
         if self.config.verbose:
             print(f"[RETRY] Strategy: Temperature sweep")
             
-        original_temp = self.base_provider.get_parameter('temperature', 0.7)
+        original_temp = getattr(self.base_provider, 'temperature', 0.7)
         temperatures = [0.3, 0.5, 0.7, 0.9, 1.0]
-        
+
         for temp in temperatures:
-            self.base_provider.set_parameter('temperature', temp)
+            self.base_provider.temperature = temp
             response = self.base_provider.generate_knowledge(term, context)
             parsed = self._try_parse_response(response.raw_response)
             
             if parsed:
                 if self.config.verbose:
                     print(f"[RETRY]   Temperature {temp}: Success")
-                self.base_provider.set_parameter('temperature', original_temp)
+                self.base_provider.temperature = original_temp
                 return LLMResponse(
                     text=response.text,
                     facts=parsed.get('facts', []),
                     rules=parsed.get('rules', []),
                     raw_response=response.raw_response
                 )
-                
-        self.base_provider.set_parameter('temperature', original_temp)
+
+        self.base_provider.temperature = original_temp
         return None
     
     def _format_repair(self, term: str, context: str) -> Optional[LLMResponse]:
@@ -297,37 +297,30 @@ Please provide a correctly formatted JSON array:"""
         
         return None
     
-    # LLMProvider protocol methods - delegate to base provider
+    # Delegate to base provider
     def complete(self, prompt: str, **kwargs) -> str:
         """General text completion with retry logic"""
         return self.base_provider.complete(prompt, **kwargs)
-    
-    def get_parameter(self, key: str, default: Any = None) -> Any:
-        """Get configuration parameter from base provider"""
-        return self.base_provider.get_parameter(key, default)
-    
-    def set_parameter(self, key: str, value: Any) -> None:
-        """Update configuration parameter on base provider"""
-        self.base_provider.set_parameter(key, value)
-    
-    def get_metadata(self) -> Dict[str, Any]:
-        """Enhanced metadata including retry configuration"""
-        base_metadata = self.base_provider.get_metadata()
-        base_metadata.update({
-            "wrapper": "RetryLLMProvider",
-            "retry_config": {
-                "max_retries": self.config.max_retries,
-                "max_samples": self.config.max_samples,
-                "temperature_increase": self.config.temperature_increase,
-                "enforce_json": self.config.enforce_json
-            }
-        })
-        return base_metadata
-    
-    def clone_with_parameters(self, **params) -> 'RetryLLMProvider':
-        """Create copy with modified parameters"""
-        new_base = self.base_provider.clone_with_parameters(**params)
-        return RetryLLMProvider(new_base, self.config)
+
+    @property
+    def temperature(self):
+        return getattr(self.base_provider, 'temperature', 0.1)
+
+    @temperature.setter
+    def temperature(self, value):
+        self.base_provider.temperature = value
+
+    @property
+    def max_tokens(self):
+        return getattr(self.base_provider, 'max_tokens', 500)
+
+    @max_tokens.setter
+    def max_tokens(self, value):
+        self.base_provider.max_tokens = value
+
+    @property
+    def provider(self):
+        return getattr(self.base_provider, 'provider', 'unknown')
 
 
 class OllamaRetryProvider(RetryLLMProvider):
@@ -335,7 +328,7 @@ class OllamaRetryProvider(RetryLLMProvider):
     Specialized retry provider for Ollama with JSON format enforcement
     """
     
-    def __init__(self, base_provider: LLMProvider, config: Optional[RetryConfig] = None):
+    def __init__(self, base_provider, config: Optional[RetryConfig] = None):
         super().__init__(base_provider, config)
         
         # Enhance Ollama to support JSON format if possible
@@ -361,7 +354,7 @@ class OllamaRetryProvider(RetryLLMProvider):
         self.base_provider._call_api = enhanced_call
 
 
-def create_retry_provider(provider: LLMProvider, 
+def create_retry_provider(provider,
                          max_retries: int = 3,
                          verbose: bool = False) -> RetryLLMProvider:
     """

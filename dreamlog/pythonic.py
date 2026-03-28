@@ -36,7 +36,7 @@ from .factories import atom, var, compound
 from .knowledge import Fact, Rule
 from .prefix_parser import parse_s_expression, parse_prefix_notation
 from .config import DreamLogConfig
-from .llm_providers import create_provider
+from .llm_client import LLMClient
 from .tfidf_embedding_provider import TfIdfEmbeddingProvider
 from .prompt_template_system import RULE_EXAMPLES
 
@@ -134,25 +134,23 @@ class DreamLog:
             **llm_config: Provider-specific configuration
         """
         if llm_provider:
-            from .llm_providers import create_provider
             from .llm_hook import LLMHook
-            
+
             # Extract retry-specific config
             max_retries = llm_config.pop('max_retries', 3)
             verbose_retry = llm_config.pop('verbose_retry', False)
-            
+
             # Create base provider - support both string identifiers and direct injection
             if isinstance(llm_provider, str):
-                # String identifier - use factory
-                provider = create_provider(llm_provider, **llm_config)
+                # String identifier - use LLMClient
+                provider = LLMClient(provider=llm_provider, **llm_config)
             else:
                 # Already a provider object - use directly (for testing)
                 provider = llm_provider
-            
-            # Wrap with retry logic if requested (skip for mock providers)  
-            provider_metadata = provider.get_metadata()
-            is_mock = provider_metadata.get("provider_type") == "mock"
-            
+
+            # Wrap with retry logic if requested (skip for mock providers)
+            is_mock = getattr(provider, 'provider', '') == 'mock'
+
             if use_retry and not is_mock:
                 from .llm_retry_wrapper import create_retry_provider
                 provider = create_retry_provider(

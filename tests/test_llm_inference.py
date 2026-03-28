@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 from dreamlog.pythonic import dreamlog
 from dreamlog.knowledge import KnowledgeBase
 from dreamlog.llm_hook import LLMHook
-from dreamlog.llm_providers import LLMResponse
+from dreamlog.llm_response_parser import LLMResponse
 from .mock_provider import MockLLMProvider
 from dreamlog import compound, atom, var
 from dreamlog.evaluator import PrologEvaluator
@@ -201,15 +201,13 @@ class TestLLMInference:
 
         # Add a custom response that contains both facts and rules
         import json
-        def custom_call_api(prompt, **kwargs):
-            # Return both facts and rules
-            return json.dumps([
-                ["fact", ["should_be", "added"]],
-                ["fact", ["also_added", "yes"]],
-                ["rule", ["test_rule", "X"], [["base_predicate", "X"]]]
-            ])
-
-        mock_llm_provider._call_api = custom_call_api
+        response_json = json.dumps([
+            ["fact", ["should_be", "added"]],
+            ["fact", ["also_added", "yes"]],
+            ["rule", ["test_rule", "X"], [["base_predicate", "X"]]]
+        ])
+        # Override complete to return our custom response
+        mock_llm_provider.complete = lambda prompt, **kwargs: response_json
 
         # Trigger generation
         term = compound("test_rule", var("X"))
@@ -266,34 +264,27 @@ class TestLLMProviderIntegration:
     @pytest.mark.skip(reason="Requires API key")
     def test_openai_provider(self):
         """Test OpenAI provider (requires API key)"""
-        from dreamlog.llm_providers import OpenAIProvider
-        
-        provider = OpenAIProvider(
-            api_key="test-key",
-            model="gpt-3.5-turbo",
-            temperature=0.3
-        )
-        
-        # This would make a real API call
-        # response = provider.generate_knowledge("test", context="test")
-    
+        from unittest.mock import patch, MagicMock
+        with patch("openai.OpenAI"):
+            from dreamlog.llm_client import LLMClient
+            provider = LLMClient(
+                api_key="test-key",
+                model="gpt-3.5-turbo",
+                temperature=0.3
+            )
+            assert provider.model == "gpt-3.5-turbo"
+
     def test_provider_configuration(self):
-        """Test provider configuration options"""
-        from dreamlog.config import DreamLogConfig
-        from dreamlog.llm_providers import create_provider
-        
-        # Test config-based provider creation
-        config = DreamLogConfig()
-        config.provider.provider = "mock"
-        config.provider.temperature = 0.5
-        config.provider.max_tokens = 100
-        
-        provider = create_provider(
-            config.provider.provider,
-            temperature=config.provider.temperature,
-            max_tokens=config.provider.max_tokens
+        """Test provider configuration options using MockLLMProvider"""
+        from tests.mock_provider import MockLLMProvider
+
+        provider = MockLLMProvider(
+            temperature=0.5,
+            max_tokens=100
         )
         assert provider is not None
+        assert provider.temperature == 0.5
+        assert provider.max_tokens == 100
 
 
 class TestPromptTemplates:
@@ -365,10 +356,10 @@ class TestEndToEndLLMIntegration:
         """Test completing a family tree with LLM-generated rules"""
         import json
 
-        # Override _call_api to return a sibling rule that works with existing parent facts
-        original_call_api = mock_llm_provider._call_api
+        # Override complete to return a sibling rule that works with existing parent facts
+        original_complete = mock_llm_provider.complete
 
-        def custom_call_api(prompt, **kwargs):
+        def custom_complete(prompt, **kwargs):
             lines = prompt.split('\n')
             query_line = next((line for line in lines if line.startswith('Query:')), '')
 
@@ -378,9 +369,9 @@ class TestEndToEndLLMIntegration:
                 return json.dumps([
                     ["rule", ["sibling", "X", "Y"], [["parent", "Z", "X"], ["parent", "Z", "Y"]]]
                 ])
-            return original_call_api(prompt, **kwargs)
+            return original_complete(prompt, **kwargs)
 
-        mock_llm_provider._call_api = custom_call_api
+        mock_llm_provider.complete = custom_complete
 
         kb = dreamlog(llm_provider=mock_llm_provider)
 
@@ -398,7 +389,7 @@ class TestEndToEndLLMIntegration:
         """Test that generated rules can trigger more generation"""
         import json
 
-        # Mock responses as JSON strings (what _call_api returns)
+        # Mock responses as JSON strings (what complete returns)
         responses = {
             "grandparent": json.dumps([["rule", ["grandparent", "X", "Z"], [["parent", "X", "Y"], ["parent", "Y", "Z"]]]]),
             "ancestor": json.dumps([
@@ -407,10 +398,10 @@ class TestEndToEndLLMIntegration:
             ])
         }
 
-        # Store original _call_api
-        original_call_api = mock_llm_provider._call_api
+        # Store original complete
+        original_complete = mock_llm_provider.complete
 
-        def custom_call_api(prompt, **kwargs):
+        def custom_complete(prompt, **kwargs):
             # Check prompt for which predicate is being queried
             # Look specifically in the Query line to avoid false matches
             lines = prompt.split('\n')
@@ -420,10 +411,10 @@ class TestEndToEndLLMIntegration:
                 if key in query_line.lower():
                     return response
             # Fall back to original for anything else
-            return original_call_api(prompt, **kwargs)
+            return original_complete(prompt, **kwargs)
 
-        # Override _call_api (not generate_knowledge, since LLMHook uses complete())
-        mock_llm_provider._call_api = custom_call_api
+        # Override complete (not generate_knowledge, since LLMHook uses complete())
+        mock_llm_provider.complete = custom_complete
         
         kb = dreamlog(llm_provider=mock_llm_provider)
         kb.fact("parent", "john", "mary")
@@ -510,14 +501,14 @@ class TestFactGeneration:
         hook = LLMHook(mock_llm_provider, embedding_provider)
 
         # Mock response that includes the existing fact
-        def custom_call_api(prompt, **kwargs):
+        def custom_complete(prompt, **kwargs):
             return json.dumps([
                 ["fact", ["male", "john"]],  # Duplicate
                 ["fact", ["male", "bob"]],   # New
                 ["rule", ["father", "X", "Y"], [["parent", "X", "Y"], ["male", "X"]]]
             ])
 
-        mock_llm_provider._call_api = custom_call_api
+        mock_llm_provider.complete = custom_complete
 
         # Trigger generation
         term = compound("father", var("X"), var("Y"))
@@ -533,7 +524,7 @@ class TestFactGeneration:
         import json
 
         # Override to return Prolog-style response
-        def custom_call_api(prompt, **kwargs):
+        def custom_complete(prompt, **kwargs):
             # Return a response with Prolog in code block
             return """
             The name "mary" is typically female.
@@ -543,7 +534,7 @@ class TestFactGeneration:
             ```
             """
 
-        mock_llm_provider._call_api = custom_call_api
+        mock_llm_provider.complete = custom_complete
 
         kb = dreamlog(llm_provider=mock_llm_provider)
         kb.fact("parent", "mary", "alice")

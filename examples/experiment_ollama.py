@@ -10,7 +10,7 @@ and see how the LLM generates knowledge.
 import json
 import time
 from dreamlog.pythonic import dreamlog
-from dreamlog.llm_providers import OllamaProvider
+from dreamlog.llm_client import LLMClient
 from dreamlog.kb_dreamer import KnowledgeBaseDreamer
 from dreamlog.prefix_parser import parse_s_expression, term_to_sexp
 

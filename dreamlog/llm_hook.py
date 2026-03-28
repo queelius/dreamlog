@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 import random
 from .terms import Term, Compound, Atom
 from .knowledge import Fact, Rule
-from .llm_providers import LLMProvider, LLMResponse
+from .llm_response_parser import LLMResponse
 from .config import get_config
 from .prompt_template_system import PromptTemplateLibrary, QueryContext, RULE_EXAMPLES
 from .example_retriever import ExampleRetriever
@@ -24,7 +24,7 @@ class LLMHook:
     """
     
     def __init__(self,
-                 provider: LLMProvider,
+                 provider,
                  embedding_provider,
                  max_generations: int = 10,
                  max_retries: int = 5,
@@ -310,7 +310,7 @@ class LLMHook:
             raw_response = self.provider.complete(prompt)
 
             # Parse the response into structured format
-            from .llm_providers import LLMResponse
+            from .llm_response_parser import LLMResponse
 
             # Always show raw response for debugging
             if len(raw_response) > 500:

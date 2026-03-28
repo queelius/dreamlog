@@ -15,19 +15,20 @@ from .anti_unification import anti_unify, anti_unify_many, AntiUnificationResult
 from .kb_dreamer import KnowledgeBaseDreamer, DreamSession
 from .skeleton import extract_skeleton, RuleSetSkeleton
 from .llm_hook import LLMHook
+from .llm_client import LLMClient
 from .engine import DreamLogEngine, create_engine_with_llm, create_family_kb
 from .prefix_parser import parse_prefix_notation, parse_s_expression
 
 __version__ = "0.8"
 __all__ = [
     "Term", "Atom", "Variable", "Compound", "atom", "var", "compound", "term_from_prefix",
-    "Fact", "Rule", "KnowledgeBase", 
+    "Fact", "Rule", "KnowledgeBase",
     "Unifier", "unify", "match", "subsumes", "PrologEvaluator", "Solution",
     "FlounderingError", "InstantiationError",
     "anti_unify", "anti_unify_many", "AntiUnificationResult",
     "KnowledgeBaseDreamer", "DreamSession",
     "extract_skeleton", "RuleSetSkeleton",
-    "LLMHook",
+    "LLMHook", "LLMClient",
     "DreamLogEngine", "create_engine_with_llm", "create_family_kb",
     "parse_prefix_notation", "parse_s_expression"
 ]

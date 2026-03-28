@@ -9,7 +9,6 @@ import json
 from dreamlog.correction_retry import CorrectionBasedRetry, GenerationAttempt
 from dreamlog.llm_judge import LLMJudge, JudgementResult
 from dreamlog.llm_response_parser import DreamLogResponseParser
-from dreamlog.llm_providers import LLMProvider
 from dreamlog.knowledge import KnowledgeBase, Rule, Fact
 from dreamlog.terms import Atom, Variable, Compound
 from dreamlog.prefix_parser import parse_s_expression
@@ -71,7 +70,7 @@ class MockLLMProvider:
         self.call_count = 0
         self.prompts = []
 
-    def generate(self, prompt: str, **kwargs) -> str:
+    def complete(self, prompt: str, **kwargs) -> str:
         self.prompts.append(prompt)
         self.call_count += 1
 
@@ -332,7 +331,7 @@ class TestFailureScenarios:
         """Should handle exceptions from provider gracefully"""
         # Given: Provider that raises exception
         class FailingProvider:
-            def generate(self, prompt, **kwargs):
+            def complete(self, prompt, **kwargs):
                 raise RuntimeError("API failed")
 
         provider = FailingProvider()

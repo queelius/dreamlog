@@ -22,7 +22,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from dreamlog.engine import DreamLogEngine
 from dreamlog.prefix_parser import parse_s_expression, parse_prefix_notation
 from dreamlog.llm_hook import LLMHook
-from dreamlog.llm_providers import create_provider
+from dreamlog.llm_client import LLMClient
 from dreamlog.embedding_providers import TfIdfEmbeddingProvider
 from dreamlog.config import DreamLogConfig, get_config
 from dreamlog.prompt_template_system import RULE_EXAMPLES
@@ -78,8 +78,8 @@ class DreamLogMCPServer:
                 if api_key:
                     provider_kwargs['api_key'] = api_key
 
-                provider = create_provider(
-                    provider_type=self.config.provider.provider,
+                provider = LLMClient(
+                    provider=self.config.provider.provider,
                     **provider_kwargs
                 )
 

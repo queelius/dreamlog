@@ -11,7 +11,7 @@ Run with: python examples/wake_sleep_demo.py
 
 from dreamlog.pythonic import dreamlog
 from dreamlog.kb_dreamer import KnowledgeBaseDreamer
-from dreamlog.llm_providers import MockLLMProvider
+from tests.mock_provider import MockLLMProvider
 import time
 
 

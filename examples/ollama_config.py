@@ -10,7 +10,7 @@ Then use this script to test DreamLog with Ollama.
 """
 
 from dreamlog import dreamlog
-from dreamlog.llm_providers import OllamaProvider, create_provider
+from dreamlog.llm_client import LLMClient
 from dreamlog.kb_dreamer import KnowledgeBaseDreamer
 from dreamlog.config import DreamLogConfig, get_config
 
@@ -19,8 +19,8 @@ config = DreamLogConfig.load()
 
 # Create Ollama provider from config
 # You can either use the config or override manually
-ollama_provider = create_provider(
-    config.provider.provider,
+ollama_provider = LLMClient(
+    provider=config.provider.provider,
     base_url=config.provider.base_url,
     model=config.provider.model,
     temperature=config.provider.temperature,
@@ -28,8 +28,8 @@ ollama_provider = create_provider(
 )
 
 # Alternative: manually configure if you want to override config
-# ollama_provider = OllamaProvider(
-#     base_url="http://192.168.1.100:11434",  # Your network IP
+# ollama_provider = LLMClient(
+#     base_url="http://192.168.1.100:11434/v1",  # Your network IP
 #     model="llama2",
 #     temperature=0.3
 # )

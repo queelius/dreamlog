@@ -7,7 +7,6 @@ Tests focus on observable behavior and contracts, not implementation details.
 import pytest
 import json
 from dreamlog.llm_judge import LLMJudge, JudgementResult, VerificationPipeline
-from dreamlog.llm_providers import LLMProvider
 from dreamlog.knowledge import KnowledgeBase, Rule, Fact
 from dreamlog.terms import Atom, Variable, Compound
 
@@ -63,7 +62,7 @@ class MockLLMProvider:
         self.call_count = 0
         self.last_prompt = None
 
-    def generate(self, prompt: str, **kwargs) -> str:
+    def complete(self, prompt: str, **kwargs) -> str:
         """Return next mocked response"""
         self.last_prompt = prompt
         self.call_count += 1

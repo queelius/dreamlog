@@ -8,7 +8,6 @@ against the knowledge base and the original query.
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from .knowledge import Rule, Fact, KnowledgeBase
-from .llm_providers import LLMProvider
 from .llm_response_parser import DreamLogResponseParser
 import json
 
@@ -33,7 +32,7 @@ class LLMJudge:
     given the knowledge base context and the query.
     """
 
-    def __init__(self, provider: LLMProvider, debug: bool = False):
+    def __init__(self, provider, debug: bool = False):
         self.provider = provider
         self.parser = DreamLogResponseParser()
         self.debug = debug
@@ -62,7 +61,7 @@ class LLMJudge:
 
         for attempt in range(max_retries):
             try:
-                response = self.provider.generate(prompt)
+                response = self.provider.complete(prompt)
 
                 if self.debug:
                     print(f"[LLM Judge] Response:\n{response}\n")
@@ -114,7 +113,7 @@ class LLMJudge:
 
         for attempt in range(max_retries):
             try:
-                response = self.provider.generate(prompt)
+                response = self.provider.complete(prompt)
 
                 if self.debug:
                     print(f"[LLM Judge] Response:\n{response}\n")

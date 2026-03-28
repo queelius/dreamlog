@@ -8,7 +8,6 @@ and asks the LLM to try again with worked examples showing what went wrong.
 from typing import List, Optional, Tuple
 from dataclasses import dataclass
 from .knowledge import Rule, KnowledgeBase
-from .llm_providers import LLMProvider
 from .llm_judge import LLMJudge, JudgementResult
 from .llm_response_parser import DreamLogResponseParser
 
@@ -33,7 +32,7 @@ class CorrectionBasedRetry:
     """
 
     def __init__(self,
-                 provider: LLMProvider,
+                 provider,
                  judge: LLMJudge,
                  parser: DreamLogResponseParser,
                  max_attempts: int = 3,
@@ -70,7 +69,7 @@ class CorrectionBasedRetry:
 
             # Generate rule
             try:
-                response = self.provider.generate(current_prompt)
+                response = self.provider.complete(current_prompt)
 
                 if self.debug:
                     print(f"[Correction Retry] Response:\n{response}\n")

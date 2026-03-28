@@ -11,14 +11,43 @@ from typing import List, Dict, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 
 from .prefix_parser import (
-    parse_prefix_notation, 
+    parse_prefix_notation,
     parse_rule,
     parse_s_expression
 )
 from .terms import Term, Atom, Variable, Compound
 from .knowledge import Fact, Rule
 from .evaluator import PrologEvaluator
-from .llm_providers import LLMResponse
+
+
+@dataclass
+class LLMResponse:
+    """Structured response from an LLM provider"""
+    text: str
+    facts: List[List[Any]]  # Prefix notation facts
+    rules: List[List[Any]]  # Prefix notation rules
+    raw_response: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    @classmethod
+    def from_text(cls, text: str) -> 'LLMResponse':
+        """Create response from raw text using DreamLog's native parser"""
+        parsed_knowledge, validation_report = parse_llm_response(text, strict=False, validate=False)
+
+        if parsed_knowledge.is_valid:
+            return parsed_knowledge.to_llm_response(text)
+
+        return cls(text=text, facts=[], rules=[], raw_response=text)
+
+    def to_dreamlog_items(self) -> List[List[Any]]:
+        """Convert to DreamLog-compatible items with type tags"""
+        items = []
+        for fact in self.facts:
+            items.append(["fact", fact])
+        for rule in self.rules:
+            if len(rule) == 2:  # [head, body]
+                items.append(["rule", rule[0], rule[1]])
+        return items
 
 
 @dataclass

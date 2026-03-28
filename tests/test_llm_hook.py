@@ -15,7 +15,7 @@ import sys
 import os
 import pytest
 from dreamlog import DreamLogEngine
-from dreamlog.llm_providers import create_provider
+from dreamlog.llm_client import LLMClient
 from dreamlog.llm_hook import LLMHook
 from dreamlog.prefix_parser import parse_s_expression
 from dreamlog.tfidf_embedding_provider import TfIdfEmbeddingProvider
@@ -41,9 +41,8 @@ def _run_family_relations_test():
     print("=" * 70)
 
     # Create LLM provider
-    provider = create_provider(
-        provider_type="ollama",
-        base_url="http://192.168.0.225:11434",
+    provider = LLMClient(
+        base_url="http://192.168.0.225:11434/v1",
         model="phi4-mini:latest"
     )
 
@@ -116,9 +115,8 @@ def _run_multiple_inferences_test():
     print("TEST: Multiple Cascading Inferences")
     print("=" * 70)
 
-    provider = create_provider(
-        provider_type="ollama",
-        base_url="http://192.168.0.225:11434",
+    provider = LLMClient(
+        base_url="http://192.168.0.225:11434/v1",
         model="phi4-mini:latest"
     )
 
@@ -177,9 +175,8 @@ def _run_llm_quality_test():
     print("TEST: LLM Rule Quality")
     print("=" * 70)
 
-    provider = create_provider(
-        provider_type="ollama",
-        base_url="http://192.168.0.225:11434",
+    provider = LLMClient(
+        base_url="http://192.168.0.225:11434/v1",
         model="phi4-mini:latest"
     )
 
