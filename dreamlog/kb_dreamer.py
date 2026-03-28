@@ -230,7 +230,12 @@ class KnowledgeBaseDreamer:
         self._name_invented_predicates(kb)
 
         # Operation G: LLM-assisted compression
-        ops.extend(self._llm_compress(kb, suite))
+        llm_ops = self._llm_compress(kb, suite)
+        ops.extend(llm_ops)
+
+        # Re-run Op B after LLM adds rules (new rules may make facts derivable)
+        if llm_ops:
+            ops.extend(self._prune_redundant_facts(kb))
 
         if verify and suite:
             from .evaluator import PrologEvaluator
@@ -945,37 +950,76 @@ class KnowledgeBaseDreamer:
         from .llm_response_parser import parse_llm_response
         ops = []
 
-        # Sample facts for the prompt
+        # Sample facts for the prompt, using Prolog notation
         fact_lines = []
         for fact in kb.facts[:50]:
-            fact_lines.append(str(fact.term))
+            term = fact.term
+            if isinstance(term, Compound):
+                args = ", ".join(
+                    a.value if isinstance(a, Atom) else str(a)
+                    for a in term.args)
+                fact_lines.append(f"{term.functor}({args}).")
+            else:
+                fact_lines.append(f"{term}.")
         if not fact_lines:
             return ops
 
         prompt = (
-            "Here are facts from a knowledge base:\n\n"
+            "Given these facts from a knowledge base:\n\n"
             + "\n".join(fact_lines)
-            + "\n\nCan you propose rules that derive some of these facts from others?\n"
-            "Use JSON format: [[\"rule\", [\"head\", \"X\", \"Y\"], "
-            "[[\"body1\", \"X\", \"Z\"], [\"body2\", \"Z\", \"Y\"]]]]\n"
-            "Reply with a JSON array of rules only."
+            + "\n\nPropose rules that derive some facts from others. "
+            "Use variables (X, Y, Z) for the general pattern.\n\n"
+            "Example: if father(john, bob) and parent(john, bob) and male(john), "
+            "the rule is:\n"
+            '  [\"rule\", [\"father\", \"X\", \"Y\"], '
+            '[[\"parent\", \"X\", \"Y\"], [\"male\", \"X\"]]]\n\n'
+            "Reply with ONLY a JSON array of rules in this format. "
+            "No explanation, no markdown.\n\n"
+            "Rules:"
         )
 
         try:
             response = self.llm_client.complete(prompt)
-            parsed, _ = parse_llm_response(response)
+            # Strip markdown code fences if present
+            response = response.strip()
+            if response.startswith("```"):
+                lines = response.split("\n")
+                lines = [l for l in lines if not l.strip().startswith("```")]
+                response = "\n".join(lines)
+            import json
+            raw_rules = []
+            try:
+                parsed_json = json.loads(response)
+                if isinstance(parsed_json, list):
+                    raw_rules = parsed_json
+            except (json.JSONDecodeError, ValueError):
+                # Try line-by-line extraction for partially valid JSON
+                for line in response.split("\n"):
+                    line = line.strip().rstrip(",")
+                    if line.startswith("[") and "rule" in line:
+                        try:
+                            raw_rules.append(json.loads(line))
+                        except (json.JSONDecodeError, ValueError):
+                            continue
+                if not raw_rules:
+                    try:
+                        parsed_resp, _ = parse_llm_response(response)
+                        raw_rules = parsed_resp.rules if parsed_resp else []
+                    except Exception:
+                        pass
         except Exception:
             return ops
 
-        if not parsed or not parsed.rules:
+        if not raw_rules:
             return ops
 
         # Validate each proposed rule
-        for rule in parsed.rules:
+        for rule_data in raw_rules:
             try:
-                if not isinstance(rule, Rule):
-                    # Try building from raw data via fallback
-                    rule = self._build_rule_from_parsed(rule)
+                if isinstance(rule_data, Rule):
+                    rule = rule_data
+                else:
+                    rule = self._build_rule_from_parsed(rule_data)
                     if rule is None:
                         continue
 
