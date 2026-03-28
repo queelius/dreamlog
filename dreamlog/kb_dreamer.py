@@ -229,6 +229,9 @@ class KnowledgeBaseDreamer:
         # LLM-assisted naming (after symbolic ops, before final verify)
         self._name_invented_predicates(kb)
 
+        # Operation G: LLM-assisted compression
+        ops.extend(self._llm_compress(kb, suite))
+
         if verify and suite:
             from .evaluator import PrologEvaluator
             result = suite.verify(kb, lambda k: PrologEvaluator(k))
@@ -928,6 +931,126 @@ class KnowledgeBaseDreamer:
             if old_rule != new_rule:
                 kb.remove_rule_by_value(old_rule)
                 kb.add_rule(new_rule)
+
+    # ── Operation G: LLM-assisted compression ──
+
+    def _llm_compress(self, kb: KnowledgeBase,
+                      suite: Optional['VerificationSuite'] = None
+                      ) -> List[CompressionCandidate]:
+        """Operation G: Ask LLM to propose cross-functor rules."""
+        if not self.llm_client:
+            return []
+
+        from .evaluator import PrologEvaluator
+        from .llm_response_parser import parse_llm_response
+        ops = []
+
+        # Sample facts for the prompt
+        fact_lines = []
+        for fact in kb.facts[:50]:
+            fact_lines.append(str(fact.term))
+        if not fact_lines:
+            return ops
+
+        prompt = (
+            "Here are facts from a knowledge base:\n\n"
+            + "\n".join(fact_lines)
+            + "\n\nCan you propose rules that derive some of these facts from others?\n"
+            "Use JSON format: [[\"rule\", [\"head\", \"X\", \"Y\"], "
+            "[[\"body1\", \"X\", \"Z\"], [\"body2\", \"Z\", \"Y\"]]]]\n"
+            "Reply with a JSON array of rules only."
+        )
+
+        try:
+            response = self.llm_client.complete(prompt)
+            parsed, _ = parse_llm_response(response)
+        except Exception:
+            return ops
+
+        if not parsed or not parsed.rules:
+            return ops
+
+        # Validate each proposed rule
+        for rule in parsed.rules:
+            try:
+                if not isinstance(rule, Rule):
+                    # Try building from raw data via fallback
+                    rule = self._build_rule_from_parsed(rule)
+                    if rule is None:
+                        continue
+
+                # Check: rule must derive at least one existing fact
+                test_kb = kb.copy()
+                test_kb.add_rule(rule)
+                ev = PrologEvaluator(test_kb)
+
+                # Find facts the rule could derive
+                derivable_facts = []
+                for fact in kb.facts:
+                    if (isinstance(fact.term, Compound)
+                            and fact.term.functor == rule.head.functor):
+                        if ev.has_solution(fact.term):
+                            derivable_facts.append(fact)
+
+                if not derivable_facts:
+                    continue
+
+                # Verify: adding rule must not break anything
+                if suite is not None:
+                    result = suite.verify(test_kb, lambda k: PrologEvaluator(k))
+                    if not result.passed:
+                        continue
+
+                # MDL: rule + removal of derivable facts must decrease count
+                if len(derivable_facts) < 2:  # need to derive 2+ facts to justify the rule
+                    continue
+
+                # Apply: add rule, then let Op B handle pruning derivable facts
+                kb.add_rule(rule)
+                ops.append(CompressionCandidate(
+                    operation="llm_compression",
+                    original_clauses=[],
+                    new_clauses=[rule]))
+
+            except Exception:
+                continue
+
+        return ops
+
+    def _build_rule_from_parsed(self, rule_data):
+        """Build a Rule from parsed LLM output (raw list format)."""
+        try:
+            if not isinstance(rule_data, (list, tuple)) or len(rule_data) < 3:
+                return None
+            head_data = rule_data[1] if isinstance(rule_data[1], list) else rule_data
+            body_data = rule_data[2] if len(rule_data) > 2 else []
+
+            def make_term(data):
+                if not isinstance(data, list) or len(data) == 0:
+                    return None
+                functor = data[0]
+                args = []
+                for a in data[1:]:
+                    if isinstance(a, str) and a[0].isupper():
+                        args.append(Variable(a))
+                    else:
+                        args.append(Atom(str(a)))
+                return Compound(functor, args)
+
+            head = make_term(head_data)
+            if head is None:
+                return None
+            body = []
+            for b in body_data:
+                bt = make_term(b)
+                if bt is None:
+                    return None
+                body.append(bt)
+            if not body:
+                return None
+            return Rule(head, body)
+        except Exception:
+            return None
 
     # ── Operation F: Dead clause pruning ──
 

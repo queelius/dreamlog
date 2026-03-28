@@ -813,3 +813,57 @@ class TestLLMNaming:
         dreamer.dream(kb, verify=False)
         rule_functors = {r.head.functor for r in kb.rules if isinstance(r.head, Compound)}
         assert any(f.startswith("_invented_") for f in rule_functors)
+
+
+class TestOperationG:
+    def test_cross_functor_rule_proposed(self):
+        """LLM proposes father(X,Y) :- parent(X,Y), male(X)."""
+        from tests.mock_provider import MockLLMProvider
+        kb = KnowledgeBase()
+        for p, c in [("john","mary"),("bob","alice"),("carol","dave")]:
+            kb.add_fact(compound("parent", atom(p), atom(c)))
+        for n in ["john", "bob"]:
+            kb.add_fact(compound("male", atom(n)))
+        kb.add_fact(compound("father", atom("john"), atom("mary")))
+        kb.add_fact(compound("father", atom("bob"), atom("alice")))
+
+        import json
+        rule_json = json.dumps([["rule", ["father", "X", "Y"],
+                                [["parent", "X", "Y"], ["male", "X"]]]])
+        mock = MockLLMProvider(responses=[rule_json])
+        dreamer = KnowledgeBaseDreamer(llm_client=mock)
+        session = dreamer.dream(kb, verify=False)
+
+        # father facts should be removed (derivable from new rule)
+        father_facts = [f for f in kb.facts
+                        if isinstance(f.term, Compound) and f.term.functor == "father"]
+        father_rules = [r for r in kb.rules
+                        if isinstance(r.head, Compound) and r.head.functor == "father"]
+        # Should have the rule and fewer facts
+        assert len(father_rules) >= 1 or len(father_facts) < 2
+
+    def test_no_llm_skips_compression(self):
+        """Without LLM client, Op G is skipped."""
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        dreamer = KnowledgeBaseDreamer()
+        session = dreamer.dream(kb, verify=False)
+        # No LLM operations
+        assert all(op.operation != "llm_compression" for op in session.operations)
+
+    def test_invalid_rule_rejected(self):
+        """LLM proposes rule that over-generates -> rejected."""
+        from tests.mock_provider import MockLLMProvider
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        kb.add_fact(compound("b", atom("y")))
+        # LLM proposes a(X) :- b(X) which would make a(y) true (wrong)
+        import json
+        mock = MockLLMProvider(responses=[
+            json.dumps([["rule", ["a", "X"], [["b", "X"]]]])])
+        dreamer = KnowledgeBaseDreamer(llm_client=mock)
+        dreamer.dream(kb, verify=True)
+        # a(y) should NOT be derivable
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        assert not ev.has_solution(compound("a", atom("y")))

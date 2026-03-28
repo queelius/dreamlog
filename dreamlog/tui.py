@@ -1030,6 +1030,7 @@ Variables start with uppercase letters (X, Y, Z, Person, etc.)
                         "invention": "Predicate invention",
                         "extraction": "Body pattern extraction",
                         "dead_clause": "Dead clause pruned",
+                        "llm_compression": "LLM-proposed rule",
                     }.get(op.operation, op.operation)
                     delta = op.mdl_delta
                     sign = "+" if delta > 0 else ""
