@@ -361,7 +361,7 @@ def run_experiment(kb, name, client, correctness_checks):
 
 def main():
     parser = argparse.ArgumentParser(description="Multi-domain LLM sleep cycle experiments")
-    parser.add_argument("--base-url", default="http://localhost:11434/v1")
+    parser.add_argument("--base-url", default="http://192.168.0.225:11434/v1")
     parser.add_argument("--model", default="phi4-mini:latest")
     parser.add_argument("--api-key", default="ollama")
     parser.add_argument("--domain", "-d", help="Run single domain")

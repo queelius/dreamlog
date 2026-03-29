@@ -230,7 +230,7 @@ def _get_all_head_functors(kb):
 
 def main():
     parser = argparse.ArgumentParser(description="LLM-Assisted Sleep Cycle Experiment")
-    parser.add_argument("--base-url", default="http://localhost:11434/v1",
+    parser.add_argument("--base-url", default="http://192.168.0.225:11434/v1",
                         help="OpenAI-compatible API base URL")
     parser.add_argument("--model", default="phi4-mini:latest",
                         help="Model to use")

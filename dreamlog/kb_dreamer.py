@@ -896,7 +896,13 @@ class KnowledgeBaseDreamer:
                 )
 
                 try:
-                    suggested = self.llm_client.complete(prompt).strip().lower()
+                    suggested = self.llm_client.complete(prompt).strip()
+                    # Strip thinking tags
+                    if "<think>" in suggested:
+                        import re
+                        suggested = re.sub(r'<think>.*?</think>', '', suggested,
+                                           flags=re.DOTALL).strip()
+                    suggested = suggested.lower()
                     # Validate: must be a valid identifier
                     if not re.match(r'^[a-z][a-z0-9_]*$', suggested):
                         continue
@@ -982,8 +988,12 @@ class KnowledgeBaseDreamer:
 
         try:
             response = self.llm_client.complete(prompt)
-            # Strip markdown code fences if present
+            # Strip thinking tags and markdown code fences
             response = response.strip()
+            if "<think>" in response:
+                import re
+                response = re.sub(r'<think>.*?</think>', '', response,
+                                  flags=re.DOTALL).strip()
             if response.startswith("```"):
                 lines = response.split("\n")
                 lines = [l for l in lines if not l.strip().startswith("```")]
@@ -1033,14 +1043,19 @@ class KnowledgeBaseDreamer:
                     continue
                 if any(not isinstance(g, Compound) or not g.functor for g in rule.body):
                     continue
-                # All body functors must exist in the KB (as fact or rule heads)
+                # All body functors must exist in the KB as ORIGINAL predicates
+                # (not system-generated _invented_, _extracted_, exception_)
                 kb_functors = set()
                 for f in kb.facts:
                     if isinstance(f.term, Compound):
-                        kb_functors.add(f.term.functor)
+                        fn = f.term.functor
+                        if not (fn.startswith("exception_") or fn.startswith("_")):
+                            kb_functors.add(fn)
                 for r in kb.rules:
                     if isinstance(r.head, Compound):
-                        kb_functors.add(r.head.functor)
+                        fn = r.head.functor
+                        if not (fn.startswith("exception_") or fn.startswith("_")):
+                            kb_functors.add(fn)
                 if any(g.functor not in kb_functors for g in rule.body):
                     continue
 
