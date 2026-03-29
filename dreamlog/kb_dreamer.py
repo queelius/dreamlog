@@ -968,12 +968,14 @@ class KnowledgeBaseDreamer:
             "Given these facts from a knowledge base:\n\n"
             + "\n".join(fact_lines)
             + "\n\nPropose rules that derive some facts from others. "
-            "Use variables (X, Y, Z) for the general pattern.\n\n"
-            "Example: if father(john, bob) and parent(john, bob) and male(john), "
-            "the rule is:\n"
-            '  [\"rule\", [\"father\", \"X\", \"Y\"], '
-            '[[\"parent\", \"X\", \"Y\"], [\"male\", \"X\"]]]\n\n'
-            "Reply with ONLY a JSON array of rules in this format. "
+            "Use variables (X, Y, Z) for the general pattern. "
+            "Use MULTIPLE rules for the same head when the pattern involves "
+            "OR conditions (disjunction).\n\n"
+            "Example format:\n"
+            '  ["rule", ["father", "X", "Y"], [["parent", "X", "Y"], ["male", "X"]]]\n'
+            '  ["rule", ["warm_blooded", "X"], [["class", "X", "mammal"]]]\n'
+            '  ["rule", ["warm_blooded", "X"], [["class", "X", "bird"]]]\n\n'
+            "Reply with ONLY a JSON array of rules. "
             "No explanation, no markdown.\n\n"
             "Rules:"
         )
