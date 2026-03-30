@@ -320,6 +320,59 @@ def scenario_stress():
     return "stress", kb, checks
 
 
+def scenario_subsumption_edge():
+    """Tests cross-body variable binding in clause subsumption (Op A).
+
+    A general rule f(X) :- g(X,Y), h(Y) should subsume f(a) :- g(a,b), h(b)
+    (consistent Y=b) but NOT f(a) :- g(a,b), h(c) (inconsistent Y=b vs Y=c).
+
+    Without the binding propagation fix in clause_subsumes, the inconsistent
+    rule would be incorrectly removed, changing query behavior.
+    """
+    kb = KnowledgeBase()
+
+    # General rule: f(X) :- g(X, Y), h(Y)
+    kb.add_rule(Rule(compound("derive", var("X"), var("Z")),
+                     [compound("step1", var("X"), var("Y")),
+                      compound("step2", var("Y"), var("Z"))]))
+
+    # Consistent specialization (Y=b in both): SHOULD be subsumed
+    kb.add_rule(Rule(compound("derive", atom("a"), atom("c")),
+                     [compound("step1", atom("a"), atom("b")),
+                      compound("step2", atom("b"), atom("c"))]))
+
+    # Inconsistent specialization (Y=b in step1, Y=d in step2): MUST be kept
+    kb.add_rule(Rule(compound("derive", atom("a"), atom("e")),
+                     [compound("step1", atom("a"), atom("b")),
+                      compound("step2", atom("d"), atom("e"))]))
+
+    # Another inconsistent one
+    kb.add_rule(Rule(compound("derive", atom("x"), atom("z")),
+                     [compound("step1", atom("x"), atom("y1")),
+                      compound("step2", atom("y2"), atom("z"))]))
+
+    # Facts for verification
+    kb.add_fact(compound("step1", atom("a"), atom("b")))
+    kb.add_fact(compound("step1", atom("x"), atom("y1")))
+    kb.add_fact(compound("step2", atom("b"), atom("c")))
+    kb.add_fact(compound("step2", atom("d"), atom("e")))
+    kb.add_fact(compound("step2", atom("y2"), atom("z")))
+
+    checks = [
+        # derive(a, c) works via general rule (step1(a,b), step2(b,c))
+        ("derive(a, c)", compound("derive", atom("a"), atom("c")), True),
+        # derive(a, e) only works via the inconsistent specific rule
+        # (step1(a,b) gives Y=b, but step2(d,e) needs Y=d, so general rule fails)
+        # The specific rule hardcodes the right path
+        ("derive(a, e)", compound("derive", atom("a"), atom("e")), True),
+        # derive(x, z) only works via the inconsistent specific rule
+        ("derive(x, z)", compound("derive", atom("x"), atom("z")), True),
+        # derive(a, z) should not work
+        ("derive(a, z)", compound("derive", atom("a"), atom("z")), False),
+    ]
+    return "subsumption_edge", kb, checks
+
+
 SCENARIOS = {
     "family_small": scenario_family_small,
     "family_with_guards": scenario_family_with_guards,
@@ -328,6 +381,7 @@ SCENARIOS = {
     "dead_clauses": scenario_dead_clauses,
     "cascading": scenario_cascading,
     "stress": scenario_stress,
+    "subsumption_edge": scenario_subsumption_edge,
 }
 
 

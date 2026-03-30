@@ -14,7 +14,7 @@
       "op_summary": {},
       "correctness_passed": 3,
       "correctness_total": 3,
-      "elapsed_ms": 38.1062300875783
+      "elapsed_ms": 40.67323822528124
     },
     {
       "name": "family_with_guards",
@@ -35,7 +35,7 @@
       },
       "correctness_passed": 4,
       "correctness_total": 4,
-      "elapsed_ms": 236.94893391802907
+      "elapsed_ms": 230.2666949108243
     },
     {
       "name": "transitive_closures",
@@ -53,7 +53,7 @@
       },
       "correctness_passed": 5,
       "correctness_total": 5,
-      "elapsed_ms": 98.07325713336468
+      "elapsed_ms": 102.14309673756361
     },
     {
       "name": "body_patterns",
@@ -71,7 +71,7 @@
       },
       "correctness_passed": 5,
       "correctness_total": 5,
-      "elapsed_ms": 66.48239307105541
+      "elapsed_ms": 78.08696338906884
     },
     {
       "name": "dead_clauses",
@@ -89,7 +89,7 @@
       },
       "correctness_passed": 3,
       "correctness_total": 3,
-      "elapsed_ms": 24.06942704692483
+      "elapsed_ms": 29.358858708292246
     },
     {
       "name": "cascading",
@@ -110,7 +110,7 @@
       },
       "correctness_passed": 6,
       "correctness_total": 6,
-      "elapsed_ms": 137.7107659354806
+      "elapsed_ms": 147.74025604128838
     },
     {
       "name": "stress",
@@ -130,14 +130,32 @@
       },
       "correctness_passed": 5,
       "correctness_total": 5,
-      "elapsed_ms": 6252.537210006267
+      "elapsed_ms": 6857.945744879544
+    },
+    {
+      "name": "subsumption_edge",
+      "clauses_before": 9,
+      "clauses_after": 8,
+      "facts_before": 5,
+      "facts_after": 5,
+      "rules_before": 4,
+      "rules_after": 3,
+      "body_goals_before": 8,
+      "body_goals_after": 6,
+      "compression_ratio": 0.8888888888888888,
+      "op_summary": {
+        "subsumption": 1
+      },
+      "correctness_passed": 4,
+      "correctness_total": 4,
+      "elapsed_ms": 12.295825872570276
     }
   ],
   "totals": {
-    "clauses_before": 315,
-    "clauses_after": 268,
-    "body_goals_before": 84,
-    "body_goals_after": 68,
+    "clauses_before": 324,
+    "clauses_after": 276,
+    "body_goals_before": 92,
+    "body_goals_after": 74,
     "all_correct": true
   }
 }
