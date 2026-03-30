@@ -115,6 +115,11 @@ class KnowledgeBase:
 
         # Usage frequency tracking (clause hash -> count)
         self._usage_counts: Dict[int, int] = {}
+
+        # Derivation tracking (term hash -> (count, term))
+        self._derivation_counts: Dict[int, int] = {}
+        self._derivation_terms: Dict[int, Term] = {}
+        self._derivation_tracking: bool = False
     
     def add_fact(self, fact: Union[Fact, Term]) -> None:
         """
@@ -318,6 +323,43 @@ class KnowledgeBase:
         """Total usage events recorded."""
         return sum(self._usage_counts.values())
 
+    # Derivation tracking methods
+
+    def enable_derivation_tracking(self) -> None:
+        self._derivation_tracking = True
+
+    def disable_derivation_tracking(self) -> None:
+        self._derivation_tracking = False
+
+    def record_derivation(self, term: Term) -> None:
+        """Record that a ground term was successfully derived."""
+        if not self._derivation_tracking:
+            return
+        key = hash(term)
+        self._derivation_counts[key] = self._derivation_counts.get(key, 0) + 1
+        if key not in self._derivation_terms:
+            self._derivation_terms[key] = term
+
+    def get_derivation_count(self, term: Term) -> int:
+        return self._derivation_counts.get(hash(term), 0)
+
+    def get_frequent_derivations(self, min_count: int = 5) -> list:
+        """Return (term, count) pairs for terms derived >= min_count times
+        that are NOT already stored as facts."""
+        fact_hashes = {hash(f.term) for f in self._facts}
+        results = []
+        for key, count in self._derivation_counts.items():
+            if count >= min_count and key not in fact_hashes:
+                term = self._derivation_terms.get(key)
+                if term is not None:
+                    results.append((term, count))
+        results.sort(key=lambda x: -x[1])
+        return results
+
+    def reset_derivations(self) -> None:
+        self._derivation_counts.clear()
+        self._derivation_terms.clear()
+
     def copy(self) -> 'KnowledgeBase':
         """Deep copy for rollback."""
         new_kb = KnowledgeBase()
@@ -326,6 +368,9 @@ class KnowledgeBase:
         for rule in self._rules:
             new_kb.add_rule(rule)
         new_kb._usage_counts = dict(self._usage_counts)
+        new_kb._derivation_counts = dict(self._derivation_counts)
+        new_kb._derivation_terms = dict(self._derivation_terms)
+        new_kb._derivation_tracking = self._derivation_tracking
         return new_kb
 
     def restore_from(self, other: 'KnowledgeBase') -> None:

@@ -116,7 +116,13 @@ class PrologEvaluator:
         initial_goals = [Goal(goal, {}) for goal in goals]
         
         # Generate solutions using SLD resolution
-        yield from self._solve_goals(initial_goals, {})
+        for solution in self._solve_goals(initial_goals, {}):
+            # Record derived terms for lemma caching
+            for goal in goals:
+                resolved = goal.substitute(solution.bindings)
+                if is_ground(resolved):
+                    self.kb.record_derivation(resolved)
+            yield solution
     
     def _solve_goals(self, goals: List[Goal], global_bindings: Dict[str, Term]) -> Iterator[Solution]:
         """

@@ -237,6 +237,9 @@ class KnowledgeBaseDreamer:
         if llm_ops:
             ops.extend(self._prune_redundant_facts(kb))
 
+        # Operation H: Lemma caching (add frequently-derived terms as facts)
+        ops.extend(self._cache_lemmas(kb))
+
         if verify and suite:
             from .evaluator import PrologEvaluator
             result = suite.verify(kb, lambda k: PrologEvaluator(k))
@@ -1212,3 +1215,37 @@ class KnowledgeBaseDreamer:
         import math
         total = sum(kb.get_usage(c) for c in clauses)
         return 1.0 + math.log2(total + 1)
+
+    # -- Operation H: Lemma caching --
+
+    def _cache_lemmas(self, kb: KnowledgeBase,
+                      min_derivation_count: int = 5
+                      ) -> List[CompressionCandidate]:
+        """Operation H: Cache frequently-derived terms as facts (lemmas).
+
+        Adds ground terms that are derived >= min_derivation_count times
+        but not already stored as facts. This speeds up future queries
+        by providing direct fact lookup instead of re-derivation.
+        """
+        ops = []
+        frequent = kb.get_frequent_derivations(min_count=min_derivation_count)
+
+        for term, count in frequent:
+            # Skip system-generated predicates
+            if isinstance(term, Compound):
+                f = term.functor
+                if (f.startswith("_invented_") or f.startswith("_extracted_")
+                        or f.startswith("exception_")):
+                    continue
+
+            try:
+                new_fact = Fact(term)
+                kb.add_fact(new_fact)
+                ops.append(CompressionCandidate(
+                    operation="lemma_cache",
+                    original_clauses=[],
+                    new_clauses=[new_fact]))
+            except (ValueError, TypeError):
+                continue  # Not a valid fact (e.g., contains variables)
+
+        return ops
