@@ -102,17 +102,18 @@ def clause_subsumes(general: 'Rule', specific: 'Rule') -> bool:
     if len(general.body) != len(specific.body):
         return False
 
-    head_bindings = unify(general.head, specific.head,
-                          mode=UnificationMode.SUBSUME)
-    if head_bindings is None:
+    accumulated = unify(general.head, specific.head,
+                        mode=UnificationMode.SUBSUME)
+    if accumulated is None:
         return False
 
     for gen_goal, spec_goal in zip(general.body, specific.body):
-        gen_substituted = gen_goal.substitute(head_bindings)
+        gen_substituted = gen_goal.substitute(accumulated)
         goal_bindings = unify(gen_substituted, spec_goal,
                               mode=UnificationMode.SUBSUME)
         if goal_bindings is None:
             return False
+        accumulated = compose_substitutions(accumulated, goal_bindings)
 
     return True
 

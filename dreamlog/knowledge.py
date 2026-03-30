@@ -381,6 +381,9 @@ class KnowledgeBase:
         for rule in other._rules:
             self.add_rule(rule)
         self._usage_counts = dict(other._usage_counts)
+        self._derivation_counts = dict(other._derivation_counts)
+        self._derivation_terms = dict(other._derivation_terms)
+        self._derivation_tracking = other._derivation_tracking
 
     def remove_fact_by_value(self, fact: Fact) -> None:
         """Remove a fact by equality."""

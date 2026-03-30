@@ -32,3 +32,25 @@ class TestClauseSubsumes:
         r1 = Rule(compound("a", var("X")), [compound("b", var("X"))])
         r2 = Rule(compound("c", var("X")), [compound("b", var("X"))])
         assert clause_subsumes(r1, r2) is False
+
+    def test_cross_body_variable_binding_inconsistency(self):
+        """p(X) :- q(X, Y), r(Y) should NOT subsume p(a) :- q(a, b), r(c)
+        because Y=b from goal 1 and Y=c from goal 2 are inconsistent."""
+        general = Rule(compound("p", var("X")),
+                       [compound("q", var("X"), var("Y")),
+                        compound("r", var("Y"))])
+        specific = Rule(compound("p", atom("a")),
+                        [compound("q", atom("a"), atom("b")),
+                         compound("r", atom("c"))])
+        assert clause_subsumes(general, specific) is False
+
+    def test_cross_body_variable_binding_consistent(self):
+        """p(X) :- q(X, Y), r(Y) SHOULD subsume p(a) :- q(a, b), r(b)
+        because Y=b is consistent across both goals."""
+        general = Rule(compound("p", var("X")),
+                       [compound("q", var("X"), var("Y")),
+                        compound("r", var("Y"))])
+        specific = Rule(compound("p", atom("a")),
+                        [compound("q", atom("a"), atom("b")),
+                         compound("r", atom("b"))])
+        assert clause_subsumes(general, specific) is True

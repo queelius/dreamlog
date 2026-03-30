@@ -196,8 +196,10 @@ class KnowledgeBaseDreamer:
                                 compression_ratio=1.0, verification=None)
 
         snapshot = kb.copy()
-        # Save wake-phase usage data before dream operations inflate it
+        # Save wake-phase tracking data before dream operations inflate it
         wake_usage = dict(kb._usage_counts)
+        wake_derivation_counts = dict(kb._derivation_counts)
+        wake_derivation_terms = dict(kb._derivation_terms)
         suite = build_verification_suite(kb) if verify else None
         result = None
         ops: List[CompressionCandidate] = []
@@ -251,6 +253,8 @@ class KnowledgeBaseDreamer:
 
         # Restore wake-phase usage data (discard usage from verification queries)
         kb._usage_counts = wake_usage
+        kb._derivation_counts = wake_derivation_counts
+        kb._derivation_terms = wake_derivation_terms
 
         new_size = len(kb)
         return DreamSession(
@@ -621,31 +625,27 @@ class KnowledgeBaseDreamer:
         from .evaluator import PrologEvaluator
 
         all_ops = []
+        failed_keys: set = set()
 
         for _round in range(max_rounds):
-            candidate = self._find_best_body_pattern(kb)
+            candidate = self._find_best_body_pattern(kb, exclude_keys=failed_keys)
             if candidate is None:
                 break
 
-            subseq, occurrences = candidate
+            subseq, occurrences, pattern_key = candidate
 
             # Compute interface variables for each occurrence
             extracted_name = self._next_extracted_name(kb)
             subseq_len = len(subseq)
 
-            # Use first occurrence to determine interface vars
-            # (all occurrences have same structure, so same interface)
             first_rule, first_start = occurrences[0]
             interface_vars = self._compute_interface_vars(
                 first_rule, first_start, subseq_len)
 
-            # Build extracted predicate
-            # Use normalized variable names from the sub-sequence
             template_rule = first_rule
             template_body = list(template_rule.body)
             subseq_goals = template_body[first_start:first_start + subseq_len]
 
-            # Map interface vars to positional names for the extracted predicate head
             extracted_head = Compound(extracted_name,
                                      [Variable(v) for v in interface_vars])
             extracted_rule = Rule(extracted_head, subseq_goals)
@@ -656,7 +656,6 @@ class KnowledgeBaseDreamer:
                 test_kb.add_rule(extracted_rule)
                 for rule, start in occurrences:
                     body = list(rule.body)
-                    # Map this occurrence's vars to the extracted predicate's interface
                     call_args = self._map_interface_vars(
                         rule, start, subseq_len, interface_vars, first_rule, first_start)
                     new_body = (body[:start]
@@ -667,7 +666,8 @@ class KnowledgeBaseDreamer:
                     test_kb.add_rule(new_rule)
                 result = suite.verify(test_kb, lambda k: PrologEvaluator(k))
                 if not result.passed:
-                    break
+                    failed_keys.add(pattern_key)
+                    continue
 
             # Apply
             kb.add_rule(extracted_rule)
@@ -693,8 +693,11 @@ class KnowledgeBaseDreamer:
 
         return all_ops
 
-    def _find_best_body_pattern(self, kb: KnowledgeBase):
+    def _find_best_body_pattern(self, kb: KnowledgeBase,
+                               exclude_keys: set = None):
         """Find the best common contiguous sub-sequence across rule bodies."""
+        if exclude_keys is None:
+            exclude_keys = set()
         # Collect rules to scan (skip generated predicates)
         rules = []
         for rule in kb.rules:
@@ -736,6 +739,8 @@ class KnowledgeBaseDreamer:
             k = key[0]  # length stored as first element of key
             if n < 2 or k < 2:
                 continue
+            if key in exclude_keys:
+                continue
             body_goal_savings = (k - 1) * (n - 1) - 1
             # Also check clause count: extraction adds 1 rule but may enable
             # trivial wrapper elimination. Count rules that become single-goal
@@ -758,7 +763,7 @@ class KnowledgeBaseDreamer:
         first_rule, first_start = occurrences[0]
         subseq_len = key[0]
         subseq = list(first_rule.body)[first_start:first_start + subseq_len]
-        return (subseq, occurrences)
+        return (subseq, occurrences, best[0])
 
     def _subseq_structural_key(self, subseq: list) -> tuple:
         """Compute structural key for a contiguous sub-sequence of body goals.
@@ -1111,10 +1116,12 @@ class KnowledgeBaseDreamer:
                 functor = data[0]
                 args = []
                 for a in data[1:]:
-                    if isinstance(a, str) and a[0].isupper():
+                    if not isinstance(a, str) or len(a) == 0:
+                        return None
+                    if a[0].isupper():
                         args.append(Variable(a))
                     else:
-                        args.append(Atom(str(a)))
+                        args.append(Atom(a))
                 return Compound(functor, args)
 
             head = make_term(head_data)
