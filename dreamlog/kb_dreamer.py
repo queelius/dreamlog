@@ -1114,6 +1114,8 @@ class KnowledgeBaseDreamer:
                 if not isinstance(data, list) or len(data) == 0:
                     return None
                 functor = data[0]
+                if not isinstance(functor, str) or len(functor) == 0:
+                    return None
                 args = []
                 for a in data[1:]:
                     if not isinstance(a, str) or len(a) == 0:
