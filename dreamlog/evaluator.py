@@ -124,6 +124,105 @@ class PrologEvaluator:
                     self.kb.record_derivation(resolved)
             yield solution
     
+    def query_with_proof(self, goals: List[Term]):
+        """Evaluate a query and yield (Solution, ProofNode) pairs.
+
+        Like query(), but also constructs proof trees showing how each
+        solution was derived. More expensive than query() due to tree
+        allocation.
+        """
+        from .proof_tree import ProofNode
+
+        if not goals:
+            return
+
+        self._recursion_depth = 0
+        self._total_calls = 0
+        initial_goals = [Goal(goal, {}) for goal in goals]
+
+        for solution, proof_nodes in self._solve_goals_with_proof(
+                initial_goals, {}, 0):
+            # Record derived terms
+            for goal in goals:
+                resolved = goal.substitute(solution.bindings)
+                if is_ground(resolved):
+                    self.kb.record_derivation(resolved)
+            # Build top-level proof: one node per goal
+            if len(proof_nodes) == 1:
+                yield solution, proof_nodes[0]
+            else:
+                root = ProofNode(
+                    goal=goals[0] if goals else Atom("query"),
+                    children=proof_nodes, depth=0)
+                yield solution, root
+
+    def _solve_goals_with_proof(self, goals, global_bindings, depth):
+        """Like _solve_goals but yields (Solution, [ProofNode]) pairs."""
+        from .proof_tree import ProofNode
+
+        try:
+            with self._track_recursion():
+                if not goals:
+                    yield Solution(global_bindings), []
+                    return
+
+                current_goal = goals[0]
+                remaining_goals = goals[1:]
+                current_goal = current_goal.substitute(global_bindings)
+
+                # NAF and call/N handling (simplified: delegate to normal solve)
+                if isinstance(current_goal.term, Compound):
+                    if current_goal.term.functor == "not" and current_goal.term.arity == 1:
+                        # For NAF, just use the non-proof path
+                        for sol in self._solve_goals([current_goal] + remaining_goals, global_bindings):
+                            yield sol, [ProofNode(goal=current_goal.term, depth=depth)]
+                        return
+                    if current_goal.term.functor == "call" and current_goal.term.arity >= 2:
+                        for sol in self._solve_goals([current_goal] + remaining_goals, global_bindings):
+                            yield sol, [ProofNode(goal=current_goal.term, depth=depth)]
+                        return
+
+                # Try facts
+                for fact in self.kb.get_matching_facts(current_goal.term):
+                    renamed_fact = self._rename_variables_in_fact(fact)
+                    bindings = unify(current_goal.term, renamed_fact.term, current_goal.bindings)
+                    if bindings is not None:
+                        self.kb.record_usage(fact)
+                        new_global = compose_substitutions(global_bindings, bindings)
+                        new_remaining = [g.substitute(bindings) for g in remaining_goals]
+                        for sol, rest_proof in self._solve_goals_with_proof(
+                                new_remaining, new_global, depth + 1):
+                            node = ProofNode(goal=current_goal.term.substitute(bindings),
+                                             clause=fact, depth=depth)
+                            yield sol, [node] + rest_proof
+
+                # Try rules
+                for rule in self.kb.get_matching_rules(current_goal.term):
+                    renamed_rule = self._rename_variables_in_rule(rule)
+                    bindings = unify(current_goal.term, renamed_rule.head, current_goal.bindings)
+                    if bindings is not None:
+                        self.kb.record_usage(rule)
+                        new_goals = [Goal(bt, bindings) for bt in renamed_rule.body]
+                        for g in remaining_goals:
+                            new_goals.append(g.substitute(bindings))
+                        new_global = compose_substitutions(global_bindings, bindings)
+
+                        if self._detect_simple_cycle(new_goals, current_goal):
+                            continue
+
+                        body_len = len(renamed_rule.body)
+                        for sol, child_proofs in self._solve_goals_with_proof(
+                                new_goals, new_global, depth + 1):
+                            body_proofs = child_proofs[:body_len]
+                            rest_proofs = child_proofs[body_len:]
+                            node = ProofNode(
+                                goal=current_goal.term.substitute(bindings),
+                                clause=rule, children=body_proofs, depth=depth)
+                            yield sol, [node] + rest_proofs
+
+        except RecursionError:
+            return
+
     def _solve_goals(self, goals: List[Goal], global_bindings: Dict[str, Term]) -> Iterator[Solution]:
         """
         Solve a list of goals using SLD resolution
