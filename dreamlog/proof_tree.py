@@ -8,7 +8,7 @@ This is the dynamic counterpart to static KB analysis.
 
 from typing import List, Optional, Dict, Tuple, Union
 from dataclasses import dataclass, field
-from .terms import Term, Atom, Variable, Compound
+from .terms import Term, Atom, Compound
 from .knowledge import Fact, Rule
 
 

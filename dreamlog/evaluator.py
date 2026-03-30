@@ -4,13 +4,13 @@ Prolog-style evaluator for DreamLog
 Implements SLD resolution for query evaluation with proper backtracking.
 """
 
-from typing import List, Dict, Any, Iterator, Optional, Callable, Set
+from typing import List, Dict, Iterator, Optional, Callable
 from dataclasses import dataclass
 from contextlib import contextmanager
 from .terms import Term, Atom, Variable, Compound
-from .factories import atom, var, compound
+from .factories import var
 from .knowledge import KnowledgeBase, Fact, Rule
-from .unification import unify, compose_substitutions, apply_substitution, is_ground
+from .unification import unify, compose_substitutions, is_ground
 
 
 class FlounderingError(Exception):
@@ -58,41 +58,22 @@ class PrologEvaluator:
     Evaluates Prolog queries using SLD resolution
     """
     
-    def __init__(self, knowledge_base: KnowledgeBase, 
+    def __init__(self, knowledge_base: KnowledgeBase,
                  unknown_hook: Optional[Callable[[Term, 'PrologEvaluator'], None]] = None):
-        """
-        Initialize the evaluator
-        
-        Args:
-            knowledge_base: The knowledge base to query against
-            unknown_hook: Called when an unknown term is encountered
-        """
         self.kb = knowledge_base
         self.unknown_hook = unknown_hook
-        self._recursion_depth = 0  # Current recursion depth
-        self._max_recursion_depth = 100  # Maximum allowed recursion depth
-        self._total_calls = 0  # Total number of _solve_goals calls (for statistics)
+        self._recursion_depth = 0
+        self._max_recursion_depth = 100
+        self._total_calls = 0
     
     @contextmanager
     def _track_recursion(self):
-        """
-        Context manager to track recursion depth safely.
-        
-        Ensures depth is decremented even if an exception occurs.
-        
-        Yields:
-            None
-            
-        Raises:
-            RecursionError: If maximum recursion depth is exceeded
-        """
+        """Track recursion depth; raises RecursionError if limit exceeded."""
         self._recursion_depth += 1
         self._total_calls += 1
-        
         if self._recursion_depth > self._max_recursion_depth:
-            self._recursion_depth -= 1  # Restore before raising
+            self._recursion_depth -= 1
             raise RecursionError(f"Maximum recursion depth ({self._max_recursion_depth}) exceeded")
-        
         try:
             yield
         finally:
@@ -224,52 +205,31 @@ class PrologEvaluator:
             return
 
     def _solve_goals(self, goals: List[Goal], global_bindings: Dict[str, Term]) -> Iterator[Solution]:
-        """
-        Solve a list of goals using SLD resolution
-        
-        Args:
-            goals: Current goals to solve
-            global_bindings: Global variable bindings
-            
-        Yields:
-            Solutions when all goals are satisfied
-        """
+        """Solve a list of goals using SLD resolution."""
         try:
             with self._track_recursion():
                 if not goals:
-                    # All goals solved - yield solution
                     yield Solution(global_bindings)
                     return
-                
-                # Take the first goal
+
                 current_goal = goals[0]
                 remaining_goals = goals[1:]
-                
-                # Apply global bindings to the current goal
                 current_goal = current_goal.substitute(global_bindings)
 
                 # Handle negation as failure: not/1
                 if (isinstance(current_goal.term, Compound)
                         and current_goal.term.functor == "not"
                         and current_goal.term.arity == 1):
-                    inner_term = current_goal.term.args[0]
-                    # current_goal.term is already post-substitution
-                    inner_resolved = inner_term.substitute(global_bindings)
-
-                    # Floundering check
+                    inner_resolved = current_goal.term.args[0].substitute(global_bindings)
                     if inner_resolved.get_variables():
                         raise FlounderingError(
                             f"not/1 applied to non-ground goal: {inner_resolved}")
-
-                    # Evaluate with hook suppressed
                     naf_evaluator = PrologEvaluator(self.kb, unknown_hook=None)
                     naf_evaluator._max_recursion_depth = self._max_recursion_depth
                     if not naf_evaluator.has_solution(inner_resolved):
-                        # Inner goal failed -> not/1 succeeds
-                        new_remaining = [g.substitute(global_bindings)
-                                         for g in remaining_goals]
                         yield from self._solve_goals(
-                            new_remaining, global_bindings)
+                            [g.substitute(global_bindings) for g in remaining_goals],
+                            global_bindings)
                     return
 
                 # Handle call/N meta-predicate
@@ -285,74 +245,45 @@ class PrologEvaluator:
                     if not isinstance(functor_arg, Atom):
                         raise InstantiationError(
                             f"call/N: first argument must be an atom, got: {functor_arg}")
-                    remaining_args = list(current_goal.term.args[1:])
-                    constructed = Compound(functor_arg.value, remaining_args)
-                    new_goal = Goal(constructed, current_goal.bindings)
-                    new_goals = [new_goal] + list(remaining_goals)
+                    constructed = Compound(functor_arg.value, list(current_goal.term.args[1:]))
+                    new_goals = [Goal(constructed, current_goal.bindings)] + list(remaining_goals)
                     yield from self._solve_goals(new_goals, global_bindings)
                     return
 
-                # Try to solve the current goal
                 solutions_found = False
-        
-                # Try facts first
+
+                # Try facts
                 for fact in self.kb.get_matching_facts(current_goal.term):
                     renamed_fact = self._rename_variables_in_fact(fact)
-            
                     bindings = unify(current_goal.term, renamed_fact.term, current_goal.bindings)
                     if bindings is not None:
                         solutions_found = True
                         self.kb.record_usage(fact)
-                        new_global_bindings = compose_substitutions(global_bindings, bindings)
+                        new_global = compose_substitutions(global_bindings, bindings)
+                        new_remaining = [g.substitute(bindings) for g in remaining_goals]
+                        yield from self._solve_goals(new_remaining, new_global)
 
-                        # Apply bindings to remaining goals
-                        new_remaining_goals = []
-                        for goal in remaining_goals:
-                            new_goal = goal.substitute(bindings)
-                            new_remaining_goals.append(new_goal)
-                        
-                        # Recursively solve remaining goals
-                        yield from self._solve_goals(new_remaining_goals, new_global_bindings)
-        
                 # Try rules (with cycle detection)
                 for rule in self.kb.get_matching_rules(current_goal.term):
                     renamed_rule = self._rename_variables_in_rule(rule)
-            
                     bindings = unify(current_goal.term, renamed_rule.head, current_goal.bindings)
                     if bindings is not None:
                         solutions_found = True
                         self.kb.record_usage(rule)
-
-                        # Create new goals from the rule body
-                        new_goals = []
-                        for body_term in renamed_rule.body:
-                            new_goal = Goal(body_term, bindings)
-                            new_goals.append(new_goal)
-                        
-                        # Add remaining goals
-                        for goal in remaining_goals:
-                            new_goal = goal.substitute(bindings)
-                            new_goals.append(new_goal)
-                        
-                        new_global_bindings = compose_substitutions(global_bindings, bindings)
-                        
-                        # Check for simple infinite recursion (same goal appearing again)
+                        new_goals = [Goal(bt, bindings) for bt in renamed_rule.body]
+                        new_goals += [g.substitute(bindings) for g in remaining_goals]
+                        new_global = compose_substitutions(global_bindings, bindings)
                         if self._detect_simple_cycle(new_goals, current_goal):
                             continue
-                        
-                        # Recursively solve new goals
-                        yield from self._solve_goals(new_goals, new_global_bindings)
-        
-                # If no solutions found and we have an unknown hook, try it (with depth limit)
+                        yield from self._solve_goals(new_goals, new_global)
+
+                # If no solutions found and we have an unknown hook, try it
                 if not solutions_found and self.unknown_hook and self._recursion_depth < self._max_recursion_depth:
                     original_kb_size = len(self.kb)
                     self.unknown_hook(current_goal.term, self)
-                    
-                    # Only try again if new knowledge was actually added
                     if len(self.kb) > original_kb_size:
                         yield from self._solve_goals(goals, global_bindings)
         except RecursionError:
-            # Depth limit exceeded, stop searching this branch
             return
     
     def _rename_variables_in_fact(self, fact: Fact) -> Fact:
@@ -376,17 +307,8 @@ class PrologEvaluator:
         return rule.rename_variables(suffix)
     
     def ask_yes_no(self, goal: Term) -> bool:
-        """
-        Ask a yes/no question
-        
-        Args:
-            goal: The goal to check
-            
-        Returns:
-            True if at least one solution exists, False otherwise
-        """
-        solutions = list(self.query([goal]))
-        return len(solutions) > 0
+        """Check if a goal has at least one solution."""
+        return self.has_solution(goal)
     
     def find_all_solutions(self, goals: List[Term]) -> List[Solution]:
         """Find all solutions to a query"""
@@ -405,21 +327,6 @@ class PrologEvaluator:
         return False
 
     def _detect_simple_cycle(self, new_goals: List[Goal], current_goal: Goal) -> bool:
-        """
-        Detect simple cycles in goal expansion to prevent infinite recursion.
-        
-        This uses structural comparison rather than string comparison for better accuracy.
-        
-        Args:
-            new_goals: The new goals that would be added
-            current_goal: The current goal being expanded
-            
-        Returns:
-            True if a cycle is detected (same goal structure appears in new_goals)
-        """
-        # Use structural comparison via prefix notation for more accurate cycle detection
+        """Detect if current_goal reappears structurally in new_goals."""
         current_prefix = current_goal.term.to_prefix()
-        for goal in new_goals:
-            if goal.term.to_prefix() == current_prefix:
-                return True
-        return False
+        return any(g.term.to_prefix() == current_prefix for g in new_goals)

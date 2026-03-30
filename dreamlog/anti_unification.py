@@ -115,17 +115,12 @@ def anti_unify_many(terms: List[Term]) -> AntiUnificationResult:
     all_subs = [acc.substitutions[0], acc.substitutions[1]]
 
     for i in range(2, len(terms)):
-        prev_gen = acc.generalized
-        acc = anti_unify(prev_gen, terms[i])
+        acc = anti_unify(acc.generalized, terms[i])
         bridge = acc.substitutions[0]
-        new_all_subs = []
-        for old_sub in all_subs:
-            composed = {}
-            for var_name, term in bridge.items():
-                composed[var_name] = term.substitute(old_sub)
-            new_all_subs.append(composed)
-        new_all_subs.append(acc.substitutions[1])
-        all_subs = new_all_subs
+        all_subs = [
+            {v: t.substitute(old_sub) for v, t in bridge.items()}
+            for old_sub in all_subs
+        ] + [acc.substitutions[1]]
 
     return AntiUnificationResult(
         generalized=acc.generalized, substitutions=all_subs,

@@ -319,20 +319,20 @@ class DreamLog:
 
     @property
     def stats(self) -> Dict[str, Any]:
-        """Get statistics about the knowledge base"""
+        """Get statistics about the knowledge base."""
+        from .terms import Compound
         functors = set()
         for fact in self.engine.kb.facts:
-            if hasattr(fact.term, 'functor'):
+            if isinstance(fact.term, Compound):
                 functors.add(fact.term.functor)
         for rule in self.engine.kb.rules:
-            if hasattr(rule.head, 'functor'):
+            if isinstance(rule.head, Compound):
                 functors.add(rule.head.functor)
-
         return {
             "num_facts": len(self.engine.kb.facts),
             "num_rules": len(self.engine.kb.rules),
-            "functors": sorted(list(functors)),
-            "total_items": len(self.engine.kb.facts) + len(self.engine.kb.rules)
+            "functors": sorted(functors),
+            "total_items": len(self.engine.kb),
         }
 
     def clear(self) -> 'DreamLog':
@@ -345,8 +345,8 @@ class DreamLog:
         return f"DreamLog({self.stats['num_facts']} facts, {self.stats['num_rules']} rules)"
 
     def __len__(self) -> int:
-        """Number of facts and rules"""
-        return self.stats['total_items']
+        """Number of facts and rules."""
+        return len(self.engine.kb)
 
 
 # Convenience functions for quick usage

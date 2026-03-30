@@ -1,20 +1,75 @@
 """
 Knowledge Base Dreamer - Sleep phase symbolic compression.
 
-Implements the sleep/dream cycle via three operations:
+Implements the sleep/dream cycle via eight operations:
 A. Subsumption elimination
 B. Redundant fact pruning
-C. Fact generalization with exceptions (added in Task 7)
+C. Fact generalization with exceptions
+D. Predicate invention
+E. Rule body pattern extraction
+F. Dead clause pruning
+G. LLM-assisted compression
+H. Lemma caching
 
-All operations are purely symbolic (no LLM). Compression is guided by
-Minimum Description Length: compress only when the result is shorter.
+All operations except G are purely symbolic (no LLM). Compression is
+guided by Minimum Description Length: compress only when the result is
+shorter.
 """
 
+import json
+import math
+import re
 from typing import Dict, List, Optional, Union, Set
 from dataclasses import dataclass, field
 from .terms import Term, Atom, Variable, Compound
 from .knowledge import KnowledgeBase, Fact, Rule
 from .unification import clause_subsumes, subsumes
+from .evaluator import PrologEvaluator
+
+# Prefixes used by system-generated predicates.
+_SYSTEM_PREFIXES = ("_invented_", "_extracted_", "exception_")
+
+
+def _is_system_predicate(functor: str) -> bool:
+    """Check if a functor name is system-generated."""
+    return any(functor.startswith(p) for p in _SYSTEM_PREFIXES)
+
+
+def _next_generated_name(kb: KnowledgeBase, prefix: str) -> str:
+    """Find the next available name with the given prefix (e.g. '_invented_')."""
+    max_n = -1
+    for rule in kb.rules:
+        if isinstance(rule.head, Compound) and rule.head.functor.startswith(prefix):
+            try:
+                n = int(rule.head.functor[len(prefix):])
+                max_n = max(max_n, n)
+            except (ValueError, IndexError):
+                pass
+    return f"{prefix}{max_n + 1}"
+
+
+def _strip_llm_noise(text: str) -> str:
+    """Remove thinking tags and markdown code fences from LLM output."""
+    text = text.strip()
+    if "<think>" in text:
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = [line for line in lines if not line.strip().startswith("```")]
+        text = "\n".join(lines)
+    return text
+
+
+def _collect_user_functors(kb: KnowledgeBase) -> Set[str]:
+    """Collect functor names of user-defined (non-system) predicates."""
+    functors: Set[str] = set()
+    for fact in kb.facts:
+        if isinstance(fact.term, Compound) and not _is_system_predicate(fact.term.functor):
+            functors.add(fact.term.functor)
+    for rule in kb.rules:
+        if isinstance(rule.head, Compound) and not _is_system_predicate(rule.head.functor):
+            functors.add(rule.head.functor)
+    return functors
 
 
 @dataclass
@@ -115,8 +170,6 @@ def extend_verification_for_rules(suite: VerificationSuite,
     For each rule-defined predicate, generate ground queries using atom values
     from the KB and test which are derivable.
     """
-    from .evaluator import PrologEvaluator
-
     ev = PrologEvaluator(kb)
 
     atom_values = set()
@@ -141,7 +194,7 @@ def extend_verification_for_rules(suite: VerificationSuite,
     for (functor, arity) in rule_preds:
         if added >= max_queries:
             break
-        if functor.startswith("_invented_") or functor.startswith("exception_"):
+        if _is_system_predicate(functor):
             continue
         # Sample size scales inversely with atom pool size to keep total bounded
         sample = min(5, len(atoms))
@@ -243,7 +296,6 @@ class KnowledgeBaseDreamer:
         ops.extend(self._cache_lemmas(kb))
 
         if verify and suite:
-            from .evaluator import PrologEvaluator
             result = suite.verify(kb, lambda k: PrologEvaluator(k))
             if not result.passed:
                 kb.restore_from(snapshot)
@@ -300,8 +352,6 @@ class KnowledgeBaseDreamer:
 
     def _prune_redundant_facts(self, kb: KnowledgeBase) -> List[CompressionCandidate]:
         """Operation B: Remove facts derivable from remaining KB."""
-        from .evaluator import PrologEvaluator
-
         ops = []
         facts = kb.facts
 
@@ -355,8 +405,6 @@ class KnowledgeBaseDreamer:
         are grouped by their constant pattern (all args except position p).
         Each subgroup where exactly position p varies is a compression candidate.
         """
-        from .evaluator import PrologEvaluator
-
         ops = []
 
         # Group facts by functor/arity
@@ -368,7 +416,7 @@ class KnowledgeBaseDreamer:
                 groups.setdefault(key, []).append(fact)
 
         for (functor, arity), all_facts in groups.items():
-            if functor.startswith("exception_"):
+            if _is_system_predicate(functor):
                 continue
             if len(all_facts) < self.min_group_size:
                 continue
@@ -486,7 +534,7 @@ class KnowledgeBaseDreamer:
             if (isinstance(term, Compound) and term.arity == 1
                     and isinstance(term.args[0], Atom)):
                 f = term.functor
-                if f == functor or f.startswith("exception_"):
+                if f == functor or _is_system_predicate(f):
                     continue
                 unary_groups.setdefault(f, set()).add(term.args[0].value)
 
@@ -505,7 +553,6 @@ class KnowledgeBaseDreamer:
                            ) -> List[CompressionCandidate]:
         """Operation D: Invent predicates from structurally identical rule sets."""
         from .skeleton import extract_skeleton
-        from .evaluator import PrologEvaluator
 
         ops = []
 
@@ -514,7 +561,7 @@ class KnowledgeBaseDreamer:
         for rule in kb.rules:
             if isinstance(rule.head, Compound):
                 f = rule.head.functor
-                if f.startswith("_invented_") or f.startswith("exception_"):
+                if _is_system_predicate(f):
                     continue
                 pred_rules.setdefault(f, []).append(rule)
 
@@ -536,7 +583,7 @@ class KnowledgeBaseDreamer:
             if k + n >= n * k:
                 continue
 
-            invented_name = self._next_invented_name(kb)
+            invented_name = _next_generated_name(kb, "_invented_")
             template_pred, template_rules, template_fmap = members[0]
             param_functor = template_fmap["PARAM_0"]
 
@@ -603,18 +650,6 @@ class KnowledgeBaseDreamer:
 
         return ops
 
-    def _next_invented_name(self, kb: KnowledgeBase) -> str:
-        """Find the next available _invented_N name."""
-        max_n = -1
-        for rule in kb.rules:
-            if isinstance(rule.head, Compound) and rule.head.functor.startswith("_invented_"):
-                try:
-                    n = int(rule.head.functor.split("_invented_")[1])
-                    max_n = max(max_n, n)
-                except (ValueError, IndexError):
-                    pass
-        return f"_invented_{max_n + 1}"
-
     # ── Operation E: Rule body pattern extraction ──
 
     def _extract_body_patterns(self, kb: KnowledgeBase,
@@ -622,8 +657,6 @@ class KnowledgeBaseDreamer:
                                max_rounds: int = 10
                                ) -> List[CompressionCandidate]:
         """Operation E: Extract common contiguous sub-goal sequences from rule bodies."""
-        from .evaluator import PrologEvaluator
-
         all_ops = []
         failed_keys: set = set()
 
@@ -635,7 +668,7 @@ class KnowledgeBaseDreamer:
             subseq, occurrences, pattern_key = candidate
 
             # Compute interface variables for each occurrence
-            extracted_name = self._next_extracted_name(kb)
+            extracted_name = _next_generated_name(kb, "_extracted_")
             subseq_len = len(subseq)
 
             first_rule, first_start = occurrences[0]
@@ -702,9 +735,7 @@ class KnowledgeBaseDreamer:
         rules = []
         for rule in kb.rules:
             if isinstance(rule.head, Compound):
-                f = rule.head.functor
-                if (f.startswith("_extracted_") or f.startswith("_invented_")
-                        or f.startswith("exception_")):
+                if _is_system_predicate(rule.head.functor):
                     continue
             if len(rule.body) >= 2:
                 rules.append(rule)
@@ -859,18 +890,6 @@ class KnowledgeBaseDreamer:
 
         return [Variable(var_map.get(v, v)) for v in template_interface]
 
-    def _next_extracted_name(self, kb: KnowledgeBase) -> str:
-        """Find the next available _extracted_N name."""
-        max_n = -1
-        for rule in kb.rules:
-            if isinstance(rule.head, Compound) and rule.head.functor.startswith("_extracted_"):
-                try:
-                    n = int(rule.head.functor.split("_extracted_")[1])
-                    max_n = max(max_n, n)
-                except (ValueError, IndexError):
-                    pass
-        return f"_extracted_{max_n + 1}"
-
     # ── LLM-assisted naming ──
 
     def _name_invented_predicates(self, kb: KnowledgeBase) -> None:
@@ -878,16 +897,13 @@ class KnowledgeBaseDreamer:
         if not self.llm_client:
             return
 
-        import re
         for prefix in ("_invented_", "_extracted_"):
-            # Find all generated predicates
-            generated = {}
+            generated: Dict[str, List[Rule]] = {}
             for rule in kb.rules:
                 if isinstance(rule.head, Compound) and rule.head.functor.startswith(prefix):
                     generated.setdefault(rule.head.functor, []).append(rule)
 
             for old_name, rules in generated.items():
-                # Build prompt showing the predicate's rules and usage
                 rules_str = "\n".join(str(r) for r in rules)
                 wrappers = [r for r in kb.rules
                             if isinstance(r.head, Compound)
@@ -904,29 +920,21 @@ class KnowledgeBaseDreamer:
                 )
 
                 try:
-                    suggested = self.llm_client.complete(prompt).strip()
-                    # Strip thinking tags
-                    if "<think>" in suggested:
-                        import re
-                        suggested = re.sub(r'<think>.*?</think>', '', suggested,
-                                           flags=re.DOTALL).strip()
-                    suggested = suggested.lower()
-                    # Validate: must be a valid identifier
+                    suggested = _strip_llm_noise(
+                        self.llm_client.complete(prompt)).lower()
                     if not re.match(r'^[a-z][a-z0-9_]*$', suggested):
                         continue
                     if len(suggested) > 50:
                         continue
-                    # Check name doesn't collide with existing predicates
                     existing = {r.head.functor for r in kb.rules
                                 if isinstance(r.head, Compound)}
                     existing.update(f.term.functor for f in kb.facts
                                     if isinstance(f.term, Compound))
                     if suggested in existing:
                         continue
-                    # Rename throughout KB
                     self._rename_predicate(kb, old_name, suggested)
                 except Exception:
-                    continue  # Keep original name on any error
+                    continue
 
     def _rename_predicate(self, kb: KnowledgeBase, old_name: str,
                           new_name: str) -> None:
@@ -960,7 +968,6 @@ class KnowledgeBaseDreamer:
         if not self.llm_client:
             return []
 
-        from .evaluator import PrologEvaluator
         from .llm_response_parser import parse_llm_response
         ops = []
 
@@ -994,46 +1001,13 @@ class KnowledgeBaseDreamer:
             "Rules:"
         )
 
-        try:
-            response = self.llm_client.complete(prompt)
-            # Strip thinking tags and markdown code fences
-            response = response.strip()
-            if "<think>" in response:
-                import re
-                response = re.sub(r'<think>.*?</think>', '', response,
-                                  flags=re.DOTALL).strip()
-            if response.startswith("```"):
-                lines = response.split("\n")
-                lines = [l for l in lines if not l.strip().startswith("```")]
-                response = "\n".join(lines)
-            import json
-            raw_rules = []
-            try:
-                parsed_json = json.loads(response)
-                if isinstance(parsed_json, list):
-                    raw_rules = parsed_json
-            except (json.JSONDecodeError, ValueError):
-                # Try line-by-line extraction for partially valid JSON
-                for line in response.split("\n"):
-                    line = line.strip().rstrip(",")
-                    if line.startswith("[") and "rule" in line:
-                        try:
-                            raw_rules.append(json.loads(line))
-                        except (json.JSONDecodeError, ValueError):
-                            continue
-                if not raw_rules:
-                    try:
-                        parsed_resp, _ = parse_llm_response(response)
-                        raw_rules = parsed_resp.rules if parsed_resp else []
-                    except Exception:
-                        pass
-        except Exception:
-            return ops
-
+        raw_rules = self._parse_llm_rules(prompt, parse_llm_response)
         if not raw_rules:
             return ops
 
-        # Validate each proposed rule
+        # Collect user-defined (non-system) functors once for validation
+        kb_functors = _collect_user_functors(kb)
+
         for rule_data in raw_rules:
             try:
                 if isinstance(rule_data, Rule):
@@ -1043,27 +1017,13 @@ class KnowledgeBaseDreamer:
                     if rule is None:
                         continue
 
-                # Structural validation: head and all body goals must be
-                # well-formed Compound terms with valid functors
+                # Structural validation
                 if not isinstance(rule.head, Compound) or not rule.head.functor:
                     continue
                 if not rule.body:
                     continue
                 if any(not isinstance(g, Compound) or not g.functor for g in rule.body):
                     continue
-                # All body functors must exist in the KB as ORIGINAL predicates
-                # (not system-generated _invented_, _extracted_, exception_)
-                kb_functors = set()
-                for f in kb.facts:
-                    if isinstance(f.term, Compound):
-                        fn = f.term.functor
-                        if not (fn.startswith("exception_") or fn.startswith("_")):
-                            kb_functors.add(fn)
-                for r in kb.rules:
-                    if isinstance(r.head, Compound):
-                        fn = r.head.functor
-                        if not (fn.startswith("exception_") or fn.startswith("_")):
-                            kb_functors.add(fn)
                 if any(g.functor not in kb_functors for g in rule.body):
                     continue
 
@@ -1101,6 +1061,36 @@ class KnowledgeBaseDreamer:
                 continue
 
         return ops
+
+    def _parse_llm_rules(self, prompt: str, parse_llm_response) -> list:
+        """Send prompt to LLM and parse the response into raw rule data."""
+        try:
+            response = _strip_llm_noise(self.llm_client.complete(prompt))
+            try:
+                parsed_json = json.loads(response)
+                if isinstance(parsed_json, list):
+                    return parsed_json
+            except (json.JSONDecodeError, ValueError):
+                pass
+            # Try line-by-line extraction for partially valid JSON
+            raw_rules = []
+            for line in response.split("\n"):
+                line = line.strip().rstrip(",")
+                if line.startswith("[") and "rule" in line:
+                    try:
+                        raw_rules.append(json.loads(line))
+                    except (json.JSONDecodeError, ValueError):
+                        continue
+            if raw_rules:
+                return raw_rules
+            # Fall back to the structured parser
+            try:
+                parsed_resp, _ = parse_llm_response(response)
+                return parsed_resp.rules if parsed_resp else []
+            except Exception:
+                return []
+        except Exception:
+            return []
 
     def _build_rule_from_parsed(self, rule_data):
         """Build a Rule from parsed LLM output (raw list format)."""
@@ -1152,76 +1142,50 @@ class KnowledgeBaseDreamer:
         distinct predicates have been queried. This prevents pruning in KBs
         where the wake phase only exercised a narrow subset of predicates.
         """
-        ops = []
-
         if kb.total_queries_tracked() < min_query_threshold:
-            return ops
+            return []
 
-        # Check predicate coverage: at least 50% of predicates must have usage
-        all_functors = set()
+        # Check predicate coverage: at least 50% must have usage
+        all_functors = _collect_user_functors(kb)
+        if not all_functors:
+            return []
+
         used_functors = set()
         for fact in kb.facts:
-            if isinstance(fact.term, Compound):
-                f = fact.term.functor
-                if not (f.startswith("exception_") or f.startswith("_extracted_")
-                        or f.startswith("_invented_")):
-                    all_functors.add(f)
-                    if kb.get_usage(fact) > 0:
-                        used_functors.add(f)
+            if isinstance(fact.term, Compound) and not _is_system_predicate(fact.term.functor):
+                if kb.get_usage(fact) > 0:
+                    used_functors.add(fact.term.functor)
         for rule in kb.rules:
-            if isinstance(rule.head, Compound):
-                f = rule.head.functor
-                if not (f.startswith("exception_") or f.startswith("_extracted_")
-                        or f.startswith("_invented_")):
-                    all_functors.add(f)
-                    if kb.get_usage(rule) > 0:
-                        used_functors.add(f)
+            if isinstance(rule.head, Compound) and not _is_system_predicate(rule.head.functor):
+                if kb.get_usage(rule) > 0:
+                    used_functors.add(rule.head.functor)
 
-        if len(all_functors) == 0:
-            return ops
-        coverage = len(used_functors) / len(all_functors)
-        if coverage < 0.5:
-            return ops
+        if len(used_functors) / len(all_functors) < 0.5:
+            return []
 
-        # Find dead facts
-        dead_facts = []
+        # Collect dead clauses (unused, non-system)
+        ops = []
         for fact in kb.facts:
-            if isinstance(fact.term, Compound):
-                f = fact.term.functor
-                if f.startswith("exception_") or f.startswith("_extracted_"):
-                    continue
+            if isinstance(fact.term, Compound) and _is_system_predicate(fact.term.functor):
+                continue
             if kb.get_usage(fact) == 0:
-                dead_facts.append(fact)
+                kb.remove_fact_by_value(fact)
+                ops.append(CompressionCandidate(
+                    operation="dead_clause", original_clauses=[fact]))
 
-        # Find dead rules
-        dead_rules = []
         for rule in kb.rules:
-            if isinstance(rule.head, Compound):
-                f = rule.head.functor
-                if (f.startswith("_invented_") or f.startswith("_extracted_")
-                        or f.startswith("exception_")):
-                    continue
+            if isinstance(rule.head, Compound) and _is_system_predicate(rule.head.functor):
+                continue
             if kb.get_usage(rule) == 0:
-                dead_rules.append(rule)
-
-        # Remove dead facts
-        for fact in dead_facts:
-            kb.remove_fact_by_value(fact)
-            ops.append(CompressionCandidate(
-                operation="dead_clause", original_clauses=[fact]))
-
-        # Remove dead rules
-        for rule in dead_rules:
-            kb.remove_rule_by_value(rule)
-            ops.append(CompressionCandidate(
-                operation="dead_clause", original_clauses=[rule]))
+                kb.remove_rule_by_value(rule)
+                ops.append(CompressionCandidate(
+                    operation="dead_clause", original_clauses=[rule]))
 
         return ops
 
     def _frequency_score(self, kb: KnowledgeBase,
                          clauses: List[Union[Fact, Rule]]) -> float:
         """Compute frequency-weighted score for a set of clauses."""
-        import math
         total = sum(kb.get_usage(c) for c in clauses)
         return 1.0 + math.log2(total + 1)
 
@@ -1240,12 +1204,8 @@ class KnowledgeBaseDreamer:
         frequent = kb.get_frequent_derivations(min_count=min_derivation_count)
 
         for term, count in frequent:
-            # Skip system-generated predicates
-            if isinstance(term, Compound):
-                f = term.functor
-                if (f.startswith("_invented_") or f.startswith("_extracted_")
-                        or f.startswith("exception_")):
-                    continue
+            if isinstance(term, Compound) and _is_system_predicate(term.functor):
+                continue
 
             try:
                 new_fact = Fact(term)

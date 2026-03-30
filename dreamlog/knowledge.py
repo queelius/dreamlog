@@ -152,68 +152,31 @@ class KnowledgeBase:
             self._index_rule(rule)
     
     def _index_fact(self, fact: Fact) -> None:
-        """Add fact to the index"""
+        """Add fact to the index."""
         key = self._get_term_key(fact.term)
         if key:
-            if key not in self._fact_index:
-                self._fact_index[key] = []
-            self._fact_index[key].append(fact)
-    
+            self._fact_index.setdefault(key, []).append(fact)
+
     def _index_rule(self, rule: Rule) -> None:
-        """Add rule to the index"""
+        """Add rule to the index."""
         key = self._get_term_key(rule.head)
         if key:
-            if key not in self._rule_index:
-                self._rule_index[key] = []
-            self._rule_index[key].append(rule)
+            self._rule_index.setdefault(key, []).append(rule)
     
     def _get_term_key(self, term: Term) -> Optional[tuple[str, int]]:
-        """
-        Get indexing key for a term.
-        
-        Returns None for Variables as they cannot be indexed directly
-        (they match everything). Raises TypeError for unknown term types.
-        
-        Args:
-            term: Term to get the key for
-            
-        Returns:
-            Tuple of (functor/value, arity) or None for Variables
-            
-        Raises:
-            TypeError: If term is not a recognized Term subclass
-        """
+        """Get indexing key (functor, arity) for a term. None for Variables."""
         from .terms import Compound, Atom, Variable
-        
+
         if isinstance(term, Variable):
-            # Variables are wildcards that match anything, cannot index
             return None
-        elif isinstance(term, Compound):
+        if isinstance(term, Compound):
             return (term.functor, term.arity)
-        elif isinstance(term, Atom):
+        if isinstance(term, Atom):
             return (term.value, 0)
-        else:
-            raise TypeError(f"Unknown term type: {type(term).__name__}. "
-                          f"Expected Variable, Compound, or Atom.")
+        raise TypeError(f"Unknown term type: {type(term).__name__}")
     
     def get_matching_facts(self, term: Term) -> Iterator[Fact]:
-        """
-        Get facts that might unify with the given term.
-        
-        Uses functor/arity indexing for efficient lookup.
-        Variables in the query term will match any fact.
-        
-        Args:
-            term: The term to match against
-        
-        Yields:
-            Facts that have the same functor and arity as the term
-        
-        Examples:
-            >>> kb.add_fact(Fact(compound("parent", atom("john"), atom("mary"))))
-            >>> list(kb.get_matching_facts(compound("parent", var("X"), var("Y"))))
-            [Fact(Compound("parent", [Atom("john"), Atom("mary")]))]
-        """
+        """Yield facts that might unify with the given term (indexed by functor/arity)."""
         key = self._get_term_key(term)
         if key and key in self._fact_index:
             yield from self._fact_index[key]
@@ -235,70 +198,30 @@ class KnowledgeBase:
         return self._rules.copy()
     
     def remove_fact(self, index: int) -> Fact:
-        """
-        Remove a fact by index.
-
-        Args:
-            index: Index of the fact to remove (0-based)
-
-        Returns:
-            The removed Fact
-
-        Raises:
-            IndexError: If index is out of range
-        """
+        """Remove a fact by index. Raises IndexError if out of range."""
         if index < 0 or index >= len(self._facts):
             raise IndexError(f"Fact index {index} out of range (0-{len(self._facts)-1})")
-
-        fact = self._facts[index]
-
-        # Remove from list
-        self._facts.pop(index)
-
-        # Rebuild fact index (simpler than trying to update it)
-        self._fact_index.clear()
-        for f in self._facts:
-            self._index_fact(f)
-
+        fact = self._facts.pop(index)
+        self._rebuild_indices()
         return fact
 
     def remove_rule(self, index: int) -> Rule:
-        """
-        Remove a rule by index.
-
-        Args:
-            index: Index of the rule to remove (0-based)
-
-        Returns:
-            The removed Rule
-
-        Raises:
-            IndexError: If index is out of range
-        """
+        """Remove a rule by index. Raises IndexError if out of range."""
         if index < 0 or index >= len(self._rules):
             raise IndexError(f"Rule index {index} out of range (0-{len(self._rules)-1})")
-
-        rule = self._rules[index]
-
-        # Remove from list
-        self._rules.pop(index)
-
-        # Rebuild rule index
-        self._rule_index.clear()
-        for r in self._rules:
-            self._index_rule(r)
-
+        rule = self._rules.pop(index)
+        self._rebuild_indices()
         return rule
 
     def clear(self) -> None:
-        """Clear all facts and rules"""
+        """Clear all facts, rules, and indices."""
         self._facts.clear()
         self._rules.clear()
         self._fact_index.clear()
         self._rule_index.clear()
 
     def _rebuild_indices(self) -> None:
-        """Rebuild fact and rule indices from current lists"""
+        """Rebuild fact and rule indices from current lists."""
         self._fact_index.clear()
         self._rule_index.clear()
         for fact in self._facts:
@@ -360,6 +283,13 @@ class KnowledgeBase:
         self._derivation_counts.clear()
         self._derivation_terms.clear()
 
+    def _copy_tracking_from(self, other: 'KnowledgeBase') -> None:
+        """Copy usage and derivation tracking data from another KB."""
+        self._usage_counts = dict(other._usage_counts)
+        self._derivation_counts = dict(other._derivation_counts)
+        self._derivation_terms = dict(other._derivation_terms)
+        self._derivation_tracking = other._derivation_tracking
+
     def copy(self) -> 'KnowledgeBase':
         """Deep copy for rollback."""
         new_kb = KnowledgeBase()
@@ -367,10 +297,7 @@ class KnowledgeBase:
             new_kb.add_fact(fact)
         for rule in self._rules:
             new_kb.add_rule(rule)
-        new_kb._usage_counts = dict(self._usage_counts)
-        new_kb._derivation_counts = dict(self._derivation_counts)
-        new_kb._derivation_terms = dict(self._derivation_terms)
-        new_kb._derivation_tracking = self._derivation_tracking
+        new_kb._copy_tracking_from(self)
         return new_kb
 
     def restore_from(self, other: 'KnowledgeBase') -> None:
@@ -380,10 +307,7 @@ class KnowledgeBase:
             self.add_fact(fact)
         for rule in other._rules:
             self.add_rule(rule)
-        self._usage_counts = dict(other._usage_counts)
-        self._derivation_counts = dict(other._derivation_counts)
-        self._derivation_terms = dict(other._derivation_terms)
-        self._derivation_tracking = other._derivation_tracking
+        self._copy_tracking_from(other)
 
     def remove_fact_by_value(self, fact: Fact) -> None:
         """Remove a fact by equality."""
@@ -417,22 +341,14 @@ class KnowledgeBase:
                 raise TypeError(f"Expected Fact or Rule, got {type(item)}")
 
     def to_prefix(self) -> str:
-        """Export knowledge base to prefix notation JSON"""
-        data = []
-        for fact in self._facts:
-            data.append(fact.to_prefix())
-        for rule in self._rules:
-            data.append(rule.to_prefix())
+        """Export knowledge base to prefix notation JSON."""
+        data = [f.to_prefix() for f in self._facts] + [r.to_prefix() for r in self._rules]
         return json.dumps(data, indent=2)
-    
+
     def from_prefix(self, json_str: str) -> None:
-        """Import knowledge base from prefix notation JSON"""
+        """Import knowledge base from prefix notation JSON."""
         data = json.loads(json_str)
-        
-        # Clear existing content
         self.clear()
-        
-        # Load facts and rules
         for item in data:
             if isinstance(item, list) and len(item) > 0:
                 if item[0] == "fact":
