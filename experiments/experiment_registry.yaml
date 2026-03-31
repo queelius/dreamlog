@@ -1,0 +1,366 @@
+# DreamLog Sleep Cycle Experiment Registry
+#
+# Each experiment has: motivation (why), method (how), key_result (what we found),
+# status, date, script, and implications for the project.
+#
+# This file is the single source of truth for experimental provenance.
+
+experiments:
+
+  # ================================================================
+  # CORE COMPRESSION EXPERIMENTS
+  # ================================================================
+
+  EX01_iterative_convergence:
+    title: "Iterative Dream Cycle Convergence"
+    date: 2026-03-29
+    script: experiments/iterative_dreaming.py
+    status: complete
+    motivation: |
+      DreamCoder's sleep phase runs until convergence (no more library
+      primitives can be extracted). Does our dream cycle converge? How
+      many cycles? Is the fixed point unique or path-dependent?
+    method: |
+      Build a 68-clause KB with family relationships, transitive closures,
+      and redundant facts. Run dream() repeatedly, tracking clause count
+      after each cycle. Also test with LLM-assisted compression.
+    key_result: |
+      Converges in exactly 2 cycles (cycle 1 compresses, cycle 2 confirms
+      no more opportunities). Tested on 5 different KBs, always 2 cycles.
+      With LLM: same convergence speed, but LLM-symbolic cascade achieves
+      33% compression on family KB (15->10 clauses) in a single cycle.
+    implications: |
+      The dream cycle is a contraction mapping on KB size. Single-pass is
+      nearly optimal; the second cycle is just verification. This means
+      we don't need an iterative loop in production.
+
+  EX02_semantic_drift:
+    title: "Semantic Drift Under Repeated Dreaming"
+    date: 2026-03-29
+    script: experiments/iterative_dreaming.py
+    status: complete
+    motivation: |
+      Compression could change KB behavior: a generalization might over-
+      generate (answer queries it shouldn't) or under-generate (lose
+      answers). Repeated cycles could accumulate drift. How much behavioral
+      change does dreaming introduce?
+    method: |
+      Before dreaming, generate 200 held-out queries (ground terms) with
+      expected True/False answers. After each dream cycle, re-evaluate all
+      200 queries. Count changes (false positives and false negatives).
+    key_result: |
+      0% drift across all 200 queries, across all dream cycles. Zero false
+      positives, zero false negatives. The verification suite with positive
+      and negative queries prevents any behavioral change.
+    implications: |
+      The dream cycle is behavior-preserving by construction (verification
+      + rollback). This is a strong safety guarantee for production use.
+      The held-out query methodology could be formalized as a test.
+
+  EX03_dreamcoder_list_domain:
+    title: "DreamCoder List Domain Benchmark"
+    date: 2026-03-29
+    script: experiments/dreamcoder_benchmark.py
+    status: complete
+    motivation: |
+      DreamCoder's flagship result is discovering library primitives like
+      map, fold, filter from list-processing tasks. Can our sleep cycle
+      discover equivalent abstractions from logic programs encoding the
+      same list operations?
+    method: |
+      Encode 11 list operations (member, append, reverse, length, last,
+      sum_list, map_succ, map_double, all_positive, all_even, all_nonzero)
+      as Prolog rules using cons/nil representation. Run the sleep cycle.
+    key_result: |
+      The system discovers forall/2:
+        _invented_0(R, nil).
+        _invented_0(R, cons(X, Xs)) :- call(R, X), _invented_0(R, Xs).
+      This is the logic programming equivalent of DreamCoder's "every"
+      combinator. It compressed all_positive, all_even, all_nonzero into
+      wrappers around a single parameterized predicate. 36->33 clauses.
+    implications: |
+      DreamCoder's key discovery reproduces in our framework. The mechanism
+      (skeleton-based structural matching + call/N parameterization) is
+      the logic programming equivalent of lambda abstraction + application.
+      This validates the architectural analogy between the two systems.
+
+  EX04_derivation_trees:
+    title: "Proof Tree Recording and Common Subtree Detection"
+    date: 2026-03-29
+    script: experiments/dreamcoder_benchmark.py  # inline test
+    status: complete
+    motivation: |
+      DreamCoder compresses derivation traces (programs that solved tasks).
+      Static KB analysis (Operations D/E) finds structural patterns in rule
+      definitions. Derivation trees capture what actually happens during
+      resolution. Can dynamic analysis find patterns that static misses?
+    method: |
+      Instrument the evaluator to record full proof trees (ProofNode with
+      goal, clause, children). Run diverse ancestor queries on a chain KB.
+      Analyze proof logs for common structural subtrees.
+    key_result: |
+      The 2-hop ancestor derivation pattern (ancestor via parent + ancestor
+      via parent) appears 8 times across 8 queries. This matches what Op E
+      found statically (the grandparent body prefix). Dynamic and static
+      analysis converge on the same patterns for this KB.
+    implications: |
+      For well-structured KBs, static analysis suffices. Dynamic analysis
+      would add value for KBs where the structure doesn't reveal usage
+      patterns (e.g., rules that exist but are rarely used together).
+      The proof tree infrastructure enables future work on proof-guided
+      compression.
+
+  # ================================================================
+  # LLM-ASSISTED EXPERIMENTS
+  # ================================================================
+
+  EX05_llm_family_kb:
+    title: "LLM-Assisted Cross-Functor Rule Discovery"
+    date: 2026-03-28
+    script: experiments/llm_sleep_cycle.py
+    status: complete
+    motivation: |
+      Symbolic operations cannot discover rules that cross functor
+      boundaries (e.g., father(X,Y) :- parent(X,Y), male(X)) because
+      anti-unification works within a single predicate. Can an LLM
+      see these cross-functor relationships?
+    method: |
+      Family KB with parent, male, female, father, mother facts. Run
+      dream cycle with LLM client (phi4-mini). Op G prompts the LLM
+      with KB facts and asks for rules. Validate proposed rules against
+      the verification suite.
+    key_result: |
+      phi4-mini discovered:
+        father(X, Y) :- parent(X, Y), male(X).
+        mother(X, Y) :- parent(X, Y), female(X).
+      Post-OpG pruning removed 8 now-derivable facts. 42->36 clauses
+      (14% improvement over symbolic-only). However, results are non-
+      deterministic: same model sometimes proposes nothing.
+    implications: |
+      LLM-assisted compression fills a genuine gap (cross-functor
+      conjunctive rules). The verification framework prevents bad rules
+      from being accepted. Non-determinism is a challenge for
+      reproducibility; ensemble methods might help.
+
+  EX06_llm_multi_domain:
+    title: "LLM Compression Across Knowledge Domains"
+    date: 2026-03-28
+    script: experiments/llm_multi_domain.py
+    status: complete
+    motivation: |
+      Does LLM-assisted compression generalize across domains, or is the
+      family KB result a special case? Test on biology (taxonomy), geography
+      (countries), university (courses), and cooking (recipes).
+    method: |
+      4 domain KBs with derivable relationships (warm_blooded from class,
+      english_speaking from language, stem_student from enrollment, vegan
+      from ingredients). Run with phi4-mini and qwen3:8b.
+    key_result: |
+      LLM added zero value across all 4 domains. Symbolic Op C preempts
+      the LLM by finding guard-based generalizations (e.g., warm_blooded(X)
+      :- animal(X), not(exception...)) before Op G runs. The LLM's more
+      precise rules (warm_blooded :- mammal OR bird) are blocked because
+      the facts are already compressed.
+    implications: |
+      Operation ordering matters: C before G means symbolic generalizations
+      preempt LLM discoveries. The LLM is most valuable when Op C can't
+      compress (no guard predicate, or cross-functor patterns). Future work:
+      run LLM first for some domains?
+
+  EX07_llm_model_comparison:
+    title: "LLM Model Quality vs Rule Discovery"
+    date: 2026-03-29
+    script: experiments/llm_sleep_cycle.py  # various --model flags
+    status: complete
+    motivation: |
+      Different LLM models vary in reasoning capability, JSON formatting
+      compliance, and tendency to hallucinate. Which models produce the
+      best rules for knowledge compression?
+    method: |
+      Same family + graph KBs across phi4-mini, phi4, qwen3:8b, llama3.2,
+      gpt-oss. Compare: JSON validity, rule correctness, variable usage
+      (generalized vs ground), and compression achieved.
+    key_result: |
+      - phi4-mini: Best balance of speed + quality. Discovers father/mother.
+      - phi4 (14B): Finds parent(X,Y) :- father(X,Y) (reversed direction).
+      - qwen3:8b: Finds path(X,Y) :- edge(X,Y). Needs <think> tag stripping.
+      - llama3.2: Produces GROUND rules (one per fact), all rejected by MDL.
+      - gpt-oss (120B): Perfect JSON, perfect rules, but very slow.
+    implications: |
+      Model size matters for generalization quality. Small models produce
+      ground instances; medium models produce generalized rules; large
+      models produce perfect output but are slow. The 4-8B parameter range
+      is the sweet spot for this task.
+
+  # ================================================================
+  # ABLATION AND SCALING
+  # ================================================================
+
+  EX08_ablation:
+    title: "Operation Ablation Study"
+    date: 2026-03-30
+    script: experiments/ablation_and_scale.py --experiment ablation
+    status: complete
+    motivation: |
+      With 8 operations (A-H), which ones contribute the most to
+      compression? Are any operations redundant or counterproductive?
+    method: |
+      119-clause KB with all pattern types. Run dream() 8 times, each
+      time disabling one operation via monkey-patching. Compare clause
+      count to full-pipeline baseline.
+    key_result: |
+      Op C (fact generalization): 85% of compression (11 of 13 clauses)
+      Op B (pruning): 15% (2 clauses)
+      Op D (invention): 15% (2 clauses)
+      Op E (extraction): -15% (INCREASES clause count by 2 when disabled!)
+      Op A, F, H: 0% impact on this KB
+    implications: |
+      Op C is the workhorse. Op E is counterproductive on clause-count
+      MDL (adds a clause for structural simplification). Op A and F don't
+      fire on this KB (no subsumed rules, no dead clauses). For a minimal
+      deployment, Op C alone captures most of the value.
+
+  EX09_scaling:
+    title: "Compression Scaling with KB Size"
+    date: 2026-03-30
+    script: experiments/ablation_and_scale.py --experiment scale
+    status: complete
+    motivation: |
+      Does compression quality degrade with KB size? Does the system
+      become too slow for practical KBs? What's the scaling law?
+    method: |
+      Generate KBs from 69 to 1019 clauses (10 to 200 entities). Same
+      structural patterns at every scale. Measure compression ratio, time,
+      and throughput (clauses/second).
+    key_result: |
+      Compression ratio: stable at 0.88 across all sizes.
+      Operation count: constant at 6 (same patterns, same discoveries).
+      Throughput: 75 cl/s (n=10) -> 12 cl/s (n=200).
+      Bottleneck: verification queries on transitive closures (O(n) per
+      query, O(n) queries = O(n^2) total).
+    implications: |
+      Compression quality is size-independent (good). Performance is
+      O(n^2) due to verification (bad for n>1000). Optimization: sample
+      verification queries instead of exhaustive checking, or cache
+      intermediate resolution results.
+
+  EX10_wake_sleep_loop:
+    title: "Full Wake-Sleep Loop: Query Performance Improvement"
+    date: 2026-03-30
+    script: experiments/ablation_and_scale.py --experiment wake_sleep
+    status: complete
+    motivation: |
+      The theoretical claim is that sleeping improves waking performance.
+      Does dreaming actually make queries faster? By how much?
+    method: |
+      132-clause KB. Wake phase: run 15 queries 5 times each with
+      derivation tracking. Dream phase: compress KB (Op H caches lemma
+      facts from derivation log). Re-run same 15 queries. Compare times.
+    key_result: |
+      Query time: 25.0ms -> 1.1ms (23.6x speedup).
+      Mechanism: Op H cached 15 lemma facts (frequently-derived terms).
+      Queries that required multi-step recursive resolution now resolve
+      via direct fact lookup. Correctness fully preserved (15/15 queries).
+    implications: |
+      The wake-sleep loop delivers real performance gains. Lemma caching
+      (memoization during sleep) is the key mechanism. This is analogous
+      to how biological sleep consolidates memories: frequently-accessed
+      patterns become cached for faster retrieval.
+
+  # ================================================================
+  # PLANNED EXPERIMENTS
+  # ================================================================
+
+  EX11_noise_tolerance:
+    title: "Compression Under Noisy Data"
+    date: 2026-03-31
+    script: experiments/noise_and_ordering.py --experiment noise
+    status: complete
+    motivation: |
+      Real-world KBs contain errors: incorrect facts, contradictory rules,
+      stale data. How robust is the sleep cycle to noise? Does it amplify
+      errors (by generalizing from wrong data) or suppress them (by
+      identifying anomalies)?
+    method: |
+      36-clause clean family KB. Inject 0-50% random incorrect facts
+      (wrong gender, impossible parents, random preferences). Run dream
+      cycle at each noise level. Track: compression ratio, whether noisy
+      facts got generalized, and correctness on known-true/false queries.
+    key_result: |
+      0-20% noise: ROBUST. Noisy facts left as isolated facts, not
+      generalized. Compression ratio 0.86-0.87, all checks pass.
+      30%+ noise: AMPLIFIES ERRORS. Enough noisy facts share patterns
+      (e.g., multiple random likes(person, spinach)) that Op C generalizes
+      them into a rule. Correctness still passes (known queries unaffected)
+      but the KB now contains generalized garbage.
+    implications: |
+      The system is robust to moderate noise (<20%). At high noise levels,
+      the guard-based generalization treats noise as signal. Mitigation:
+      require higher min_group_size for noisy domains, or use LLM-as-judge
+      to validate generalizations before applying.
+
+  EX12_real_world_ontology:
+    title: "Compression on Real-World-Style Knowledge"
+    date: 2026-03-31
+    script: experiments/real_world_kb.py
+    status: complete
+    motivation: |
+      All previous experiments use synthetic KBs with known structure.
+      Does the sleep cycle discover meaningful abstractions in real-world-
+      style knowledge (genealogy, geography, curriculum)?
+    method: |
+      Three domains: (1) Biblical genealogy (79 clauses, 4 generations),
+      (2) World geography (129 clauses, 15 countries), (3) University
+      curriculum (97 clauses, 14 courses with prerequisites). Run full
+      pipeline on each.
+    key_result: |
+      Genealogy: 79->75 (5% compression). Op C generalized one pattern.
+      Geography: 129->99 (23% compression). Op C found 5 generalizations
+        (english_speaking, developed, northern, etc.).
+      Curriculum: 97->78 (20% compression). Op C generalized stem_course
+        and advanced_course. Op D discovered transitive closure from 3
+        prerequisite traversal predicates (requires/depends_on/needs_first).
+      Total: 305->252 (17% compression), all correctness checks pass.
+    implications: |
+      The system works on realistic data structures. Op C is the primary
+      compressor on property-based KBs. Op D fires when multiple transitive
+      closures exist (curriculum prerequisites). Geography is the richest
+      domain because it has many derivable property predicates with shared
+      guard predicates.
+
+  EX13_operation_ordering:
+    title: "Sensitivity to Operation Ordering"
+    date: 2026-03-31
+    script: experiments/noise_and_ordering.py --experiment ordering
+    status: complete
+    motivation: |
+      Operations run in fixed order A->B->C->D->E->F->G->H. EX06 showed
+      that C preempts G. Would different orderings produce better results?
+      Is there a principled way to choose the order?
+    method: |
+      119-clause KB. Run all 6 permutations of {C, D, E} with A and B
+      always first (cleanup) and F, H always last (post-processing).
+    key_result: |
+      ALL 6 orderings produce exactly 106 clauses. Order does not matter
+      for C, D, E on this KB. The operations are sufficiently independent
+      that their compression targets don't overlap.
+    implications: |
+      For well-structured KBs, operation ordering is irrelevant. The
+      preemption issue (C before G) is specific to LLM-assisted ops, not
+      to the symbolic pipeline. The fixed ordering A-H is safe.
+
+  EX14_multi_cycle_llm:
+    title: "LLM Discoveries Across Multiple Dream Cycles"
+    date: null
+    script: null
+    status: planned
+    motivation: |
+      In EX01, the LLM-symbolic cascade worked within one cycle. But what
+      if cycle 1's LLM discoveries create patterns that cycle 2's symbolic
+      ops can further compress? What if cycle 2's compressions reveal new
+      cross-functor patterns for cycle 3's LLM?
+    method: |
+      Design a KB where this cascade should occur. Run iterative dreaming
+      with LLM. Track whether each cycle's discoveries enable the next.
+    key_result: null
+    implications: null
