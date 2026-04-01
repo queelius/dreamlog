@@ -630,39 +630,57 @@ class TestOperationE:
 
 
 class TestOperationF:
-    def test_dead_fact_removed(self):
-        """Fact with 0 usage after queries is pruned."""
+    def test_dead_derived_fact_removed(self):
+        """Derived fact (not seed) with 0 usage is pruned."""
         kb = KnowledgeBase()
         kb.add_fact(compound("a", atom("x")))
-        kb.add_fact(compound("b", atom("y")))  # never queried
-        # Simulate wake phase: query a(x) enough times
+        # Simulate wake phase
         from dreamlog.evaluator import PrologEvaluator
         ev = PrologEvaluator(kb)
         for _ in range(15):
             list(ev.query([compound("a", atom("x"))]))
-        # b(y) has 0 usage, a(x) has 15
-        assert kb.get_usage(kb.facts[1]) == 0
+        # Now add a derived fact AFTER the wake phase (simulates prior dream)
+        kb.add_fact(compound("b", atom("y")))
+        # b(y) has 0 usage — it's derived, not seed
         dreamer = KnowledgeBaseDreamer()
-        dreamer.dream(kb, verify=False)
+        seed_terms = {compound("a", atom("x"))}  # only a(x) is seed
+        ops = dreamer._prune_dead_clauses(kb, seed_terms=seed_terms)
         remaining = [f.term for f in kb.facts]
         assert compound("a", atom("x")) in remaining
         assert compound("b", atom("y")) not in remaining
 
+    def test_seed_fact_protected(self):
+        """Seed fact with 0 usage is NOT pruned."""
+        kb = KnowledgeBase()
+        kb.add_fact(compound("a", atom("x")))
+        kb.add_fact(compound("b", atom("y")))  # never queried, but is seed
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        for _ in range(15):
+            list(ev.query([compound("a", atom("x"))]))
+        dreamer = KnowledgeBaseDreamer()
+        dreamer.dream(kb, verify=False)
+        remaining = [f.term for f in kb.facts]
+        assert compound("a", atom("x")) in remaining
+        assert compound("b", atom("y")) in remaining  # protected as seed
+
     def test_dead_rule_removed(self):
-        """Rule with 0 usage after queries is pruned."""
+        """Derived rule with 0 usage is pruned."""
         kb = KnowledgeBase()
         kb.add_fact(compound("a", atom("x")))
         r_used = Rule(compound("b", var("X")), [compound("a", var("X"))])
-        r_dead = Rule(compound("c", var("X")), [compound("d", var("X"))])
         kb.add_rule(r_used)
-        kb.add_rule(r_dead)
         from dreamlog.evaluator import PrologEvaluator
         ev = PrologEvaluator(kb)
         for _ in range(15):
             list(ev.query([compound("b", atom("x"))]))
+        # Add a dead rule after wake (simulates prior dream output)
+        r_dead = Rule(compound("c", var("X")), [compound("d", var("X"))])
+        kb.add_rule(r_dead)
         dreamer = KnowledgeBaseDreamer()
-        dreamer.dream(kb, verify=False)
-        assert len(kb.rules) == 1  # dead rule removed
+        seed_rules = {(r_used.head, tuple(r_used.body))}
+        ops = dreamer._prune_dead_clauses(kb, seed_rules=seed_rules)
+        assert len(kb.rules) == 1  # dead rule removed, used rule kept
 
     def test_used_clauses_preserved(self):
         """Clauses with usage > 0 are kept."""

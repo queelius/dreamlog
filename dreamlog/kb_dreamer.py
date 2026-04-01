@@ -309,8 +309,13 @@ class KnowledgeBaseDreamer:
         ops: List[CompressionCandidate] = []
 
         # Operation F runs first, using only wake-phase usage data
-        # (before verification queries inflate usage counts)
-        dead_ops = self._prune_dead_clauses(kb)
+        # (before verification queries inflate usage counts).
+        # Protect user-provided seed facts from pruning — only prune
+        # facts/rules added during previous dream cycles (lemmas, LLM rules).
+        seed_terms = {f.term for f in kb.facts}
+        seed_rules = {(r.head, tuple(r.body)) for r in kb.rules}
+        dead_ops = self._prune_dead_clauses(kb, seed_terms=seed_terms,
+                                             seed_rules=seed_rules)
         ops.extend(dead_ops)
         # Remove dead clauses from verification suite (they're dead by definition)
         if suite and dead_ops:
@@ -1324,13 +1329,19 @@ class KnowledgeBaseDreamer:
     # ── Operation F: Dead clause pruning ──
 
     def _prune_dead_clauses(self, kb: KnowledgeBase,
-                            min_query_threshold: int = 10
+                            min_query_threshold: int = 10,
+                            seed_terms: Optional[Set] = None,
+                            seed_rules: Optional[Set] = None,
                             ) -> List[CompressionCandidate]:
         """Operation F: Remove clauses with 0 usage after sufficient queries.
 
         Requires both a minimum total query count AND that at least 50% of
         distinct predicates have been queried. This prevents pruning in KBs
         where the wake phase only exercised a narrow subset of predicates.
+
+        User-provided seed facts/rules (present when dream() was called) are
+        never pruned — only derived clauses (lemmas, LLM rules from prior
+        cycles) are eligible for dead-clause removal.
         """
         if kb.total_queries_tracked() < min_query_threshold:
             return []
@@ -1353,10 +1364,12 @@ class KnowledgeBaseDreamer:
         if len(used_functors) / len(all_functors) < 0.5:
             return []
 
-        # Collect dead clauses (unused, non-system)
+        # Collect dead clauses (unused, non-system, non-seed)
         ops = []
         for fact in kb.facts:
             if isinstance(fact.term, Compound) and _is_system_predicate(fact.term.functor):
+                continue
+            if seed_terms and fact.term in seed_terms:
                 continue
             if kb.get_usage(fact) == 0:
                 kb.remove_fact_by_value(fact)
@@ -1365,6 +1378,8 @@ class KnowledgeBaseDreamer:
 
         for rule in kb.rules:
             if isinstance(rule.head, Compound) and _is_system_predicate(rule.head.functor):
+                continue
+            if seed_rules and (rule.head, tuple(rule.body)) in seed_rules:
                 continue
             if kb.get_usage(rule) == 0:
                 kb.remove_rule_by_value(rule)
