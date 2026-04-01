@@ -185,6 +185,7 @@ class DreamLogTUI:
                 'temperature': self.config.provider.temperature,
                 'max_tokens': self.config.provider.max_tokens,
                 'timeout': self.config.provider.timeout,
+                'api_key_env': self.config.provider.api_key_env,
             }
 
             if self.config.provider.base_url:
@@ -1551,10 +1552,11 @@ def main():
 
     parser = argparse.ArgumentParser(description="DreamLog Terminal User Interface")
     parser.add_argument("--llm", action="store_true", help="Enable LLM integration")
-    parser.add_argument("--provider", default="ollama", help="LLM provider")
-    parser.add_argument("--model", default="phi4-mini:latest", help="LLM model")
-    parser.add_argument("--base-url", default="http://localhost:11434", help="LLM base URL")
-    parser.add_argument("--timeout", type=int, default=30, help="LLM request timeout in seconds (default: 30, use 120 for reasoning models)")
+    parser.add_argument("--provider", default="anthropic", help="LLM provider (anthropic, openai, ollama)")
+    parser.add_argument("--model", default=None, help="LLM model (default: per-provider)")
+    parser.add_argument("--api-key-env", default="MY_ANTHROPIC_API_KEY", help="Env var containing API key")
+    parser.add_argument("--base-url", default=None, help="LLM base URL (for ollama/custom)")
+    parser.add_argument("--timeout", type=int, default=30, help="LLM request timeout in seconds")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output")
     parser.add_argument("--load", help="Load knowledge base on startup")
@@ -1567,8 +1569,9 @@ def main():
     provider_config = LLMProviderConfig(
         provider=args.provider,
         model=args.model,
+        api_key_env=args.api_key_env,
         base_url=args.base_url,
-        timeout=args.timeout
+        timeout=args.timeout,
     )
 
     # Create main config

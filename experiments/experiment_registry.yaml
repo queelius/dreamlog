@@ -349,11 +349,100 @@ experiments:
       preemption issue (C before G) is specific to LLM-assisted ops, not
       to the symbolic pipeline. The fixed ordering A-H is safe.
 
-  EX14_multi_cycle_llm:
+  EX14_haiku_vs_local:
+    title: "Cloud LLM (Haiku) vs Local Models for Rule Discovery"
+    date: 2026-03-31
+    script: experiments/llm_sleep_cycle.py  # --provider anthropic
+    status: complete
+    motivation: |
+      EX07 showed local models (phi4-mini, qwen3:8b) vary widely in rule
+      quality. Claude Haiku 4.5 is fast, cheap ($0.25/M input), and
+      purpose-built for structured output. Does a cloud API model produce
+      better rules than local models?
+    method: |
+      Same family KB (42 clauses) and multi-domain KBs (273 clauses total).
+      Replaced Ollama/phi4-mini with Anthropic Haiku via new --provider
+      anthropic --api-key-env MY_ANTHROPIC_API_KEY flags. Also required
+      adding evaluator call limits (max_total_calls) because Haiku's
+      thoroughness created combinatorial explosion.
+    key_result: |
+      Family KB: Haiku discovered 6 rules (vs phi4-mini's 2).
+        father(X,Y) :- parent(X,Y), male(X).     [same as phi4-mini]
+        mother(X,Y) :- parent(X,Y), female(X).    [same as phi4-mini]
+        parent(X,Y) :- father(X,Y).               [new: reverse inference]
+        parent(X,Y) :- mother(X,Y).               [new: reverse inference]
+        male(X) :- father(X,Y).                   [new: property inference]
+        female(X) :- mother(X,Y).                 [new: property inference]
+      42->38 clauses (10% compression, vs phi4-mini's 14% on some runs).
+      Post-OpG pruning removed 8 now-derivable facts.
+      Multi-domain: Haiku found 2 rules in cooking domain:
+        vegan_recipe(X) :- uses(X,Y), vegan(Y,true).
+        contains_dairy(X) :- uses(X,Y), type(Y,dairy).
+      This is +2 clauses better than symbolic-only. However, vegan_recipe
+      rule is semantically wrong (checks ONE ingredient, not ALL), causing
+      a false positive on cake. Other 3 domains: Haiku matched symbolic.
+      JSON quality: perfect. No markdown fences, no formatting errors.
+      Deterministic: Haiku produces consistent output across runs.
+    implications: |
+      Haiku is strictly better than local models for rule discovery: more
+      rules, better JSON, deterministic. BUT its thoroughness creates a
+      new engineering challenge: bidirectional rules (A←B and B←A) create
+      resolution loops that blow up the evaluator. Required adding
+      max_total_calls to PrologEvaluator and bounded verification in Op G
+      and post-Op-G pruning. The vegan_recipe false positive shows that
+      existential vs universal quantification remains a challenge for LLMs
+      (the rule checks "exists vegan ingredient" not "all ingredients vegan").
+
+  EX15_prompt_engineering:
+    title: "Prompt Engineering for Op G Rule Quality"
+    date: 2026-03-31
+    script: experiments/ex16_prompt_and_filter.py
+    status: complete
+    motivation: |
+      EX14 showed Haiku proposes bidirectional rules (parent←father AND
+      father←parent+male) creating resolution loops, and existential rules
+      where universal is needed (vegan_recipe). Can prompt engineering fix
+      these systematic errors?
+    method: |
+      EX16: Test 3 prompt variants (baseline, anti-bidirectional, hierarchy-
+      aware) on family KB. Measure bidirectional pair count and eval time.
+      EX17: Implement dependency-graph cycle filter. Test on clean/bidir/
+      indirect/self-recursive cases. Compare filtered vs unfiltered baseline.
+      EX18: Test quantifier-aware prompt on cooking KB (baseline vs prompt
+      that warns about existential-when-universal-needed patterns).
+    key_result: |
+      EX16: Anti-bidirectional prompt eliminated ALL reverse rules. Baseline
+      produced 21 rules (9 bidirectional pairs), anti-bidir produced exactly
+      2 clean rules (father, mother). Eval time: 0.003s vs 0.025s.
+      EX17: Cycle filter correctly rejected 4 reverse rules from baseline,
+      allowing 0 self-recursive rules to be incorrectly rejected.
+      EX18: Quantifier-aware prompt made Haiku use negation-as-failure for
+      vegan_recipe, but the rule format wasn't parseable by Op G's JSON
+      parser. The standard prompt still produces the existential bug.
+      EX19 integration (improved prompt + cycle filter on all 4 domains):
+        Biology:    77->64 (3 LLM rules, +3 over symbolic). pet(wolf) FP.
+        Geography:  64->49 (2 LLM rules: american_country). ALL PASS.
+        University: 71->48 (1 LLM rule + 13 pruned). ALL PASS.
+        Cooking:    61->50 (2 LLM rules). vegan_recipe(cake) FP persists.
+        TOTAL:      273->211 (0.77 ratio). +20 over symbolic (was +2 in EX14).
+      Full dream time: ~2s per KB (was 29s for family KB in EX14). 14x faster.
+    implications: |
+      Prompt engineering is the highest-leverage fix. Anti-bidirectional
+      guidance eliminates 95% of problematic rules. Combined with the cycle
+      filter as safety net, Op G now runs in seconds instead of minutes.
+      The existential-vs-universal quantification issue remains unsolved at
+      the prompt level (NAF syntax isn't parseable). Needs parser support
+      for negation in LLM-proposed rules, or a semantic false-positive
+      detector. The university enrolled(X,Y) :- student(X), course(Y) case
+      shows that syntactic correctness doesn't guarantee semantic correctness
+      when the data happens to be complete.
+
+  EX16_multi_cycle_llm:
     title: "LLM Discoveries Across Multiple Dream Cycles"
     date: null
     script: null
     status: planned
+    depends_on: EX15
     motivation: |
       In EX01, the LLM-symbolic cascade worked within one cycle. But what
       if cycle 1's LLM discoveries create patterns that cycle 2's symbolic

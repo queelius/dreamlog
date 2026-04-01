@@ -60,6 +60,57 @@ def _strip_llm_noise(text: str) -> str:
     return text
 
 
+def _filter_cyclic_rules(rules: List[Rule]) -> List[Rule]:
+    """Remove proposed rules that would create cycles in the functor dependency graph.
+
+    Self-recursive rules (head functor in own body) are allowed since the
+    evaluator handles those via depth limits. Only cross-functor cycles
+    (A←B and B←A) are rejected, as they create combinatorial explosion.
+    """
+    from collections import defaultdict
+    graph: Dict[str, Set[str]] = defaultdict(set)
+    result = []
+
+    for rule in rules:
+        head_fn = rule.head.functor
+        body_fns = {g.functor for g in rule.body
+                    if isinstance(g, Compound)} - {head_fn}
+
+        old_edges = graph[head_fn].copy()
+        graph[head_fn] |= body_fns
+
+        # DFS cycle check
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color: Dict[str, int] = defaultdict(int)
+        has_cycle = False
+
+        def dfs(node):
+            nonlocal has_cycle
+            color[node] = GRAY
+            for nbr in graph.get(node, set()):
+                if color[nbr] == GRAY:
+                    has_cycle = True
+                    return
+                if color[nbr] == WHITE:
+                    dfs(nbr)
+                    if has_cycle:
+                        return
+            color[node] = BLACK
+
+        for node in graph:
+            if color[node] == WHITE:
+                dfs(node)
+                if has_cycle:
+                    break
+
+        if has_cycle:
+            graph[head_fn] = old_edges  # rollback
+        else:
+            result.append(rule)
+
+    return result
+
+
 def _collect_user_functors(kb: KnowledgeBase) -> Set[str]:
     """Collect functor names of user-defined (non-system) predicates."""
     functors: Set[str] = set()
@@ -288,15 +339,18 @@ class KnowledgeBaseDreamer:
         llm_ops = self._llm_compress(kb, suite)
         ops.extend(llm_ops)
 
-        # Re-run Op B after LLM adds rules (new rules may make facts derivable)
+        # After LLM-proposed rules, use bounded evaluators to prevent
+        # combinatorial explosion from loops (e.g. parent←father + father←parent)
         if llm_ops:
-            ops.extend(self._prune_redundant_facts(kb))
+            ops.extend(self._prune_redundant_facts(kb, max_calls=500))
 
         # Operation H: Lemma caching (add frequently-derived terms as facts)
         ops.extend(self._cache_lemmas(kb))
 
         if verify and suite:
-            result = suite.verify(kb, lambda k: PrologEvaluator(k))
+            max_calls = 500 if llm_ops else 0
+            result = suite.verify(
+                kb, lambda k, _mc=max_calls: PrologEvaluator(k, max_total_calls=_mc))
             if not result.passed:
                 kb.restore_from(snapshot)
                 return DreamSession(compressed=False, operations=[],
@@ -350,17 +404,25 @@ class KnowledgeBaseDreamer:
 
         return ops
 
-    def _prune_redundant_facts(self, kb: KnowledgeBase) -> List[CompressionCandidate]:
+    def _prune_redundant_facts(self, kb: KnowledgeBase,
+                               max_calls: int = 0) -> List[CompressionCandidate]:
         """Operation B: Remove facts derivable from remaining KB."""
         ops = []
         facts = kb.facts
+
+        def _make_ev(k):
+            return PrologEvaluator(k, max_total_calls=max_calls)
 
         # Phase 1: Find independently redundant facts
         redundant = []
         for fact in facts:
             kb.remove_fact_by_value(fact)
-            ev = PrologEvaluator(kb)
-            if ev.has_solution(fact.term):
+            ev = _make_ev(kb)
+            try:
+                is_derivable = ev.has_solution(fact.term)
+            except RecursionError:
+                is_derivable = False
+            if is_derivable:
                 redundant.append(fact)
             kb.add_fact(fact)
 
@@ -372,8 +434,11 @@ class KnowledgeBaseDreamer:
             kb.remove_fact_by_value(fact)
 
         # Phase 3: Verify all still derivable
-        ev = PrologEvaluator(kb)
-        still_ok = all(ev.has_solution(f.term) for f in redundant)
+        ev = _make_ev(kb)
+        try:
+            still_ok = all(ev.has_solution(f.term) for f in redundant)
+        except RecursionError:
+            still_ok = False
 
         if still_ok:
             for fact in redundant:
@@ -386,8 +451,12 @@ class KnowledgeBaseDreamer:
             kb.add_fact(fact)
         for fact in redundant:
             kb.remove_fact_by_value(fact)
-            ev = PrologEvaluator(kb)
-            if ev.has_solution(fact.term):
+            ev = _make_ev(kb)
+            try:
+                is_derivable = ev.has_solution(fact.term)
+            except RecursionError:
+                is_derivable = False
+            if is_derivable:
                 ops.append(CompressionCandidate(
                     operation="pruning", original_clauses=[fact]))
             else:
@@ -985,17 +1054,35 @@ class KnowledgeBaseDreamer:
         if not fact_lines:
             return ops
 
+        # Compute predicate fact counts to guide directionality
+        pred_counts: Dict[str, int] = {}
+        for fact in kb.facts:
+            if isinstance(fact.term, Compound):
+                pred_counts[fact.term.functor] = (
+                    pred_counts.get(fact.term.functor, 0) + 1)
+        count_lines = "\n".join(
+            f"  {fn}: {cnt} facts" for fn, cnt in
+            sorted(pred_counts.items(), key=lambda x: -x[1]))
+
         prompt = (
             "Given these facts from a knowledge base:\n\n"
             + "\n".join(fact_lines)
-            + "\n\nPropose rules that derive some facts from others. "
-            "Use variables (X, Y, Z) for the general pattern. "
-            "Use MULTIPLE rules for the same head when the pattern involves "
-            "OR conditions (disjunction).\n\n"
+            + f"\n\nPredicate fact counts:\n{count_lines}\n\n"
+            "Propose rules that derive SPECIFIC predicates from MORE GENERAL ones. "
+            "A rule should EXPLAIN why a fact is true using simpler building blocks.\n\n"
+            "IMPORTANT constraints:\n"
+            "- Rules must go in ONE direction only: specific <- general.\n"
+            "- NEVER propose reverse/inverse rules (if father <- parent+male, "
+            "do NOT also propose parent <- father).\n"
+            "- Body predicates should have MORE facts than the head predicate.\n"
+            "- Each rule must derive at least 2 existing facts.\n"
+            "- For 'all X satisfy P' patterns (e.g., vegan_recipe requires ALL "
+            "ingredients to be vegan), use a helper predicate with not/1:\n"
+            '  ["rule", ["has_non_vegan", "X"], [["uses", "X", "Y"], ["vegan", "Y", "false"]]]\n'
+            '  ["rule", ["vegan_recipe", "X"], [["recipe", "X"], ["not", ["has_non_vegan", "X"]]]]\n\n'
             "Example format:\n"
             '  ["rule", ["father", "X", "Y"], [["parent", "X", "Y"], ["male", "X"]]]\n'
-            '  ["rule", ["warm_blooded", "X"], [["class", "X", "mammal"]]]\n'
-            '  ["rule", ["warm_blooded", "X"], [["class", "X", "bird"]]]\n\n'
+            '  For not/1: ["not", ["predicate", "X"]] as a body goal.\n\n'
             "Reply with ONLY a JSON array of rules. "
             "No explanation, no markdown.\n\n"
             "Rules:"
@@ -1007,7 +1094,10 @@ class KnowledgeBaseDreamer:
 
         # Collect user-defined (non-system) functors once for validation
         kb_functors = _collect_user_functors(kb)
+        MAX_CALLS = 500
 
+        # Phase 1: Parse and structurally validate all proposed rules
+        parsed_rules: List[Rule] = []
         for rule_data in raw_rules:
             try:
                 if isinstance(rule_data, Rule):
@@ -1016,49 +1106,100 @@ class KnowledgeBaseDreamer:
                     rule = self._build_rule_from_parsed(rule_data)
                     if rule is None:
                         continue
-
-                # Structural validation
                 if not isinstance(rule.head, Compound) or not rule.head.functor:
                     continue
                 if not rule.body:
                     continue
-                if any(not isinstance(g, Compound) or not g.functor for g in rule.body):
+                if any(not isinstance(g, Compound) or not g.functor
+                       for g in rule.body):
                     continue
-                if any(g.functor not in kb_functors for g in rule.body):
+                # Body functors must be in KB or be builtins (not, call).
+                # Also allow functors that appear as heads of OTHER
+                # proposed rules (helper predicates like has_non_vegan).
+                _BUILTIN_FUNCTORS = {"not", "call"}
+                if any(g.functor not in kb_functors
+                       and g.functor not in _BUILTIN_FUNCTORS
+                       for g in rule.body):
                     continue
+                parsed_rules.append(rule)
+            except Exception:
+                continue
 
-                # Check: rule must derive at least one existing fact
+        # Phase 2: Filter out rules that create cross-functor cycles
+        # (e.g., parent←father + father←parent). Self-recursion is fine.
+        parsed_rules = _filter_cyclic_rules(parsed_rules)
+
+        # Phase 3: Separate helper rules (new predicates) from main rules
+        # (derive existing facts). Helpers support main rules (e.g.,
+        # has_non_vegan for not(has_non_vegan(X)) in vegan_recipe).
+        fact_functors = {f.term.functor for f in kb.facts
+                         if isinstance(f.term, Compound)}
+        helper_rules = [r for r in parsed_rules
+                        if r.head.functor not in fact_functors]
+        main_rules = [r for r in parsed_rules
+                      if r.head.functor in fact_functors]
+
+        # Phase 4: Evaluate main rules (with helpers available)
+        accepted_rules: List[Rule] = list(helper_rules)
+        for rule in main_rules:
+            try:
+                # Build test KB with helpers + this rule
                 test_kb = kb.copy()
+                for h in helper_rules:
+                    test_kb.add_rule(h)
                 test_kb.add_rule(rule)
-                ev = PrologEvaluator(test_kb)
+                ev = PrologEvaluator(test_kb, max_total_calls=MAX_CALLS)
 
                 derivable_facts = []
-                for fact in kb.facts:
-                    if (isinstance(fact.term, Compound)
-                            and fact.term.functor == rule.head.functor):
-                        if ev.has_solution(fact.term):
-                            derivable_facts.append(fact)
-
-                if not derivable_facts:
+                try:
+                    for fact in kb.facts:
+                        if (isinstance(fact.term, Compound)
+                                and fact.term.functor == rule.head.functor):
+                            if ev.has_solution(fact.term):
+                                derivable_facts.append(fact)
+                except RecursionError:
                     continue
-
-                # Verify: adding rule must not break anything
-                if suite is not None:
-                    result = suite.verify(test_kb, lambda k: PrologEvaluator(k))
-                    if not result.passed:
-                        continue
 
                 if len(derivable_facts) < 2:
                     continue
 
-                kb.add_rule(rule)
-                ops.append(CompressionCandidate(
-                    operation="llm_compression",
-                    original_clauses=[],
-                    new_clauses=[rule]))
+                # Verify: adding rule must not break anything
+                if suite is not None:
+                    def ev_factory(k, _mc=MAX_CALLS):
+                        return PrologEvaluator(k, max_total_calls=_mc)
+                    try:
+                        result = suite.verify(test_kb, ev_factory)
+                    except RecursionError:
+                        continue
+                    if not result.passed:
+                        continue
+
+                accepted_rules.append(rule)
 
             except Exception:
                 continue
+
+        # Add all accepted rules and verify the combined set
+        if accepted_rules and suite is not None:
+            test_kb = kb.copy()
+            for rule in accepted_rules:
+                test_kb.add_rule(rule)
+            def ev_factory(k, _mc=MAX_CALLS):
+                return PrologEvaluator(k, max_total_calls=_mc)
+            try:
+                result = suite.verify(test_kb, ev_factory)
+            except RecursionError:
+                accepted_rules = []  # Combined set explodes — reject all
+            else:
+                if not result.passed:
+                    accepted_rules = []
+
+        for rule in accepted_rules:
+            kb.add_rule(rule)
+            ops.append(CompressionCandidate(
+                operation="llm_compression",
+                original_clauses=[],
+                new_clauses=[rule]))
 
         return ops
 
@@ -1108,12 +1249,19 @@ class KnowledgeBaseDreamer:
                     return None
                 args = []
                 for a in data[1:]:
-                    if not isinstance(a, str) or len(a) == 0:
-                        return None
-                    if a[0].isupper():
-                        args.append(Variable(a))
+                    if isinstance(a, str) and len(a) > 0:
+                        if a[0].isupper():
+                            args.append(Variable(a))
+                        else:
+                            args.append(Atom(a))
+                    elif isinstance(a, list):
+                        # Nested term (e.g., not(inner_goal))
+                        inner = make_term(a)
+                        if inner is None:
+                            return None
+                        args.append(inner)
                     else:
-                        args.append(Atom(a))
+                        return None
                 return Compound(functor, args)
 
             head = make_term(head_data)

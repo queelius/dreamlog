@@ -59,12 +59,14 @@ class PrologEvaluator:
     """
     
     def __init__(self, knowledge_base: KnowledgeBase,
-                 unknown_hook: Optional[Callable[[Term, 'PrologEvaluator'], None]] = None):
+                 unknown_hook: Optional[Callable[[Term, 'PrologEvaluator'], None]] = None,
+                 max_total_calls: int = 0):
         self.kb = knowledge_base
         self.unknown_hook = unknown_hook
         self._recursion_depth = 0
         self._max_recursion_depth = 100
         self._total_calls = 0
+        self._max_total_calls = max_total_calls  # 0 = unlimited
     
     @contextmanager
     def _track_recursion(self):
@@ -74,6 +76,9 @@ class PrologEvaluator:
         if self._recursion_depth > self._max_recursion_depth:
             self._recursion_depth -= 1
             raise RecursionError(f"Maximum recursion depth ({self._max_recursion_depth}) exceeded")
+        if self._max_total_calls and self._total_calls > self._max_total_calls:
+            self._recursion_depth -= 1
+            raise RecursionError(f"Maximum total calls ({self._max_total_calls}) exceeded")
         try:
             yield
         finally:
@@ -91,9 +96,11 @@ class PrologEvaluator:
         """
         if not goals:
             return
-        
+
         self._recursion_depth = 0
-        self._total_calls = 0
+        # Don't reset _total_calls — it's cumulative when max_total_calls
+        # is set, so a single evaluator has a fixed call budget across all
+        # queries (prevents combinatorial explosion in verification suites).
         initial_goals = [Goal(goal, {}) for goal in goals]
         
         # Generate solutions using SLD resolution

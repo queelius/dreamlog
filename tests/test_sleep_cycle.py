@@ -851,6 +851,56 @@ class TestOperationG:
         # No LLM operations
         assert all(op.operation != "llm_compression" for op in session.operations)
 
+    def test_naf_rule_parsed(self):
+        """LLM proposes helper + not/1 rule (e.g., vegan_recipe)."""
+        from tests.mock_provider import MockLLMProvider
+        import json
+        kb = KnowledgeBase()
+        kb.add_fact(compound("recipe", atom("stir_fry")))
+        kb.add_fact(compound("recipe", atom("cake")))
+        kb.add_fact(compound("uses", atom("cake"), atom("butter")))
+        kb.add_fact(compound("uses", atom("stir_fry"), atom("tofu")))
+        kb.add_fact(compound("vegan", atom("butter"), atom("false")))
+        kb.add_fact(compound("vegan", atom("tofu"), atom("true")))
+        kb.add_fact(compound("vegan_recipe", atom("stir_fry")))
+
+        rules_json = json.dumps([
+            ["rule", ["has_non_vegan", "X"],
+             [["uses", "X", "Y"], ["vegan", "Y", "false"]]],
+            ["rule", ["vegan_recipe", "X"],
+             [["recipe", "X"], ["not", ["has_non_vegan", "X"]]]],
+        ])
+        mock = MockLLMProvider(responses=[rules_json])
+        dreamer = KnowledgeBaseDreamer(llm_client=mock)
+        dreamer.dream(kb, verify=True)
+
+        from dreamlog.evaluator import PrologEvaluator
+        ev = PrologEvaluator(kb)
+        assert ev.has_solution(compound("vegan_recipe", atom("stir_fry")))
+        assert not ev.has_solution(compound("vegan_recipe", atom("cake")))
+
+    def test_cycle_filter_rejects_bidirectional(self):
+        """Cycle filter rejects parent<-father when father<-parent+male exists."""
+        from dreamlog.kb_dreamer import _filter_cyclic_rules
+        r1 = Rule(compound("father", var("X"), var("Y")),
+                  [compound("parent", var("X"), var("Y")),
+                   compound("male", var("X"))])
+        r2 = Rule(compound("parent", var("X"), var("Y")),
+                  [compound("father", var("X"), var("Y"))])
+        result = _filter_cyclic_rules([r1, r2])
+        # r1 accepted, r2 rejected (creates cycle father->parent->father)
+        assert len(result) == 1
+        assert result[0].head.functor == "father"
+
+    def test_cycle_filter_allows_self_recursion(self):
+        """Cycle filter allows ancestor(X,Z) :- parent(X,Y), ancestor(Y,Z)."""
+        from dreamlog.kb_dreamer import _filter_cyclic_rules
+        r = Rule(compound("ancestor", var("X"), var("Z")),
+                 [compound("parent", var("X"), var("Y")),
+                  compound("ancestor", var("Y"), var("Z"))])
+        result = _filter_cyclic_rules([r])
+        assert len(result) == 1
+
     def test_invalid_rule_rejected(self):
         """LLM proposes rule that over-generates -> rejected."""
         from tests.mock_provider import MockLLMProvider

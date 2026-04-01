@@ -361,17 +361,27 @@ def run_experiment(kb, name, client, correctness_checks):
 
 def main():
     parser = argparse.ArgumentParser(description="Multi-domain LLM sleep cycle experiments")
-    parser.add_argument("--base-url", default="http://192.168.0.225:11434/v1")
-    parser.add_argument("--model", default="phi4-mini:latest")
-    parser.add_argument("--api-key", default="ollama")
+    parser.add_argument("--provider", default="anthropic",
+                        help="LLM provider (anthropic, openai, ollama)")
+    parser.add_argument("--model", default=None, help="Model (default: per-provider)")
+    parser.add_argument("--api-key-env", default="MY_ANTHROPIC_API_KEY",
+                        help="Env var containing API key")
+    parser.add_argument("--base-url", default=None,
+                        help="API base URL (for ollama/custom)")
+    parser.add_argument("--api-key", default=None, help="API key (direct)")
     parser.add_argument("--domain", "-d", help="Run single domain")
     args = parser.parse_args()
 
-    print(f"Model: {args.model} @ {args.base_url}")
-
     client = LLMClient(
-        base_url=args.base_url, api_key=args.api_key,
-        model=args.model, temperature=0.3, max_tokens=800)
+        provider=args.provider,
+        model=args.model,
+        api_key=args.api_key,
+        api_key_env=args.api_key_env,
+        base_url=args.base_url,
+        temperature=0.3,
+        max_tokens=800,
+    )
+    print(f"Provider: {client.provider}, Model: {client.model}")
 
     try:
         test = client.complete("Reply with just 'ok'.")
