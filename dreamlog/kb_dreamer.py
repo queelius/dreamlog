@@ -1121,6 +1121,15 @@ class KnowledgeBaseDreamer:
                        and g.functor not in _BUILTIN_FUNCTORS
                        for g in rule.body):
                     continue
+                # Reject unstratified negation: head functor inside not/1
+                # (e.g., pet(X) :- ..., not(pet(X))) creates a fixed-point
+                # paradox where the rule defines pet in terms of not(pet).
+                head_fn = rule.head.functor
+                if any(g.functor == "not" and g.arity == 1
+                       and isinstance(g.args[0], Compound)
+                       and g.args[0].functor == head_fn
+                       for g in rule.body):
+                    continue
                 parsed_rules.append(rule)
             except Exception:
                 continue
@@ -1173,6 +1182,26 @@ class KnowledgeBaseDreamer:
                         continue
                     if not result.passed:
                         continue
+
+                # False-positive check: the rule must not derive ground
+                # terms absent from the KB. Enumerate solutions for the
+                # head pattern and reject if any is a novel (spurious) fact.
+                existing_terms = {f.term for f in kb.facts
+                                  if isinstance(f.term, Compound)
+                                  and f.term.functor == rule.head.functor}
+                ev_fp = PrologEvaluator(test_kb, max_total_calls=MAX_CALLS)
+                head_query = rule.head  # has variables
+                has_false_positive = False
+                try:
+                    for sol in ev_fp.query([head_query]):
+                        ground = head_query.substitute(sol.bindings)
+                        if not ground.get_variables() and ground not in existing_terms:
+                            has_false_positive = True
+                            break
+                except RecursionError:
+                    has_false_positive = True
+                if has_false_positive:
+                    continue
 
                 accepted_rules.append(rule)
 

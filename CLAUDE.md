@@ -66,7 +66,7 @@ Robinson's unification with occurs check in three modes (standard, one-way/match
 When an undefined predicate is queried, the LLM pipeline activates:
 
 1. **Hook** (`llm_hook.py`): Intercepts undefined predicates, orchestrates the pipeline
-2. **Providers** (`llm_providers.py`, `llm_http_provider.py`): Protocol-based; supports OpenAI, Anthropic, Ollama
+2. **Providers** (`llm_client.py`, `llm_providers.py`, `llm_http_provider.py`): `LLMClient` wraps OpenAI/Anthropic/Ollama SDKs. Default: Anthropic Haiku via `MY_ANTHROPIC_API_KEY`. Supports `provider`, `api_key_env`, `timeout`, per-provider default models.
 3. **Prompting** (`prompt_template_system.py`, `llm_prompt_templates.py`): Parameterized templates with few-shot learning
 4. **RAG** (`example_retriever.py`): KB-aware semantic example retrieval for prompt context
 5. **Embeddings** (`embedding_providers.py`, `tfidf_embedding_provider.py`): Ollama embeddings or local TF-IDF fallback
@@ -89,8 +89,10 @@ When an undefined predicate is queried, the LLM pipeline activates:
 - **Operation D (Predicate invention)**: Extract skeleton fingerprints from rule sets (`skeleton.py`), group structurally identical predicates, build parameterized invented predicates with `call/N` dispatch. Discovers abstractions like transitive closure autonomously.
 - **Operation E (Body pattern extraction)**: Find common contiguous sub-goal sequences across rule bodies, compute interface variables, extract as named predicates. Discovers abstractions like "grandparent chain."
 - **Operation F (Dead clause pruning)**: Remove facts/rules with 0 usage after sufficient wake-phase queries. Uses per-clause frequency counters from the evaluator.
+- **Operation G (LLM-assisted compression)**: Ask LLM (default: Anthropic Haiku) to propose cross-functor rules the symbolic operations can't discover. Pipeline: (1) build prompt with facts + predicate counts + directionality constraints, (2) parse JSON response with nested term support (including `not/1`), (3) filter cyclic rules via DFS on functor dependency graph, (4) separate helper predicates from main rules, (5) evaluate each main rule (with helpers) against original KB, (6) false-positive check: reject rules that derive ground terms absent from KB, (7) verify combined set. Supports `not/1` via helper predicate pattern (e.g., `has_non_vegan(X) :- uses(X,Y), vegan(Y,false)` + `vegan_recipe(X) :- recipe(X), not(has_non_vegan(X))`).
+- **Operation H (Lemma caching)**: Add frequently-derived terms as facts for faster resolution.
 
-All operations use MDL (Minimum Description Length) scoring and are verified against a test suite of positive/negative queries with atomic rollback on failure.
+All operations use MDL (Minimum Description Length) scoring and are verified against a test suite of positive/negative queries with atomic rollback on failure. Post-Op-G verification uses bounded evaluators (`max_total_calls`) to prevent combinatorial explosion from LLM-proposed rules that create resolution loops.
 
 **Key modules:**
 - `anti_unification.py`: Plotkin's algorithm (dual of unification). `anti_unify`, `anti_unify_many`, `node_count`, `shared_structure` scoring.
