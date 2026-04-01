@@ -1041,8 +1041,21 @@ class KnowledgeBaseDreamer:
         ops = []
 
         # Sample facts for the prompt, using Prolog notation
+        # Sample facts ensuring every predicate is represented
+        MAX_PROMPT_FACTS = 50
+        facts_by_pred: Dict[str, list] = {}
+        for fact in kb.facts:
+            if isinstance(fact.term, Compound):
+                facts_by_pred.setdefault(fact.term.functor, []).append(fact)
+        sampled: list = []
+        # Round-robin: take up to MAX_PROMPT_FACTS / n_preds from each
+        per_pred = max(2, MAX_PROMPT_FACTS // max(len(facts_by_pred), 1))
+        for fn in sorted(facts_by_pred):
+            sampled.extend(facts_by_pred[fn][:per_pred])
+        sampled = sampled[:MAX_PROMPT_FACTS]
+
         fact_lines = []
-        for fact in kb.facts[:50]:
+        for fact in sampled:
             term = fact.term
             if isinstance(term, Compound):
                 args = ", ".join(
