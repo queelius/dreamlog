@@ -281,6 +281,7 @@ def main():
 
     print(f"\n{'='*70}")
     print(f"  Experiments complete.")
+    print(f"  LLM usage: {client.usage}")
     print(f"{'='*70}")
 
 

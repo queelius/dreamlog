@@ -416,6 +416,7 @@ def main():
     print(f"  {'-'*15} {'-'*7} {'-'*9} {'-'*7} {'-'*7} {'-'*6} {'-'*4}")
     print(f"  {'TOTAL':<15} {total_before:>7} {total_sym:>9} {total_llm:>7} {'+'+str(total_delta) if total_delta>0 else str(total_delta):>7} {total_rules:>6} {'Y' if all_correct else 'N':>4}")
     print(f"  Symbolic ratio: {total_sym/total_before:.2f}, LLM ratio: {total_llm/total_before:.2f}")
+    print(f"  LLM usage: {client.usage}")
 
 
 if __name__ == "__main__":

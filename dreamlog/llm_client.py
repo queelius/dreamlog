@@ -8,10 +8,50 @@ Usage:
     client = LLMClient(model="gpt-4o-mini")                          # OpenAI
     client = LLMClient(provider="anthropic", model="claude-haiku-4-5-20251001")
     client = LLMClient(base_url="http://localhost:11434/v1")          # Ollama
+
+    # After calls, check usage:
+    print(client.usage)  # {'calls': 5, 'input_tokens': 4200, 'output_tokens': 1500}
+    print(client.estimated_cost())  # 0.0094
 """
 
 import os
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, Dict
+
+
+@dataclass
+class LLMUsage:
+    """Cumulative token usage and call count."""
+    calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+    def record(self, input_tokens: int, output_tokens: int):
+        self.calls += 1
+        self.input_tokens += input_tokens
+        self.output_tokens += output_tokens
+
+    def estimated_cost(self, pricing: Optional[Dict[str, float]] = None) -> float:
+        """Estimate cost in USD. Pricing is {input_per_m, output_per_m}."""
+        if pricing is None:
+            pricing = {"input_per_m": 0.80, "output_per_m": 4.00}
+        return (self.input_tokens / 1_000_000 * pricing["input_per_m"]
+                + self.output_tokens / 1_000_000 * pricing["output_per_m"])
+
+    def __str__(self):
+        cost = self.estimated_cost()
+        return (f"{self.calls} calls, {self.input_tokens:,} in / "
+                f"{self.output_tokens:,} out (${cost:.4f})")
+
+
+# Per-model pricing (USD per million tokens)
+MODEL_PRICING = {
+    "claude-haiku-4-5-20251001": {"input_per_m": 0.80, "output_per_m": 4.00},
+    "claude-sonnet-4-5-20241022": {"input_per_m": 3.00, "output_per_m": 15.00},
+    "claude-opus-4-6": {"input_per_m": 15.00, "output_per_m": 75.00},
+    "gpt-4o-mini": {"input_per_m": 0.15, "output_per_m": 0.60},
+    "gpt-4o": {"input_per_m": 2.50, "output_per_m": 10.00},
+}
 
 
 class LLMClient:
@@ -24,6 +64,7 @@ class LLMClient:
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.base_url = base_url
+        self.usage = LLMUsage()
 
         resolved_key = api_key or self._resolve_key(provider, api_key_env)
 
@@ -69,9 +110,18 @@ class LLMClient:
             resp = self._client.messages.create(
                 model=model, max_tokens=max_tokens, temperature=temperature,
                 messages=[{"role": "user", "content": prompt}])
+            self.usage.record(resp.usage.input_tokens, resp.usage.output_tokens)
             return resp.content[0].text
         else:
             resp = self._client.chat.completions.create(
                 model=model, temperature=temperature, max_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}])
+            if resp.usage:
+                self.usage.record(resp.usage.prompt_tokens,
+                                  resp.usage.completion_tokens)
             return resp.choices[0].message.content
+
+    def estimated_cost(self) -> float:
+        """Estimated cost in USD based on model pricing."""
+        pricing = MODEL_PRICING.get(self.model)
+        return self.usage.estimated_cost(pricing)
