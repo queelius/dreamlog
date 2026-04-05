@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "dreamlog": {
+      "command": "dreamlog-mcp",
+      "env": {
+        "DREAMLOG_STORE": "~/.dreamlog/stores/default.json",
+        "DREAMLOG_LLM_BUDGET": "0.50",
+        "DREAMLOG_DREAM_THRESHOLD": "50"
+      }
+    }
+  }
+}

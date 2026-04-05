@@ -1,414 +1,181 @@
 """
-DreamLog MCP (Model Context Protocol) Server
+DreamLog MCP Server — persistent, self-compressing knowledge store.
 
-This allows DreamLog to be used as a tool/resource by LLMs that support MCP.
-MCP enables LLMs to interact with external systems in a standardized way.
+Exposes DreamLog as an MCP tool for agentic LLMs. The KB persists to disk,
+compresses via the dream cycle, and learns over time.
 
 Usage:
-    python dreamlog_mcp_server.py --kb knowledge.json --port 8765
+    dreamlog-mcp                          # Default store at ~/.dreamlog/stores/default.json
+    DREAMLOG_STORE=./my.json dreamlog-mcp # Custom store path
+
+Configure in .mcp.json:
+    {
+      "mcpServers": {
+        "dreamlog": {
+          "command": "dreamlog-mcp",
+          "env": {"DREAMLOG_STORE": "~/.dreamlog/stores/project.json"}
+        }
+      }
+    }
 """
 
 import json
-import asyncio
-import argparse
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
-import sys
 import os
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Annotated, Any
 
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from fastmcp import FastMCP, Context
+from pydantic import Field
 
-from dreamlog.engine import DreamLogEngine
-from dreamlog.prefix_parser import parse_s_expression, parse_prefix_notation
-from dreamlog.llm_hook import LLMHook
-from dreamlog.llm_client import LLMClient
-from dreamlog.embedding_providers import TfIdfEmbeddingProvider
-from dreamlog.config import DreamLogConfig, get_config
-from dreamlog.prompt_template_system import RULE_EXAMPLES
+# Ensure dreamlog is importable
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-
-@dataclass
-class MCPTool:
-    """Represents a tool in the MCP protocol"""
-    name: str
-    description: str
-    input_schema: Dict[str, Any]
-    
-
-@dataclass
-class MCPResource:
-    """Represents a resource in the MCP protocol"""
-    uri: str
-    name: str
-    description: str
-    mime_type: str
+from integrations.mcp.knowledge_store import KnowledgeStore
 
 
-class DreamLogMCPServer:
+@asynccontextmanager
+async def lifespan(server):
+    store_path = Path(os.environ.get(
+        "DREAMLOG_STORE", "~/.dreamlog/stores/default.json"
+    )).expanduser()
+    budget = float(os.environ.get("DREAMLOG_LLM_BUDGET", "0.50"))
+    threshold = int(os.environ.get("DREAMLOG_DREAM_THRESHOLD", "50"))
+
+    store = KnowledgeStore(store_path, llm_budget_usd=budget,
+                           dream_threshold=threshold)
+    try:
+        yield {"store": store}
+    finally:
+        store._dirty = True
+        store.save()
+
+
+mcp = FastMCP("dreamlog", lifespan=lifespan)
+
+
+# ── Tools ─────────────────────────────────────────────────────────
+
+@mcp.tool()
+def dreamlog_assert(
+    fact: Annotated[str, Field(
+        description=(
+            "Fact or rule in S-expression format. "
+            "Facts: (predicate arg1 arg2). "
+            "Rules: (head X Y) :- (body1 X Z), (body2 Z Y). "
+            "Variables are UPPERCASE (X, Y, Z). "
+            "Constants are lowercase (john, mary). "
+            "Examples: '(parent john mary)', "
+            "'(ancestor X Z) :- (parent X Y), (ancestor Y Z)'"
+        ),
+    )],
+    ctx: Context = None,
+) -> dict:
+    """Add a fact or rule to the persistent knowledge base.
+
+    The knowledge base persists across sessions. After enough assertions,
+    call dreamlog_dream to compress the KB and discover generalizations.
     """
-    MCP Server for DreamLog
-    
-    Provides tools and resources for:
-    - Querying the knowledge base
-    - Adding facts and rules
-    - Loading/saving knowledge bases
-    - Generating knowledge with LLM
+    store: KnowledgeStore = ctx.request_context.lifespan_context["store"]
+    return store.assert_fact(fact)
+
+
+@mcp.tool()
+def dreamlog_query(
+    query: Annotated[str, Field(
+        description=(
+            "Goal in S-expression format with variables. "
+            "Examples: '(parent john X)' finds john's children, "
+            "'(ancestor X mary)' finds mary's ancestors. "
+            "Use uppercase for variables (unknowns), lowercase for constants."
+        ),
+    )],
+    limit: Annotated[int, Field(
+        description="Maximum number of solutions to return.",
+        default=10,
+    )] = 10,
+    ctx: Context = None,
+) -> dict:
+    """Query the knowledge base using SLD resolution.
+
+    Returns variable bindings for each solution. Supports negation-as-failure,
+    transitive closure, and all rules discovered during dream cycles.
     """
-    
-    def __init__(self, kb_path: Optional[str] = None, config: Optional[DreamLogConfig] = None):
-        # Load config or use provided one
-        self.config = config or get_config()
-        self.engine = DreamLogEngine()
-
-        # Setup LLM if enabled in config
-        if self.config.llm_enabled:
-            try:
-                # Create provider from config
-                provider_kwargs = {
-                    'model': self.config.provider.model,
-                    'temperature': self.config.provider.temperature,
-                    'max_tokens': self.config.provider.max_tokens,
-                }
-
-                if self.config.provider.base_url:
-                    provider_kwargs['base_url'] = self.config.provider.base_url
-
-                api_key = self.config.provider.get_api_key()
-                if api_key:
-                    provider_kwargs['api_key'] = api_key
-
-                provider = LLMClient(
-                    provider=self.config.provider.provider,
-                    **provider_kwargs
-                )
-
-                # Create embedding provider
-                embedding_provider = TfIdfEmbeddingProvider(RULE_EXAMPLES)
-
-                # Create LLM hook
-                self.engine.llm_hook = LLMHook(provider, embedding_provider, debug=False)
-                print(f"✓ LLM enabled with {self.config.provider.provider} ({self.config.provider.model})")
-            except Exception as e:
-                print(f"⚠ LLM setup failed: {e}")
-
-        if kb_path and os.path.exists(kb_path):
-            self.load_knowledge_base(kb_path)
-        
-        self.tools = self._define_tools()
-        self.resources = self._define_resources()
-    
-    def _define_tools(self) -> List[MCPTool]:
-        """Define available MCP tools"""
-        return [
-            MCPTool(
-                name="dreamlog_query",
-                description="Query the DreamLog knowledge base using Prolog-like syntax",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "Query in S-expression format, e.g., (parent john X)"
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Maximum number of solutions",
-                            "default": 10
-                        }
-                    },
-                    "required": ["query"]
-                }
-            ),
-            MCPTool(
-                name="dreamlog_add_fact",
-                description="Add a fact to the DreamLog knowledge base",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "fact": {
-                            "type": "string",
-                            "description": "Fact in S-expression format, e.g., (parent john mary)"
-                        }
-                    },
-                    "required": ["fact"]
-                }
-            ),
-            MCPTool(
-                name="dreamlog_add_rule",
-                description="Add a rule to the DreamLog knowledge base",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "head": {
-                            "type": "string",
-                            "description": "Rule head in S-expression format"
-                        },
-                        "body": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Rule body as list of conditions"
-                        }
-                    },
-                    "required": ["head", "body"]
-                }
-            ),
-            MCPTool(
-                name="dreamlog_explain",
-                description="Explain how a query would be resolved",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "Query to explain"
-                        }
-                    },
-                    "required": ["query"]
-                }
-            )
-        ]
-    
-    def _define_resources(self) -> List[MCPResource]:
-        """Define available MCP resources"""
-        return [
-            MCPResource(
-                uri="dreamlog://kb/current",
-                name="Current Knowledge Base",
-                description="The current DreamLog knowledge base in JSON format",
-                mime_type="application/json"
-            ),
-            MCPResource(
-                uri="dreamlog://kb/stats",
-                name="Knowledge Base Statistics",
-                description="Statistics about the current knowledge base",
-                mime_type="application/json"
-            )
-        ]
-    
-    def load_knowledge_base(self, path: str) -> None:
-        """Load a knowledge base from file"""
-        with open(path, 'r') as f:
-            data = f.read()
-            self.engine.load_from_prefix(data)
-    
-    async def handle_tool_call(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle MCP tool calls"""
-        
-        if tool_name == "dreamlog_query":
-            query_str = arguments["query"]
-            limit = arguments.get("limit", 10)
-            
-            # Parse query
-            if query_str.startswith("("):
-                query_term = parse_s_expression(query_str)
-            else:
-                query_term = parse_prefix_notation(json.loads(query_str))
-            
-            # Execute query
-            solutions = []
-            for i, solution in enumerate(self.engine.query([query_term])):
-                if i >= limit:
-                    break
-                solutions.append({
-                    "bindings": {k: str(v) for k, v in solution.bindings.items()},
-                    "ground_bindings": {k: str(v) for k, v in solution.get_ground_bindings().items()}
-                })
-            
-            return {
-                "success": True,
-                "solutions": solutions,
-                "count": len(solutions)
-            }
-        
-        elif tool_name == "dreamlog_add_fact":
-            fact_str = arguments["fact"]
-            
-            # Parse fact
-            if fact_str.startswith("("):
-                fact_term = parse_s_expression(fact_str)
-            else:
-                fact_term = parse_prefix_notation(json.loads(fact_str))
-            
-            # Add to KB
-            self.engine.add_fact(fact_term)
-            
-            return {
-                "success": True,
-                "message": f"Added fact: {fact_term}"
-            }
-        
-        elif tool_name == "dreamlog_add_rule":
-            head_str = arguments["head"]
-            body_strs = arguments["body"]
-            
-            # Parse head and body
-            if head_str.startswith("("):
-                head = parse_s_expression(head_str)
-                body = [parse_s_expression(b) for b in body_strs]
-            else:
-                head = parse_prefix_notation(json.loads(head_str))
-                body = [parse_prefix_notation(json.loads(b)) for b in body_strs]
-
-            # Add to KB
-            from dreamlog.knowledge import Rule
-            rule = Rule(head, body)
-            self.engine.kb.add_rule(rule)
-            
-            return {
-                "success": True,
-                "message": f"Added rule: {head} :- {body}"
-            }
-        
-        elif tool_name == "dreamlog_explain":
-            query_str = arguments["query"]
-            
-            # Parse query
-            if query_str.startswith("("):
-                query_term = parse_s_expression(query_str)
-            else:
-                query_term = parse_prefix_notation(json.loads(query_str))
-            
-            # Get explanation (trace unification)
-            from dreamlog.unification import unify
-            
-            explanation = {
-                "query": str(query_term),
-                "facts_checked": [],
-                "rules_checked": [],
-                "unification_trace": []
-            }
-            
-            # Check against facts
-            for fact in self.engine.kb.facts:
-                result = unify(query_term, fact.term)
-                if result:
-                    explanation["facts_checked"].append({
-                        "fact": str(fact.term),
-                        "unified": True,
-                        "bindings": {k: str(v) for k, v in result.items()}
-                    })
-
-            # Check against rules
-            for rule in self.engine.kb.rules:
-                result = unify(query_term, rule.head)
-                if result:
-                    explanation["rules_checked"].append({
-                        "rule": f"{rule.head} :- {rule.body}",
-                        "head_unified": True,
-                        "bindings": {k: str(v) for k, v in result.items()}
-                    })
-            
-            return explanation
-        
-        else:
-            return {"error": f"Unknown tool: {tool_name}"}
-    
-    async def handle_resource_read(self, uri: str) -> Dict[str, Any]:
-        """Handle MCP resource reads"""
-        
-        if uri == "dreamlog://kb/current":
-            return {
-                "content": self.engine.save_to_prefix(),
-                "mime_type": "application/json"
-            }
-        
-        elif uri == "dreamlog://kb/stats":
-            return {
-                "content": json.dumps({
-                    "num_facts": len(self.engine.kb.facts),
-                    "num_rules": len(self.engine.kb.rules),
-                    "functors": list(self.engine.kb._fact_index.keys() | self.engine.kb._rule_index.keys())
-                }),
-                "mime_type": "application/json"
-            }
-        
-        else:
-            return {"error": f"Unknown resource: {uri}"}
-    
-    def get_server_info(self) -> Dict[str, Any]:
-        """Get MCP server information"""
-        return {
-            "name": "DreamLog MCP Server",
-            "version": "1.0.0",
-            "protocol_version": "1.0",
-            "capabilities": {
-                "tools": [asdict(tool) for tool in self.tools],
-                "resources": {
-                    "list": [asdict(resource) for resource in self.resources],
-                    "subscribe": False  # Could add real-time updates later
-                },
-                "prompts": [],  # Could add prompt templates
-                "logging": {}
-            }
-        }
+    store: KnowledgeStore = ctx.request_context.lifespan_context["store"]
+    return store.query(query, limit=limit)
 
 
-async def run_mcp_server(host: str = "localhost", port: int = 8765, kb_path: Optional[str] = None, config: Optional[DreamLogConfig] = None):
-    """Run the MCP server"""
-    mcp_server = DreamLogMCPServer(kb_path=kb_path, config=config)
-    
-    async def handle_client(reader, writer):
-        """Handle MCP client connections"""
-        try:
-            while True:
-                # Read request
-                data = await reader.read(4096)
-                if not data:
-                    break
-                
-                request = json.loads(data.decode())
-                
-                # Handle different request types
-                if request.get("method") == "initialize":
-                    response = mcp_server.get_server_info()
-                elif request.get("method") == "tools/call":
-                    response = await mcp_server.handle_tool_call(
-                        request["params"]["name"],
-                        request["params"]["arguments"]
-                    )
-                elif request.get("method") == "resources/read":
-                    response = await mcp_server.handle_resource_read(
-                        request["params"]["uri"]
-                    )
-                else:
-                    response = {"error": "Unknown method"}
-                
-                # Send response
-                writer.write(json.dumps(response).encode())
-                await writer.drain()
-        
-        except Exception as e:
-            print(f"Error handling client: {e}")
-        finally:
-            writer.close()
-            await writer.wait_closed()
-    
-    # Start server
-    server = await asyncio.start_server(handle_client, host, port)
-    print(f"DreamLog MCP Server running on {host}:{port}")
-    
-    async with server:
-        await server.serve_forever()
+@mcp.tool()
+def dreamlog_dream(
+    dry_run: Annotated[bool, Field(
+        description="If true, preview compression without applying changes.",
+        default=False,
+    )] = False,
+    ctx: Context = None,
+) -> dict:
+    """Run the sleep/compression cycle on the knowledge base.
+
+    Discovers generalizations, removes redundant facts, invents predicates,
+    and optionally uses an LLM to find cross-predicate rules. All changes
+    are verified against a test suite — no behavioral changes are introduced.
+
+    Call this after accumulating facts to compress and learn. Check
+    dreamlog_status to see if dreaming is recommended.
+    """
+    store: KnowledgeStore = ctx.request_context.lifespan_context["store"]
+    return store.dream(dry_run=dry_run)
+
+
+@mcp.tool()
+def dreamlog_explain(
+    query: Annotated[str, Field(
+        description=(
+            "Goal to explain, in S-expression format. "
+            "Example: '(grandparent john carol)'"
+        ),
+    )],
+    ctx: Context = None,
+) -> dict:
+    """Explain how a query resolves — show matching facts and rules."""
+    store: KnowledgeStore = ctx.request_context.lifespan_context["store"]
+    return store.explain(query)
+
+
+@mcp.tool()
+def dreamlog_status(
+    ctx: Context = None,
+) -> dict:
+    """Show knowledge base status, LLM budget, and dream readiness.
+
+    Returns fact/rule counts, predicate list, assertion/query history,
+    dream recommendation, and LLM usage/budget information.
+    """
+    store: KnowledgeStore = ctx.request_context.lifespan_context["store"]
+    return store.status()
+
+
+# ── Resources ─────────────────────────────────────────────────────
+
+@mcp.resource("dreamlog://kb")
+def get_kb(ctx: Context = None) -> str:
+    """Current knowledge base in prefix-notation JSON."""
+    store: KnowledgeStore = ctx.request_context.lifespan_context["store"]
+    return store.kb.to_prefix()
+
+
+@mcp.resource("dreamlog://stats")
+def get_stats(ctx: Context = None) -> str:
+    """Knowledge base statistics as JSON."""
+    store: KnowledgeStore = ctx.request_context.lifespan_context["store"]
+    return json.dumps(store.status(), indent=2)
+
+
+# ── Entry point ───────────────────────────────────────────────────
+
+def main():
+    mcp.run()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="DreamLog MCP Server")
-    parser.add_argument("--kb", help="Path to knowledge base file")
-    parser.add_argument("--port", type=int, default=8765, help="Server port")
-    parser.add_argument("--host", default="localhost", help="Server host")
-    parser.add_argument("--config", help="Path to DreamLog config file")
-
-    args = parser.parse_args()
-
-    # Load config if specified
-    config = None
-    if args.config:
-        config = DreamLogConfig.load(args.config)
-
-    asyncio.run(run_mcp_server(
-        host=args.host,
-        port=args.port,
-        kb_path=args.kb,
-        config=config
-    ))
+    main()
