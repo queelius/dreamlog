@@ -187,3 +187,4 @@ Thumbs.db
 # LaTeX build artifacts
 *.bbl
 *.blg
+.mcp.json
