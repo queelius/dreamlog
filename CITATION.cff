@@ -34,6 +34,11 @@ keywords:
 license: MIT
 version: "0.9.0"
 date-released: "2026-04-09"
+doi: "10.5281/zenodo.19490027"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.19490027"
+    description: "Zenodo concept DOI (always resolves to latest version)"
 preferred-citation:
   type: article
   title: "Compression Enables Generalization: Wake-Sleep Cycles for Logic Programming with LLM Integration"
