@@ -142,10 +142,11 @@ class KnowledgeStore:
             "dream_recommended": self.should_dream(),
         }
 
-    def query(self, sexpr: str, limit: int = 10) -> Dict[str, Any]:
+    def query(self, sexpr: str, limit: int = 10,
+              max_total_calls: int = 5000) -> Dict[str, Any]:
         """Query the KB. Returns bindings for variables."""
         term = parse_s_expression(sexpr)
-        ev = PrologEvaluator(self.kb)
+        ev = PrologEvaluator(self.kb, max_total_calls=max_total_calls)
         solutions = []
         for sol in ev.query([term]):
             bindings = {}
@@ -213,7 +214,7 @@ class KnowledgeStore:
     def explain(self, sexpr: str) -> Dict[str, Any]:
         """Explain how a query resolves."""
         term = parse_s_expression(sexpr)
-        ev = PrologEvaluator(self.kb)
+        ev = PrologEvaluator(self.kb, max_total_calls=5000)
         derivable = ev.has_solution(term)
 
         # Find matching facts
