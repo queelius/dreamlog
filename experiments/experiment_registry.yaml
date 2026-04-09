@@ -453,3 +453,226 @@ experiments:
       with LLM. Track whether each cycle's discoveries enable the next.
     key_result: null
     implications: null
+
+  # ================================================================
+  # LONG-LIVED ACCUMULATION EXPERIMENTS
+  # ================================================================
+
+  EX23_simulated_long_lived:
+    title: "Simulated Long-Lived Knowledge Accumulation"
+    date: 2026-04-07
+    script: experiments/ex23_simulated_long_lived.py
+    status: complete
+    depends_on: [EX15, EX22]
+    motivation: |
+      Previous experiments tested compression on static KBs. A real user
+      builds knowledge incrementally over sessions — asserting facts,
+      querying, and periodically dreaming. We need to show the
+      learning-over-time story: does the system discover patterns as
+      data accumulates? Does compression compound or plateau?
+    method: |
+      Simulate a developer using DreamLog to track their project ecosystem
+      over 10 sessions. Each session adds facts about teams, languages,
+      repos, dependencies, code reviews, incidents, and mentorship.
+      Dream every 3 sessions (Anthropic Haiku for Op G). Track KB size,
+      rule count, and compression ratio per dream cycle. Run 6 correctness
+      spot-checks including transitive closure.
+    key_result: |
+      KB grew from 0 to 120 clauses (109 facts, 11 rules) across 10
+      sessions with 121 total assertions. Key findings:
+      - Dream 1 (session 3, 45 clauses): discovered 7 rules including
+        knows_repo_language, senior_developer, backend_team_member.
+        KB *expanded* to 49 (ratio 1.09) — investing in structure.
+      - Dream 2 (session 6, 85 clauses): discovered 2 rules (team←backend_dev,
+        backend_dev definition), pruned 5 facts. First net compression (0.94).
+      - Dream 3 (session 9, 113 clauses): no new patterns. Saturation.
+      - Final dream: no change. KB fully compressed.
+      - All 6 correctness checks passed (including transitive depends_on).
+      - Total LLM cost: $0.006 (4 Haiku calls).
+    implications: |
+      The system exhibits the desired learning-over-time behavior: early
+      dreams discover structure (even at the cost of expanding the KB),
+      middle dreams compress as symbolic ops capitalize on discovered
+      rules, and late dreams reach saturation — matching DreamCoder's
+      convergence behavior. The transitive closure and negation-as-failure
+      rules survived all compression cycles intact. Fixed a latent bug
+      in KnowledgeStore.query() — missing max_total_calls caused infinite
+      loops when post-dream rules created resolution branching.
+
+  EX24_organic_research_lab:
+    title: "Organic Research Lab Knowledge Graph"
+    date: 2026-04-08
+    script: experiments/ex24_research_lab.py
+    status: complete
+    depends_on: [EX23]
+    motivation: |
+      EX23 was a clean proof-of-concept but used shallow, regular predicates
+      with predictable growth. A genuine stress test needs: multiple
+      interacting domains, irregular growth, corrections mid-stream,
+      multi-hop reasoning chains, and patterns that only emerge at scale.
+      This experiment simulates a PI building institutional memory across
+      seven domains over 25 sessions with 443 assertions and 78 predicates.
+    method: |
+      Simulate Dr. Chen's research lab over 25 sessions spanning two years.
+      Seven domains: people, publications, teaching, grants, infrastructure,
+      collaborations, service. Sessions vary from 5-30 assertions. Session 10
+      includes corrections (postdoc leaves, student role changes). Session 17
+      has user-provided rules with NAF helper predicates. Dream every 5
+      sessions with Anthropic Haiku for Op G. 13 correctness spot-checks
+      including multi-hop transitive citation, NAF-based active membership,
+      and negative examples.
+    key_result: |
+      Final KB: 451 clauses (422 facts, 29 rules) from 443 assertions.
+      Phase transitions visible in timeline:
+      - Dream 1 (S05, 94 cls): 2 symbolic rules, compressed to 91 (0.97)
+      - Dream 2 (S10, 179 cls): LLM discovers 17 cross-domain rules,
+        KB *expands* to 195 (1.09). Rules include grant_funded_work,
+        cross_institution_collaboration (4-body with NAF), mentorship_chain.
+      - Dream 3 (S15, 278 cls): 2 symbolic rules, compressed to 275 (0.99)
+      - Dreams 4-5 (S20, S25): saturation, minor pruning only.
+      - Final dream: no change (fully compressed).
+      29 rules from 3 sources: 4 symbolic (Op C), 17 LLM (Op G), 8 user.
+      All 13 correctness checks pass including transitive citation,
+      NAF-based active_member, and senior_student via has_passed_quals helper.
+      Total LLM cost: $0.023 (6 Haiku calls).
+    implications: |
+      Validates the system at realistic scale (78 predicates, 443 facts).
+      Key findings: (1) LLM cross-domain rule discovery is the primary
+      value-add — symbolic ops handle regularities but can't cross domain
+      boundaries. (2) The "invest then compress" pattern is robust: early
+      dreams expand the KB with structural rules, later dreams compress.
+      (3) User-provided rules with NAF helpers coexist with discovered rules.
+      (4) Saturation occurs consistently after 2-3 dream cycles.
+      Also surfaced and fixed 3 bugs in kb_dreamer.py around mixed-type
+      atom values (numeric literals in sorted() calls and str.join()).
+
+  # ================================================================
+  # GENERALIZATION EXPERIMENTS
+  # ================================================================
+
+  EX25_generalization:
+    title: "Compression Predicts Generalization"
+    date: 2026-04-08
+    script: experiments/ex25_generalization.py
+    status: complete
+    depends_on: [EX23, EX24]
+    motivation: |
+      The core theoretical claim is that compression = learning (Solomonoff
+      induction). All prior experiments verified deductive closure preservation
+      — the compressed KB answers the same queries. But the thesis claims
+      something stronger: compression discovers CONCEPTS that generalize to
+      unseen data. We test this directly.
+    method: |
+      Four components on a 4-generation family tree (29 people, 96 base
+      facts, 204 derived facts across 7 predicates):
+
+      A. Zero-shot generalization: dream on full KB, add 6 unseen people with
+         only base facts (person, male/female, parent), check if derived
+         relationships (father, mother, grandparent, etc.) are derivable.
+      B. Holdout: stratified 80/20 split of derived facts, dream on training
+         set, measure recovery rate on held-out facts.
+      C. Ablation: no-dream vs symbolic-only vs full pipeline (3 random seeds).
+      D. Transfer: dream on family+org combined (org is isomorphic hierarchy),
+         check if cross-domain patterns emerge.
+    key_result: |
+      THE MONEY RESULT: New-entity recall goes from 0% to 80%.
+
+      Part A (generalization):
+        No dream:      Acc=29%, Recall=0%, 0 rules
+        Symbolic only: Acc=29%, Recall=0%, 1 rule (entity-specific)
+        Full pipeline:  Acc=86%, Recall=80%, Precision=100%, 7 rules
+        KB compressed from 300→184 clauses (ratio 0.613).
+        Discovered: father←parent+male, mother←parent+female,
+        grandparent←parent∘parent, grandfather←grandparent+male,
+        grandmother←grandparent+female.
+        Only ancestor (requires recursive rule) was not recovered.
+
+      Part B (holdout): 0% recovery across all conditions. The 80/20 split
+        removes too many facts for pattern discovery — minimum data threshold
+        exists but was not met per-predicate.
+
+      Part C (ablation): Symbolic ops discover only entity-specific rules
+        (e.g., "albert is ancestor of everyone"). Cross-predicate concepts
+        require LLM (Op G). Night-and-day difference: 0% vs 80% recall.
+
+      Part D (transfer): Combined KB discovered 10 rules vs 3 isolated.
+        Family generalization: 6/6 in combined mode. The larger context
+        helps the LLM see more patterns.
+
+      Total LLM cost: $0.015 (6 Haiku calls).
+    implications: |
+      Validates the Solomonoff thesis empirically: compression discovers
+      concepts that generalize to unseen entities. The compressed KB can
+      classify new people it has never seen.
+
+      Key insight: symbolic compression alone cannot cross predicate
+      boundaries — it discovers entity-specific patterns ("albert is
+      ancestor of everyone") but not conceptual rules ("father = male
+      parent"). The LLM is essential for cross-predicate generalization.
+
+      Surfaced and fixed two critical bugs:
+      1. Verification suite shared one evaluator across all positive queries,
+         causing max_total_calls to be exhausted by early transitive queries
+         and rejecting all subsequent rules. Fixed: per-query evaluators.
+      2. Op G max_total_calls was hardcoded at 500, insufficient for large
+         KBs with transitive predicates. Fixed: scale with KB size.
+      3. max_prompt_facts (formerly hardcoded at 50) made configurable via
+         KnowledgeBaseDreamer constructor — crucial for KBs with many
+         predicates where round-robin sampling must cover enough of each.
+
+  EX25b_novel_generalization:
+    title: "Novel Domain Generalization (Synthetic Crafting)"
+    date: 2026-04-08
+    script: experiments/ex25b_novel_generalization.py
+    status: complete
+    depends_on: [EX25]
+    motivation: |
+      EX25's family tree is the canonical Prolog example — Haiku has likely
+      seen father(X,Y) :- parent(X,Y), male(X) thousands of times in training.
+      We cannot distinguish compression-driven discovery from training data
+      recall. This experiment uses a synthetic crafting/alchemy domain with
+      invented material names (lumite, vexal, drossite) that the LLM has
+      never encountered, forcing genuine pattern discovery from data structure.
+    method: |
+      Crafting domain: 15 invented materials with properties (phase, class,
+      hazard), 16 recipes, 9 artisans with skills, 5 skill requirements.
+      112 base facts, 61 derived facts across 6 predicates (hazardous_recipe,
+      safe_recipe, same_phase_recipe, metallic_alloy, can_craft, master_artisan).
+      Run generalization test: dream on full KB, add unseen materials/artisan,
+      check 9 derived facts (6 positive, 3 negative). Compare against family
+      tree as canonical baseline.
+    key_result: |
+      Novel domain recall: 0% → 50% (symbolic) → 67% (full pipeline).
+      Canonical baseline: 0% → 0% (symbolic) → 80% (full pipeline).
+
+      Crafting domain (novel, invented terms):
+        No dream:  Acc=33%, Recall=0%,  Rules=0
+        Symbolic:  Acc=56%, Recall=50%, Precision=75%, Rules=5
+        Full:      Acc=67%, Recall=67%, Precision=80%, Rules=16
+
+      Key rules discovered:
+      - master_artisan(X) :- artisan(X), not(exception...) [symbolic Op C]
+      - safe_recipe(X) :- product(X), not(exception...) [symbolic Op C]
+      - hazardous_recipe via LLM cross-predicate pattern [Op G]
+      - volatile_material, metallic_material concepts [Op G]
+
+      Undiscovered: can_craft(Artisan, Product) requires 3-hop join
+      (artisan→skill→requires_skill→recipe_type) — beyond current reach.
+
+      One principled false positive: same_phase_recipe generalized to new
+      product that is the exception (liquid+solid mix).
+    implications: |
+      STRONGEST VALIDATION OF THE THESIS: symbolic compression alone achieves
+      50% recall on a domain with invented terms the LLM has never seen.
+      Op C discovers real concepts (master_artisan, safe_recipe) purely from
+      MDL-driven fact generalization — no prior knowledge, no training data.
+
+      The family tree's higher recall (80% vs 67%) may be partially inflated
+      by training data memorization. The crafting result is the more honest
+      measure of compression-driven learning.
+
+      Limitation: rules requiring 3+ hop joins (can_craft) are not
+      discoverable by current operations. Future work could address this
+      with deeper anti-unification or chain extraction.
+
+      Total LLM cost: $0.006 (2 Haiku calls).
