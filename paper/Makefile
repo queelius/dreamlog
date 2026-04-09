@@ -91,3 +91,13 @@ help:
 	@echo "  make view     # View the PDF"
 
 .PHONY: all quick clean distclean view check wordcount help
+# --- HTML via tex2html ---
+HTMLDIR = html_paper
+
+.PHONY: html
+
+html: $(HTMLDIR)/index.html
+
+$(HTMLDIR)/index.html: dreamlog_paper.tex
+	@mkdir -p $(HTMLDIR)
+	tex2html dreamlog_paper.tex -o $(HTMLDIR)

@@ -6,1012 +6,544 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{hyperref}
-\usepackage{listings}
-\usepackage{tikz}
-\usetikzlibrary{shapes,arrows,positioning}
 \usepackage{booktabs}
 \usepackage{multirow}
-\usepackage{subfigure}
+\usepackage{array}
 
-% Define colors for syntax highlighting
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
-
-\lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
-    showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
-}
-
-\lstset{style=mystyle}
-
-% Define theorem environments for IEEEtran
+% Theorem environments
 \newtheorem{theorem}{Theorem}
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{proposition}[theorem]{Proposition}
-\newtheorem{corollary}[theorem]{Corollary}
 \newtheorem{definition}[theorem]{Definition}
-
-% Define proof environment
-\newenvironment{proof}[1][Proof]{\textbf{#1.} }{\hfill$\square$}
-
-% Define example environment
 \newtheorem{example}[theorem]{Example}
 
 \begin{document}
 
-\title{DreamLog: Neural-Symbolic Integration through\\Compression-Based Learning and Wake-Sleep Cycles}
+\title{Compression Enables Generalization:\\Wake-Sleep Cycles for Logic Programming\\with LLM Integration}
 
-\author{\IEEEauthorblockN{Anonymous Authors}
-\IEEEauthorblockA{\textit{Institution} \\
-\textit{Department}\\
-City, Country \\
-email@example.com}}
+\author{\IEEEauthorblockN{Alexander Towell}
+\IEEEauthorblockA{\textit{Southern Illinois University Edwardsville} \\
+Edwardsville, IL, USA \\
+lex@metafunctor.com \\
+ORCID: 0000-0001-6443-9897}}
 
 \maketitle
 
+%%% ===================================================================
+%%% ABSTRACT
+%%% ===================================================================
+
 \begin{abstract}
-We present DreamLog, a neural-symbolic system that integrates logic programming with large language models (LLMs) through a biologically-inspired architecture featuring wake-sleep cycles, compression-based learning, and recursive knowledge generation. DreamLog addresses the fundamental challenge of undefined predicates in logic programming by automatically generating rules through recursive LLM invocation, enabling compositional reasoning where complex concepts are decomposed into simpler constituents. The system employs \emph{knowledge-base-aware} retrieval-augmented generation (RAG) using weighted embeddings that combine query similarity with knowledge base context, enabling example selection that considers both the query structure and the current reasoning state. Multi-layered validation ensures correctness of both generated rules \emph{and facts}, with LLM-as-judge verification extended to fact validation for common-sense consistency checking. A novel success-based learning mechanism tracks which examples lead to successful inference, progressively improving retrieval quality over time through experience. During ``sleep'' phases, knowledge is consolidated through compression operators grounded in algorithmic information theory. The key innovation is treating undefined predicates not as errors but as opportunities for compositional knowledge discovery, transforming the brittleness of traditional logic programming into a mechanism for exploratory learning. This approach effectively bridges symbolic reasoning and neural knowledge generation, offering a practical framework for building interpretable AI systems that learn and adapt over time.
+Knowledge bases in logic programming grow through fact accumulation but do not learn: adding facts does not create understanding. We present DreamLog, a system that compresses its knowledge base through wake-sleep cycles, discovering rules that generalize to unseen entities. During wake phases, DreamLog answers queries via SLD resolution, optionally generating rules through LLM invocation for undefined predicates. During sleep phases, eight compression operations guided by the Minimum Description Length (MDL) principle transform accumulated facts into general rules: subsumption elimination, redundant fact pruning, guard-based generalization with negation-as-failure exceptions, predicate invention via skeleton fingerprinting, body pattern extraction, dead clause pruning, LLM-assisted cross-predicate rule discovery, and lemma caching. All operations are verified against a test suite of positive and negative queries with atomic rollback on failure. On a synthetic crafting domain with invented terms unknown to the LLM, compression enables $64 \pm 2$\% recall on unseen entities (up from 0\%), with symbolic compression alone achieving 53\%. A raw LLM baseline (direct prompting without compression) achieves 0\% recall on the same domain, confirming that the compression pipeline is genuinely necessary. On a canonical family tree domain, the full pipeline achieves 80\% recall with 100\% precision. In a 25-session research lab simulation, the system exhibits invest-then-compress-then-saturate dynamics matching DreamCoder's convergence behavior. These results are consistent with the Solomonoff induction thesis: shorter programs generalize better.
 \end{abstract}
 
 \begin{IEEEkeywords}
-neural-symbolic integration, logic programming, compositional reasoning, compression-based learning, retrieval-augmented generation, large language models
+compression-based learning, logic programming, wake-sleep cycles, knowledge base compression, inductive logic programming, Solomonoff induction, LLM integration
 \end{IEEEkeywords}
 
+%%% ===================================================================
+%%% 1. INTRODUCTION
+%%% ===================================================================
+
 \section{Introduction}
+\label{sec:intro}
 
-The integration of symbolic reasoning with neural approaches remains one of the fundamental challenges in artificial intelligence. While logic programming provides precise, interpretable reasoning with strong guarantees, it struggles with incomplete knowledge and the brittleness of hand-coded rules. Conversely, neural networks excel at pattern recognition and can leverage vast amounts of unstructured data, but lack the interpretability and compositional reasoning capabilities of symbolic systems.
+Knowledge bases in logic programming accumulate facts over time, yet this accumulation does not constitute learning. A knowledge base with 300 ground facts about a family tree cannot determine whether a newly introduced person is someone's father, even though the concepts \texttt{father}, \texttt{mother}, and \texttt{grandparent} are implicit in the data. The facts grow, but understanding does not emerge.
 
-A particularly vexing problem in logic programming is the handling of undefined predicates—queries about facts or relations not present in the knowledge base. Traditional systems simply fail when encountering undefined terms, requiring manual intervention to add missing knowledge. This brittleness severely limits the practical applicability of logic programming in open-world scenarios where complete knowledge specification is infeasible.
+This paper presents an empirical test of a classical theoretical claim: \emph{compression is learning}. Solomonoff's theory of inductive inference~\cite{solomonoff1964formal} and the closely related Minimum Description Length (MDL) principle~\cite{rissanen1978modeling,grunwald2007minimum} assert that the shortest program consistent with observations provides the best predictions. We test this claim in a logic programming setting, where ``shorter program'' means fewer clauses in a knowledge base (KB), and ``better predictions'' means the ability to derive facts about entities never seen during training.
 
-We present DreamLog, a neural-symbolic system that addresses these challenges through four key innovations:
+We introduce DreamLog, a logic programming system that implements \emph{wake-sleep cycles} inspired by DreamCoder~\cite{ellis2021dreamcoder}. During wake phases, DreamLog answers queries via SLD resolution, optionally invoking a large language model (LLM) to generate rules for undefined predicates. During sleep phases, eight compression operations transform accumulated facts into general rules. The operations are guided by MDL and verified against a test suite of positive and negative queries, with atomic rollback ensuring behavioral preservation.
+
+The central contribution is an empirical demonstration that KB compression produces rules that generalize to unseen data. We test this on two domains:
 
 \begin{enumerate}
-\item \textbf{Recursive Knowledge Generation}: When undefined predicates are encountered during query evaluation, DreamLog automatically generates rules through recursive LLM invocation. If generated rules reference undefined predicates in their bodies, additional LLM calls define those predicates, creating a compositional knowledge-building process that decomposes complex concepts into simpler constituents.
+\item \textbf{A novel synthetic domain.} We construct a crafting system with 15 invented materials (``lumite,'' ``vexal,'' ``drossite'') that no LLM has encountered in training. Compression discovers concepts such as \texttt{master\_artisan} and \texttt{safe\_recipe} purely from structural patterns, achieving 53\% recall on unseen entities through symbolic compression alone, and $64 \pm 2$\% with LLM-assisted operations (a raw LLM baseline achieves 0\%).
 
-\item \textbf{KB-Aware RAG with Success-Based Learning}: The system employs knowledge-base-aware retrieval-augmented generation using weighted embeddings that combine query similarity (70\%) with knowledge base context (30\%). A success-based learning mechanism tracks which examples lead to successful inference, using logarithmically-dampened boosts to progressively improve retrieval quality while preventing dominance by any single example.
-
-\item \textbf{Multi-Layered Validation}: Generated rules \emph{and facts} undergo structural validation (syntax, variable safety), semantic validation (preventing circular rules while allowing undefined predicates), and optional LLM-as-judge verification. Fact verification checks consistency with common-sense knowledge. Error-tolerant parsing handles common LLM formatting errors, with correction-based retry for iterative refinement.
-
-\item \textbf{Compression-Based Learning}: Inspired by memory consolidation in biological systems, DreamLog implements wake-sleep cycles where the "wake" phase involves active query processing and knowledge acquisition, while the "sleep" phase consolidates knowledge through compression operators grounded in algorithmic information theory.
+\item \textbf{A canonical family tree.} On a 29-person, 4-generation family tree, the full pipeline achieves 80\% recall on newly introduced individuals with 100\% precision, compressing the KB from 300 to 184 clauses.
 \end{enumerate}
 
-Our main contributions are:
+The novel domain result is the stronger validation. Because the LLM has never seen the invented terms, it cannot retrieve memorized rules from training data. The symbolic operations discover generalizations through MDL-driven compression of structural regularities in the data, without any labeled training examples or domain-specific inductive bias.
+
+Our contributions are:
 \begin{itemize}
-\item A novel architecture for compositional knowledge discovery through recursive LLM invocation, transforming undefined predicates from errors into opportunities for learning
-\item KB-aware RAG using weighted embeddings that combine query and knowledge base context, enabling example retrieval that considers the current reasoning state
-\item Success-based learning that tracks example effectiveness and progressively improves retrieval through experience, with logarithmic dampening to prevent runaway dominance
-\item Multi-layered validation that ensures correctness of both rules \emph{and facts}, with LLM-as-judge verification extended to fact validation for common-sense consistency
-\item Error-tolerant parsing infrastructure that supports smaller, local models through robust handling of formatting inconsistencies
-\item A theoretically grounded framework based on Solomonoff induction and Kolmogorov complexity for compression-based learning in logic programs
-\item A biologically-inspired wake-sleep cycle mechanism for knowledge consolidation and continuous learning
-\item An implementation demonstrating the feasibility of the approach across multiple LLM providers, with a curated library of 35 diverse rule examples
+\item A wake-sleep architecture for logic programming that combines eight symbolic compression operations with LLM-assisted rule discovery, all verified against behavioral test suites.
+\item Empirical evidence that KB compression enables generalization to unseen entities, including on novel domains with invented vocabulary.
+\item An ablation study demonstrating complementary contributions: symbolic operations discover entity-level generalizations while the LLM discovers cross-predicate concepts.
+\item A long-lived accumulation study showing invest-then-compress-then-saturate dynamics consistent with DreamCoder's convergence.
 \end{itemize}
+
+%%% ===================================================================
+%%% 2. BACKGROUND AND RELATED WORK
+%%% ===================================================================
 
 \section{Background and Related Work}
+\label{sec:related}
 
-\subsection{Logic Programming Foundations}
+\subsection{Compression and Induction}
 
-Logic programming, exemplified by languages like Prolog \cite{sterling1994art}, provides a declarative paradigm for knowledge representation and reasoning. Programs consist of facts and rules expressed in first-order logic, with query evaluation performed through SLD resolution \cite{kowalski1974predicate}. The key strength of logic programming lies in its formal semantics and the ability to perform complex reasoning through unification and backtracking.
+Solomonoff's theory of inductive inference~\cite{solomonoff1964formal} formalizes the intuition that simpler explanations generalize better. The Kolmogorov complexity of a string is the length of the shortest program that produces it; Solomonoff induction predicts future data by weighting hypotheses inversely by their description length. While Kolmogorov complexity is uncomputable, the MDL principle~\cite{rissanen1978modeling,grunwald2007minimum} provides a practical approximation: among models consistent with data, prefer the one with the shortest total description (model plus data given model). In our setting, the ``model'' is the set of rules in a KB, and the ``data given model'' is the set of remaining ground facts not derivable from those rules.
 
-However, traditional logic programming systems suffer from several limitations:
-\begin{itemize}
-\item \textbf{Closed-world assumption}: Undefined predicates are assumed false, leading to brittleness
-\item \textbf{Knowledge engineering bottleneck}: All knowledge must be manually encoded
-\item \textbf{Limited learning capabilities}: No mechanism for acquiring new knowledge from experience
-\end{itemize}
+\subsection{DreamCoder and Library Learning}
+
+DreamCoder~\cite{ellis2021dreamcoder} introduced wake-sleep library learning for program synthesis. During wake phases, it solves programming tasks using a library of primitives. During sleep phases, it compresses solved programs to extract reusable abstractions (via anti-unification of lambda terms), which become new library entries. Over iterations, the library converges to a small set of powerful primitives. DreamLog adapts this architecture to logic programming: our ``library entries'' are Horn clause rules, our ``programs'' are KB clauses, and our compression operations (particularly Operations C, D, and E) play the role of DreamCoder's abstraction phase.
 
 \subsection{Inductive Logic Programming}
 
-Inductive Logic Programming (ILP) \cite{muggleton1994inductive} addresses some of these limitations by learning logic programs from examples. Systems like FOIL \cite{quinlan1990learning}, Progol \cite{muggleton1995inverse}, and more recently, Metagol \cite{muggleton2015meta} can synthesize rules from positive and negative examples. However, ILP systems typically require structured training data and struggle with noise and ambiguity inherent in real-world scenarios.
+Inductive Logic Programming (ILP)~\cite{muggleton1994inductive} learns logic programs from labeled positive and negative examples. FOIL~\cite{quinlan1990learning} uses information gain to grow clause bodies. Progol~\cite{muggleton1995inverse} uses inverse entailment to construct the most specific hypothesis and searches for generalizations. Metagol~\cite{muggleton2014meta} uses meta-interpretive learning with declarative bias in the form of metarules. ILASP~\cite{law2014ilasp} learns Answer Set Programs from partial interpretations. Popper~\cite{cropper2021learning} uses hypothesis testing and constraint learning to prune the search space. $\partial$ILP~\cite{evans2018learning} and Neural Theorem Provers~\cite{rocktaschel2017end} differentiably learn rules from examples. LINC~\cite{olausson2023linc} combines LLMs with first-order logic provers for reasoning.
 
-Recent work on differentiable ILP \cite{evans2018learning} attempts to bridge neural and symbolic approaches by making the rule learning process differentiable, but these approaches often sacrifice the interpretability and exactness of pure logic programs.
+DreamLog differs from ILP in two key respects. First, DreamLog derives its training signal from the KB itself under the closed-world assumption, rather than requiring externally provided labeled examples. All ground facts serve as positive examples, and systematically generated perturbations serve as negative examples. Second, DreamLog's learning signal is compression, not classification accuracy. Rules are accepted only if they reduce description length while preserving the deductive closure of the KB.
+
+\subsection{Anti-Unification}
+
+Anti-unification, introduced by Plotkin~\cite{plotkin1970note} and Reynolds~\cite{reynolds1970transformational}, computes the least general generalization (lgg) of two terms. It is the dual of Robinson's unification~\cite{robinson1965machine}: where unification finds the most general term subsuming both inputs, anti-unification finds the most specific term that both inputs are instances of. DreamLog uses anti-unification in Operations C and D to identify shared structure across groups of facts and rules.
+
+\subsection{Predicate Invention}
+
+Predicate invention~\cite{stahl1995predicate,muggleton1988machine} creates new predicates not present in the background knowledge. Metagol~\cite{muggleton2014meta} invents predicates using metarules. Predicate invention is considered one of the most challenging aspects of ILP~\cite{cropper2022inductive}. DreamLog's Operation D discovers structurally identical rule sets via skeleton fingerprinting and extracts parameterized predicates using \texttt{call/N} dispatch, analogous to lambda abstraction and application.
 
 \subsection{Neural-Symbolic Integration}
 
-The integration of neural and symbolic AI has seen renewed interest with approaches like Neural Theorem Provers \cite{rocktaschel2017end}, Logic Tensor Networks \cite{serafini2016logic}, and DeepProbLog \cite{manhaeve2018deepproblog}. These systems typically embed logical structures in continuous spaces or use neural networks to guide symbolic reasoning.
+DeepProbLog~\cite{manhaeve2018deepproblog} integrates neural networks with probabilistic logic programming. Logic Tensor Networks~\cite{serafini2016logic} ground logical formulas in real-valued tensors. NeuralLog and related approaches~\cite{yang2017differentiable,battaglia2018relational} represent relations as learned embeddings. Knowledge graph completion methods (TransE~\cite{bordes2013translating}, RotatE~\cite{sun2019rotate}) learn embedding-based link prediction. DreamLog takes a different approach: the LLM is used as a hypothesis generator during compression (Operation G), but all reasoning remains symbolic. This preserves interpretability: every derived fact has a human-readable proof trace through Horn clause resolution.
 
-Our approach differs fundamentally by maintaining a clear separation between the symbolic reasoning engine and neural knowledge generation, using LLMs as an external knowledge source rather than attempting to neuralize the reasoning process itself. This separation preserves the interpretability of symbolic reasoning while leveraging neural pattern recognition.
+\subsection{Never-Ending Learning}
 
-\subsection{Retrieval-Augmented Generation}
+NELL~\cite{mitchell2018never} continuously learns beliefs from the web, accumulating an ontology over years. DreamLog shares the goal of continuous knowledge accumulation but operates on a different axis: rather than acquiring new facts from external sources, it discovers structure in existing facts through compression. The two approaches are complementary.
 
-Recent advances in Retrieval-Augmented Generation (RAG) have shown that retrieving relevant examples or context significantly improves LLM performance on specialized tasks. DreamLog extends traditional RAG with two key innovations: (1) \emph{knowledge-base-aware retrieval} that considers both query similarity and current KB state through weighted embedding combination, and (2) \emph{success-based learning} that tracks example effectiveness over time. Unlike traditional RAG, which typically retrieves documents, DreamLog retrieves structural patterns that guide rule synthesis, with retrieval quality improving through experience.
+%%% ===================================================================
+%%% 3. SYSTEM DESIGN
+%%% ===================================================================
 
-\subsection{Compositional Reasoning}
+\section{System Design}
+\label{sec:system}
 
-Our recursive knowledge generation mechanism aligns with research on compositional generalization in neural-symbolic systems. Systems like SCAN \cite{lake2017building} and COGS emphasize the importance of compositional reasoning for generalization. DreamLog achieves compositionality through recursive LLM invocation, where complex predicates are automatically decomposed into simpler constituents. This allows the system to handle novel combinations of concepts without explicit training on those combinations.
+DreamLog is a logic programming system with S-expression syntax that operates in alternating wake and sleep phases. This section describes the architecture and the eight compression operations that constitute the sleep phase.
 
-\subsection{Program Synthesis and Compression}
+\subsection{Wake Phase}
 
-Program synthesis research \cite{gulwani2017program} has long recognized the connection between compression and generalization. The Minimum Description Length (MDL) principle \cite{grunwald2007minimum} formalizes the intuition that the best model is the one that provides the most compact description of the data.
-
-In the context of logic programming, compression can take many forms:
-\begin{itemize}
-\item \textbf{Rule extraction}: Finding general rules that subsume multiple facts
-\item \textbf{Predicate invention}: Creating new predicates that simplify the overall program
-\item \textbf{Redundancy elimination}: Removing facts derivable from rules
-\end{itemize}
-
-\subsection{Cognitive Architectures and Sleep Cycles}
-
-The role of sleep in memory consolidation is well-established in neuroscience \cite{walker2009role}. During sleep, the brain replays experiences, strengthens important connections, and transfers knowledge from short-term to long-term memory. This has inspired several computational models, including:
+During the wake phase, DreamLog accepts assertions and queries. Assertions add ground facts (e.g., \texttt{(parent alice bob)}) or user-defined rules to the knowledge base. Queries are answered via SLD resolution~\cite{lloyd1987foundations} with negation-as-failure (NAF)~\cite{clark1978negation}, supporting:
 
 \begin{itemize}
-\item \textbf{Complementary Learning Systems} \cite{mcclelland1995why}: Separate fast and slow learning systems that consolidate knowledge over time
-\item \textbf{Wake-Sleep Algorithm} \cite{hinton1995wake}: Unsupervised learning in hierarchical models through alternating wake and sleep phases
-\item \textbf{Experience Replay} \cite{andrychowicz2017hindsight}: Replaying past experiences to improve learning in reinforcement learning agents
+\item \textbf{\texttt{not/1}}: Negation-as-failure with floundering guard.
+\item \textbf{\texttt{call/N}}: Meta-predicate for runtime predicate dispatch.
+\item \textbf{Usage tracking}: Each clause records how often it fires during resolution, providing frequency data for sleep-phase operations.
 \end{itemize}
 
-DreamLog draws inspiration from these biological and computational models, implementing wake-sleep cycles for knowledge consolidation in the context of logic programming.
+When a query references an undefined predicate, the system optionally invokes an LLM to propose rules defining that predicate. Generated rules undergo structural validation, optional LLM-as-judge verification, and are added to the KB only if they pass all checks. This mechanism transforms undefined predicates from errors into opportunities for knowledge acquisition.
 
-\section{The DreamLog Architecture}
+\subsection{Sleep Phase: The Dream Cycle}
 
-\subsection{System Overview}
+The sleep phase compresses the KB through eight operations, executed in sequence. Algorithm~\ref{alg:dream} outlines the overall procedure. Operations that modify the KB (C, D, E, G) perform per-candidate verification against the test suite, accepting each candidate only if it preserves behavioral equivalence. A final pipeline-level verification with atomic rollback provides an additional safety net.
 
-% TODO: Add architecture diagram figure here
-\begin{figure}[h]
-\centering
-% \includegraphics[width=\columnwidth]{architecture.pdf}
-\fbox{\parbox{\columnwidth}{\centering\textit{[Architecture diagram to be added]\\Shows: Logic Engine, LLM Layer, Wake-Sleep Controller, Compression Engine}}}
-\caption{DreamLog System Architecture}
-\label{fig:architecture}
-\end{figure}
-
-DreamLog consists of four main components:
-
-\begin{enumerate}
-\item \textbf{Logic Programming Engine}: A Prolog-like reasoning system with S-expression syntax
-\item \textbf{LLM Integration Layer}: Hooks for generating knowledge when undefined predicates are encountered
-\item \textbf{Wake-Sleep Controller}: Manages cycles of active querying and knowledge consolidation
-\item \textbf{Compression Engine}: Implements various compression operators for knowledge refinement
-\end{enumerate}
-
-\subsection{Core Logic Programming Engine}
-
-The foundation of DreamLog is a logic programming engine supporting:
-\begin{itemize}
-\item Facts: Ground terms like \texttt{(parent john mary)}
-\item Rules: Horn clauses like \texttt{(grandparent X Z) :- (parent X Y), (parent Y Z)}
-\item Queries: Goals with variables like \texttt{(grandparent john Z)}
-\end{itemize}
-
-Query evaluation uses SLD resolution with backtracking, maintaining a substitution environment for variable bindings. The key innovation is the integration of LLM hooks triggered when undefined predicates are encountered.
-
-\subsection{LLM Integration for Undefined Predicates}
-
-When the evaluator encounters an undefined predicate during query resolution, it triggers an LLM hook with a sophisticated prompt generation and validation pipeline:
-
-\begin{algorithm}
-\caption{Enhanced LLM Hook with Validation}
-\label{alg:llm_hook}
+\begin{algorithm}[t]
+\caption{Dream Cycle}
+\label{alg:dream}
 \begin{algorithmic}[1]
-\STATE \textbf{Input:} Query $q$, Knowledge base $KB$
-\STATE \textbf{Output:} Generated facts/rules
-\IF{$predicate(q) \notin KB$}
-    \STATE $context \gets extract\_context(KB, q)$
-    \STATE $emb \gets w_q \cdot embed(q) + w_{kb} \cdot embed(context)$  \COMMENT{KB-aware}
-    \STATE $examples \gets retrieve(normalize(emb), success\_boost)$  \COMMENT{RAG}
-    \STATE $prompt \gets format\_prompt(q, context, examples)$
-    \STATE $response \gets LLM(prompt)$
-    \STATE $(facts, rules) \gets parse\_response(response)$  \COMMENT{Error-tolerant}
-    \FOR{each $fact \in facts$}
-        \STATE $valid \gets validate\_structural(fact)$
-        \IF{valid AND use\_llm\_judge}
-            \STATE $valid \gets verify\_fact\_commonsense(fact, KB)$  \COMMENT{New}
-        \ENDIF
-        \IF{valid}
-            \STATE $KB \gets KB \cup \{fact\}$
-        \ENDIF
-    \ENDFOR
-    \FOR{each $rule \in rules$}
-        \STATE $valid \gets validate\_structural(rule)$
-        \IF{valid}
-            \STATE $valid \gets validate\_semantic(rule, KB)$
-        \ENDIF
-        \IF{valid AND use\_llm\_judge}
-            \STATE $valid \gets verify\_rule\_with\_llm(rule, KB)$
-        \ENDIF
-        \IF{valid}
-            \STATE $KB \gets KB \cup \{rule\}$
-        \ELSE
-            \STATE $rule \gets retry\_with\_correction(q, KB, errors)$
-        \ENDIF
-    \ENDFOR
-    \STATE $record\_success(examples)$  \COMMENT{Success-based learning}
+\REQUIRE Knowledge base $K$, verification flag $v$
+\STATE $K_0 \leftarrow \text{copy}(K)$
+\STATE $S \leftarrow \text{BuildVerificationSuite}(K)$ \COMMENT{Pos/Neg queries}
+\STATE $K \leftarrow \text{OpF}(K)$ \COMMENT{Dead clause pruning (wake data)}
+\STATE $K \leftarrow \text{OpA}(K)$ \COMMENT{Subsumption elimination}
+\STATE $K \leftarrow \text{OpB}(K)$ \COMMENT{Redundant fact pruning}
+\STATE $K \leftarrow \text{OpC}(K, S)$ \COMMENT{Fact generalization}
+\STATE $S \leftarrow \text{ExtendSuite}(S, K)$ \COMMENT{Add rule-derived queries}
+\STATE $K \leftarrow \text{OpD}(K, S)$ \COMMENT{Predicate invention}
+\STATE $K \leftarrow \text{OpE}(K, S)$ \COMMENT{Body pattern extraction}
+\STATE $K \leftarrow \text{OpG}(K, S)$ \COMMENT{LLM-assisted compression}
+\STATE $K \leftarrow \text{OpB}(K)$ \COMMENT{Re-prune (post-LLM)}
+\STATE $K \leftarrow \text{OpH}(K)$ \COMMENT{Lemma caching}
+\IF{$v$ \AND $\neg\text{Verify}(K, S)$}
+    \STATE $K \leftarrow K_0$ \COMMENT{Atomic rollback}
 \ENDIF
-\RETURN $(facts, rules)$
+\RETURN $K$, $|K| / |K_0|$
 \end{algorithmic}
 \end{algorithm}
 
-This enhanced pipeline incorporates several critical innovations: (1) KB-aware RAG using weighted embeddings combining query ($w_q = 0.7$) and knowledge base context ($w_{kb} = 0.3$), (2) robust parsing that handles common LLM formatting errors, (3) multi-layered validation combining structural, semantic, and optional LLM-based verification for \emph{both facts and rules}, (4) common-sense verification for generated facts (e.g., rejecting \texttt{male(mary)}), (5) correction-based retry when generation fails, and (6) success-based learning that tracks example effectiveness.
+\begin{definition}[Verification Suite]
+\label{def:suite}
+Given a KB $K$, the verification suite $S = (S^+, S^-)$ consists of:
+\begin{itemize}
+\item $S^+ = \{t \mid \text{Fact}(t) \in K\}$: all ground facts.
+\item $S^-$: synthetic negative queries formed by substituting atoms into existing fact templates at positions where those atoms do not appear in $K$.
+\end{itemize}
+A compression passes verification if every $q \in S^+$ remains derivable and no $q \in S^-$ becomes derivable.
+\end{definition}
 
-\subsection{Recursive Knowledge Generation}
+\subsection{Operation A: Subsumption Elimination}
 
-A key architectural feature of DreamLog is its support for \textit{recursive} or \textit{compositional} knowledge generation. When the LLM generates a rule containing undefined predicates in the rule body, the evaluator triggers additional LLM calls to define those predicates. This creates a chain of knowledge generation that enables compositional reasoning:
+Removes clauses subsumed by more general clauses already in the KB. A rule $R_1$ subsumes $R_2$ if there exists a substitution $\theta$ such that $R_1\theta \sqsubseteq R_2$ and both have the same body length. Additionally, bodyless rules (rules with empty bodies) subsume matching facts. This removes redundancy introduced by prior operations or user input.
+
+\subsection{Operation B: Redundant Fact Pruning}
+
+Removes facts that are derivable from the remaining KB (rules plus other facts). Each fact $f$ is tentatively removed; if $f$ remains derivable via SLD resolution, the removal is permanent. Batch removal is attempted first, with one-at-a-time fallback for mutually dependent facts. This is the primary mechanism by which rule discovery translates into fact removal.
+
+\subsection{Operation C: Fact Generalization with Exceptions}
+\label{sec:opC}
+
+This is the central symbolic compression operation. Given a group of $n \geq 3$ facts sharing a functor and arity, the operation:
+
+\begin{enumerate}
+\item \textbf{Partitions} facts by argument position: for each position $p$, groups facts that agree on all arguments except position $p$.
+\item \textbf{Finds a guard predicate}: a unary predicate $g$ whose extension covers all values appearing at position $p$ in the group (and possibly more).
+\item \textbf{Computes exceptions}: values in the guard's extension not appearing in the fact group.
+\item \textbf{Applies MDL}: the generalization is accepted only if $1 + |\text{exceptions}| < n$ (one rule plus exception facts is shorter than the original $n$ facts).
+\end{enumerate}
 
 \begin{example}
-Consider a query for \texttt{(ancestor john mary)}. If \texttt{ancestor/2} is undefined, the LLM might generate:
-\begin{lstlisting}
-(rule (ancestor X Y) ((parent X Y)))
-(rule (ancestor X Z) ((parent X Y) (ancestor Y Z)))
-\end{lstlisting}
-
-If \texttt{parent/2} is also undefined, the evaluator recursively invokes the LLM hook to define it, continuing until all predicates are either defined or grounded in facts.
+Given facts \texttt{(master\_artisan kael)}, \texttt{(master\_artisan sera)}, ..., \texttt{(master\_artisan zara)} covering 7 of 9 artisans, and the guard predicate \texttt{artisan/1} covering all 9, Operation C produces:
+\begin{quote}
+\texttt{(master\_artisan X) :- (artisan X), (not (exception\_master\_artisan\_artisan X))}\\
+\texttt{(exception\_master\_artisan\_artisan thom)}\\
+\texttt{(exception\_master\_artisan\_artisan fen)}
+\end{quote}
+This replaces 7 facts with 1 rule + 2 exception facts = 3 clauses, a net reduction of 4.
 \end{example}
 
-This recursive mechanism provides several advantages:
-\begin{itemize}
-\item \textbf{Compositional Reasoning}: Complex predicates are decomposed into simpler constituents
-\item \textbf{Knowledge Discovery}: The system can explore chains of reasoning without pre-specifying all intermediate concepts
-\item \textbf{Natural Abstraction}: Higher-level predicates are defined in terms of lower-level ones, mirroring human conceptual hierarchies
-\item \textbf{Incremental Learning}: The knowledge base grows organically through use
-\end{itemize}
+\subsection{Operation D: Predicate Invention}
 
-Importantly, our validation system deliberately does \textit{not} require all body predicates to be defined. Undefined predicates are flagged for recursive generation rather than rejected, enabling this compositional knowledge-building process.
-
-\subsection{Wake-Sleep Cycles}
-
-DreamLog implements a biologically-inspired wake-sleep cycle:
-
-\subsubsection{Wake Phase}
-During the wake phase, the system:
-\begin{itemize}
-\item Processes user queries
-\item Generates new knowledge via LLM hooks
-\item Records all interactions in an experience buffer
-\item Maintains statistics on predicate usage and query patterns
-\end{itemize}
-
-\subsubsection{Sleep Phase}
-During the sleep phase, the system:
-\begin{itemize}
-\item Replays experiences from the buffer
-\item Applies compression operators to consolidate knowledge
-\item Validates learned rules against ground truth
-\item Prunes redundant or incorrect knowledge
-\end{itemize}
-
-\begin{algorithm}
-\caption{Wake-Sleep Cycle}
-\label{alg:wake_sleep}
-\begin{algorithmic}[1]
-\WHILE{system\_active}
-    \STATE \textbf{// Wake Phase}
-    \FOR{$duration = wake\_period$}
-        \STATE $query \gets get\_user\_query()$
-        \STATE $result \gets evaluate(query, KB)$
-        \STATE $buffer \gets buffer \cup (query, result)$
-    \ENDFOR
-    \STATE \textbf{// Sleep Phase}
-    \STATE $experiences \gets sample(buffer)$
-    \FOR{$exp \in experiences$}
-        \STATE $replay(exp, KB)$
-    \ENDFOR
-    \STATE $KB \gets compress(KB)$
-    \STATE $KB \gets validate(KB, ground\_truth)$
-\ENDWHILE
-\end{algorithmic}
-\end{algorithm}
-
-\subsection{Compression Operators}
-
-The compression engine implements several operators for knowledge consolidation:
-
-\subsubsection{Rule Extraction}
-Identifies patterns in facts to create general rules:
-\begin{lstlisting}[language=Prolog]
-% Facts:
-(parent john mary)
-(parent john tom)
-(parent mary alice)
-
-% Extracted rule:
-(ancestor X Y) :- (parent X Y)
-(ancestor X Z) :- (parent X Y), (ancestor Y Z)
-\end{lstlisting}
-
-\subsubsection{Variable Abstraction}
-Replaces constants with variables to create more general rules:
-\begin{lstlisting}[language=Prolog]
-% Specific rules:
-(mortal socrates) :- (human socrates)
-(mortal plato) :- (human plato)
-
-% Abstracted rule:
-(mortal X) :- (human X)
-\end{lstlisting}
-
-\subsubsection{Subsumption Elimination}
-Removes redundant facts derivable from rules:
-\begin{lstlisting}[language=Prolog]
-% Before:
-(mortal X) :- (human X)
-(human socrates)
-(mortal socrates)  % Redundant
-
-% After:
-(mortal X) :- (human X)
-(human socrates)
-\end{lstlisting}
-
-\subsubsection{Predicate Invention}
-Creates new intermediate predicates that simplify the program:
-\begin{lstlisting}[language=Prolog]
-% Before:
-(grandfather X Z) :- (father X Y), (parent Y Z)
-(grandmother X Z) :- (mother X Y), (parent Y Z)
-
-% After (with invented predicate):
-(grandparent X Z) :- (parent X Y), (parent Y Z)
-(grandfather X Z) :- (grandparent X Z), (male X)
-(grandmother X Z) :- (grandparent X Z), (female X)
-\end{lstlisting}
-
-\section{Theoretical Framework}
-
-\subsection{Solomonoff Induction and Kolmogorov Complexity}
-
-We ground DreamLog's learning mechanism in algorithmic information theory. The Kolmogorov complexity $K(x)$ of an object $x$ is the length of the shortest program that produces $x$:
-
-\begin{equation}
-K(x) = \min\{|p| : U(p) = x\}
-\end{equation}
-
-where $U$ is a universal Turing machine and $|p|$ is the length of program $p$.
-
-For a logic program $P$ explaining data $D$, we seek to minimize:
-
-\begin{equation}
-L(P, D) = K(P) + K(D|P)
-\end{equation}
-
-where $K(P)$ is the complexity of the program and $K(D|P)$ is the complexity of the data given the program.
-
-\subsection{Compression as Learning}
-
-Each compression operator can be viewed as reducing the program complexity while maintaining explanatory power:
-
-\begin{theorem}[Compression Improvement]
-Let $P$ be a logic program and $C$ a compression operator. If $C(P)$ explains the same data as $P$, then:
-\begin{equation}
-K(C(P)) \leq K(P) - \epsilon
-\end{equation}
-for some $\epsilon > 0$, indicating successful compression.
-\end{theorem}
-
-\begin{proof}[Proof Sketch]
-Since $C(P)$ explains the same data as $P$, we have $K(D|C(P)) = K(D|P)$. If the compression operator reduces program size without losing information, then $|C(P)| < |P|$, implying $K(C(P)) < K(P)$ by the definition of Kolmogorov complexity.
-\end{proof}
-
-\subsection{Convergence Properties}
-
-Under certain conditions, the wake-sleep cycles converge to an optimal program:
-
-\begin{theorem}[Convergence]
-Given sufficient experiences and an ideal LLM oracle, the sequence of knowledge bases $\{KB_t\}$ generated by wake-sleep cycles converges to a minimum description length program $P^*$ such that:
-\begin{equation}
-P^* = \arg\min_P [K(P) + K(D|P)]
-\end{equation}
-\end{theorem}
-
-\begin{proof}[Proof Outline]
-The proof follows from:
-\begin{enumerate}
-\item Each compression operation monotonically decreases $K(P)$ while preserving $K(D|P)$
-\item The experience replay ensures coverage of the data distribution
-\item The validation step prevents divergence from ground truth
-\item The space of programs is countable, ensuring a minimum exists
-\end{enumerate}
-Full proof requires formal treatment of the LLM oracle and convergence conditions.
-\end{proof}
-
-\subsection{Relationship to Biological Memory Consolidation}
-
-The wake-sleep architecture mirrors biological memory consolidation where:
-\begin{itemize}
-\item \textbf{Wake phase} $\leftrightarrow$ Hippocampal encoding of experiences
-\item \textbf{Sleep phase} $\leftrightarrow$ Cortical consolidation and abstraction
-\item \textbf{Compression} $\leftrightarrow$ Synaptic pruning and strengthening
-\item \textbf{Experience replay} $\leftrightarrow$ Sharp-wave ripples during sleep
-\end{itemize}
-
-This biological analogy suggests that compression-based learning may be a fundamental principle of intelligent systems, both artificial and biological.
-
-\subsection{Success-Based Learning and Experience Replay}
-
-The success-based learning mechanism in DreamLog's RAG system draws on principles from reinforcement learning, particularly experience replay \cite{andrychowicz2017hindsight}. When examples lead to successful inference, they receive a boost in future retrieval probability:
-
-\begin{equation}
-\text{score}(e) = \text{sim}(q, e) + \beta \cdot \log(1 + \text{success\_count}(e))
-\label{eq:success_score}
-\end{equation}
-
-where $\text{sim}(q, e)$ is the cosine similarity between the query embedding and example embedding, $\beta$ is a configurable boost parameter (default 0.1), and $\text{success\_count}(e)$ tracks how often example $e$ has contributed to successful inference.
-
-The logarithmic dampening $\log(1 + n)$ serves two important purposes:
-\begin{enumerate}
-\item \textbf{Diminishing returns}: Prevents any single example from dominating retrieval, ensuring diversity
-\item \textbf{Stability}: Limits the influence of success counts relative to semantic similarity
-\end{enumerate}
-
-This mechanism can be viewed as a form of \emph{non-stationary multi-armed bandit} where:
-\begin{itemize}
-\item Each example is an arm
-\item Pulling an arm corresponds to using an example in prompt construction
-\item Reward is whether the resulting inference succeeds
-\item The similarity score provides a prior (exploitation) while success counts enable learning (exploration)
-\end{itemize}
-
-The KB-aware embedding combination further enhances this by conditioning retrieval on the current knowledge state:
-
-\begin{equation}
-\mathbf{e}_{\text{search}} = \text{normalize}(w_q \cdot \text{embed}(q) + w_{kb} \cdot \text{embed}(KB))
-\label{eq:kb_aware}
-\end{equation}
-
-where $w_q = 0.7$ and $w_{kb} = 0.3$ by default. This allows the system to retrieve different examples for the same query depending on what knowledge is already available, mirroring context-dependent memory retrieval in biological systems.
-
-\section{Implementation}
-
-\subsection{System Architecture}
-
-DreamLog is implemented in Python with a modular architecture:
-
-\begin{lstlisting}[language=Python]
-# Core components
-dreamlog/
-  terms.py           # Term representation
-  prefix_parser.py   # S-expression parsing
-  knowledge.py       # Knowledge base
-  unification.py     # Unification engine
-  evaluator.py       # Query evaluator
-  engine.py          # Main engine
-
-# LLM integration
-  llm_providers.py        # Provider interface
-  llm_hook.py             # Hook mechanism
-  llm_response_parser.py  # Error-tolerant parsing
-
-# Prompt engineering and RAG
-  prompt_template_system.py # Template library
-  example_retriever.py      # RAG-based example selection
-
-# Validation and quality control
-  rule_validator.py         # Structural/semantic validation
-  llm_judge.py             # LLM-as-judge verification
-  correction_retry.py      # Correction-based retry
-
-# Learning components
-  experience_buffer.py      # Experience storage
-  replay_learner.py        # Experience replay
-  compression_engine.py    # Compression operators
-  enhanced_sleep_cycle.py  # Cycle controller
-\end{lstlisting}
-
-\subsection{S-Expression Representation}
-
-DreamLog uses S-expressions for readable knowledge representation:
-
-\begin{lstlisting}
-; Facts
-(parent john mary)
-(parent mary alice)
-
-; Rules  
-(grandparent ?X ?Z)
-  :- (parent ?X ?Y)
-     (parent ?Y ?Z)
-
-; Queries
-?- (grandparent john ?Who)
-\end{lstlisting}
-
-This format is both human-readable and easily parsed, facilitating integration with LLMs that can generate knowledge in this format.
-
-\subsection{LLM Hook Mechanism}
-
-The LLM hook is implemented as a configurable callback:
-
-\begin{lstlisting}[language=Python]
-class LLMHook:
-    def __init__(self, provider, template):
-        self.provider = provider
-        self.template = template
-    
-    def on_undefined(self, query, context):
-        prompt = self.template.format(
-            query=query,
-            context=context
-        )
-        response = self.provider.generate(prompt)
-        return self.parse_knowledge(response)
-\end{lstlisting}
-
-This design allows for different LLM providers (OpenAI, Anthropic, local models) and customizable prompt templates.
-
-\subsection{KB-Aware RAG with Success-Based Learning}
-
-To improve prompt quality and LLM generation accuracy, DreamLog employs knowledge-base-aware Retrieval-Augmented Generation (RAG) with success-based learning:
-
-\begin{lstlisting}[language=Python]
-class ExampleRetriever:
-    def __init__(self, embedding_provider,
-                 query_weight=0.7, kb_weight=0.3,
-                 success_boost=0.1):
-        self.query_weight = query_weight
-        self.kb_weight = kb_weight
-        self.success_boost = success_boost
-
-    def retrieve(self, query, kb_context="",
-                 num_examples=5, temperature=1.0):
-        # KB-aware embedding combination
-        query_emb = self.embed(query)
-        if kb_context:
-            kb_emb = self.embed(kb_context)
-            search_emb = normalize(
-                self.query_weight * query_emb +
-                self.kb_weight * kb_emb
-            )
-        else:
-            search_emb = normalize(query_emb)
-
-        # Compute similarity with success boost
-        scores = []
-        for i, ex_emb in enumerate(self.example_embeddings):
-            sim = cosine_similarity(search_emb, ex_emb)
-            # Log dampening prevents dominance
-            success = self.examples[i].get('success_count', 0)
-            sim += self.success_boost * log(1 + success)
-            scores.append(sim)
-
-        # Softmax sampling with temperature
-        probs = softmax(scores / temperature)
-        return sample_without_replacement(
-            self.examples, num_examples, probs
-        )
-
-    def record_success(self, example_index):
-        self.examples[example_index]['success_count'] += 1
-\end{lstlisting}
-
-The retriever computes weighted embeddings combining query similarity (70\%) with knowledge base context (30\%), enabling example selection that considers the current reasoning state. The success-based learning mechanism uses logarithmically-dampened boosts ($\log(1 + \text{count})$) to progressively improve retrieval while preventing runaway dominance by frequently-used examples. The curated library contains 35 examples across diverse domains including family relations, graph traversal, organizational hierarchies, academic courses, social networks, transportation, taxonomies, and temporal reasoning.
-
-\subsection{Multi-Layered Validation for Rules and Facts}
-
-Generated knowledge undergoes multi-stage validation to ensure correctness:
+Discovers structurally identical rule sets across different predicates and extracts a parameterized ``invented'' predicate. The procedure:
 
 \begin{enumerate}
-\item \textbf{Structural Validation}: Checks syntactic well-formedness, proper variable usage, and functor consistency for both facts and rules
-\item \textbf{Semantic Validation}: For rules, ensures safety (all head variables appear in body), prevents trivial circular rules, but crucially \textit{allows} undefined body predicates to enable recursive generation
-\item \textbf{LLM-as-Judge for Rules} (Optional): Uses a second LLM call to verify logical correctness with respect to the knowledge base and query intent
-\item \textbf{LLM-as-Judge for Facts} (Optional): Verifies that generated facts are consistent with common sense---for example, rejecting \texttt{male(mary)} while accepting \texttt{male(john)}
+\item \textbf{Extract skeletons}: For each predicate's rule set, compute a \emph{skeleton} that abstracts functor names into roles (\textsc{SELF} for recursive calls, \textsc{PARAM\_$i$} for distinct body functors) while preserving rule structure, arity, and variable connectivity.
+\item \textbf{Group by skeleton}: Predicates with identical skeletons are structurally equivalent.
+\item \textbf{Build parameterized predicate}: Create an invented predicate with an additional \texttt{call/N} dispatch parameter, and replace each original predicate with a one-line wrapper delegating to the invented predicate.
+\item \textbf{Apply MDL}: Accept only if $k + m < m \cdot k$, where $k$ is the number of rules per predicate and $m$ is the number of predicates in the group.
 \end{enumerate}
 
-\begin{lstlisting}[language=Python]
-class RuleValidator:
-    def validate(self, rule, structural=True, semantic=True):
-        errors = []
+This is the logic programming analog of lambda abstraction: the skeleton captures shared computational structure, and \texttt{call/N} dispatch plays the role of function application.
 
-        if structural:
-            # Check variable bindings
-            head_vars = rule.head.get_variables()
-            body_vars = set()
-            for term in rule.body:
-                body_vars.update(term.get_variables())
+\subsection{Operation E: Body Pattern Extraction}
 
-            # Safety check: head vars must appear in body
-            unsafe_vars = head_vars - body_vars
-            if unsafe_vars:
-                errors.append(f"Unsafe variables: {unsafe_vars}")
+Finds common contiguous sub-goal sequences across rule bodies and extracts them as named predicates. Interface variables (those appearing both inside and outside the subsequence) become the extracted predicate's arguments. This discovers shared computational fragments across rules, analogous to common subexpression elimination.
 
-        if semantic:
-            # Check for trivial circular rules
-            if self.is_trivially_circular(rule):
-                errors.append("Trivially circular rule")
+\subsection{Operation F: Dead Clause Pruning}
 
-            # NOTE: We do NOT check if body predicates
-            # are defined - allows recursive generation
+Removes clauses with zero usage after sufficient wake-phase queries. Requires both a minimum query count and that at least 50\% of predicates have been exercised. User-provided seed facts are protected from pruning; only clauses added by prior dream cycles (lemmas, LLM-generated rules) are eligible for removal.
 
-        return ValidationResult(
-            is_valid=len(errors) == 0,
-            errors=errors
-        )
-\end{lstlisting}
+\subsection{Operation G: LLM-Assisted Compression}
+\label{sec:opG}
 
-The \texttt{LLMJudge} class extends verification to facts, checking common-sense consistency:
+The symbolic operations (A--F) cannot discover rules that cross predicate boundaries (e.g., \texttt{father(X,Y) :- parent(X,Y), male(X)}) because they operate within a single functor's fact group. Operation G invokes an LLM to propose such rules.
 
-\begin{lstlisting}[language=Python]
-class LLMJudge:
-    def verify_fact(self, fact, query_functor, kb):
-        prompt = f"""Verify this fact is reasonable:
-        Fact: {fact}
+The pipeline:
+\begin{enumerate}
+\item \textbf{Prompt construction}: Sample facts ensuring every predicate is represented (round-robin), include predicate fact counts to guide directionality (specific $\leftarrow$ general).
+\item \textbf{Response parsing}: Parse JSON-formatted rule proposals, handling common LLM formatting errors.
+\item \textbf{Cycle filtering}: Reject rules creating cross-functor cycles in the dependency graph via DFS. Self-recursive rules (depth-limited by the evaluator) are permitted.
+\item \textbf{Helper separation}: Separate helper predicates (new predicates supporting \texttt{not/1} patterns) from main rules (deriving existing facts).
+\item \textbf{Evaluation}: Each main rule must derive $\geq 2$ existing facts.
+\item \textbf{False-positive check}: Enumerate solutions and reject rules deriving ground terms absent from the KB.
+\item \textbf{Combined verification}: Verify the full set of accepted rules against the verification suite with bounded evaluation to prevent combinatorial explosion.
+\end{enumerate}
 
-        Consider:
-        - Is it consistent with common knowledge?
-        - male/female should match typical names
-        - Geographic facts should be accurate
+\subsection{Operation H: Lemma Caching}
 
-        Respond: {{"is_correct": bool, "confidence": 0-1,
-                   "explanation": "..."}}"""
+Adds frequently derived intermediate terms as ground facts for faster resolution. Wake-phase derivation tracking identifies terms computed repeatedly during SLD resolution. Caching these as facts converts multi-step derivations into direct lookups, yielding up to 23.6$\times$ query speedup (Section~\ref{sec:experiments}).
 
-        response = self.provider.generate(prompt)
-        return self._parse_judgement(response)
-\end{lstlisting}
+\subsection{Behavioral Preservation}
 
-\subsection{Error-Tolerant Response Parsing}
+All operations share a common verification protocol. Before any modification, the system:
+\begin{enumerate}
+\item Takes a snapshot of the KB.
+\item Constructs (or extends) the verification suite.
+\item Applies the proposed compression.
+\item Verifies that all positive queries remain derivable and no negative query becomes derivable.
+\item Rolls back to the snapshot if verification fails.
+\end{enumerate}
 
-LLM responses often contain formatting inconsistencies. Our parser implements multiple strategies:
+This ensures that the compressed KB is \emph{behaviorally equivalent} to the original on all tested queries. Experiment EX02 confirmed zero semantic drift across 200 held-out queries over multiple dream cycles.
 
-\begin{lstlisting}[language=Python]
-class DreamLogResponseParser:
-    def parse(self, response):
-        # Try strategies in order
-        strategies = [
-            self._parse_as_json,      # Standard JSON
-            self._parse_as_sexp,      # S-expressions
-            self._parse_with_extraction,  # Extract from markdown
-            self._parse_as_mixed      # Mixed formats
-        ]
+%%% ===================================================================
+%%% 4. EXPERIMENTS
+%%% ===================================================================
 
-        for strategy in strategies:
-            result = strategy(response)
-            if result and (result.facts or result.rules):
-                return result
+\section{Experiments}
+\label{sec:experiments}
 
-        return ParsedKnowledge([], [], None, ["No valid parse"])
-
-    def _fix_unquoted_json(self, json_str):
-        # Fix common LLM errors like:
-        # [["rule", ["ancestor", X, Y], ...]]
-        # -> [["rule", ["ancestor", "X", "Y"], ...]]
-        pattern = r'\b([A-Za-z_][A-Za-z0-9_]*)\b(?=\s*[,\]\)])'
-        return re.sub(pattern, lambda m: f'"{m.group(1)}"', json_str)
-\end{lstlisting}
-
-This robust parsing significantly improves compatibility with smaller, local models (phi4-mini, qwen3, etc.) that may not produce perfectly formatted JSON.
-
-\subsection{Correction-Based Retry}
-
-When validation fails, the system can use LLM-based correction:
-
-\begin{lstlisting}[language=Python]
-class CorrectionBasedRetry:
-    def retry_with_correction(self, query, kb, errors):
-        # Generate correction prompt
-        correction_prompt = f"""
-        The previous rule had errors:
-        {errors}
-
-        Please generate a corrected version that:
-        - Fixes these specific issues
-        - Maintains the intended semantics
-        """
-
-        # Call LLM with correction context
-        response = self.provider.complete(correction_prompt)
-
-        # Parse and validate again
-        return self.parser.parse(response)
-\end{lstlisting}
-
-\subsection{Persistent Learning Infrastructure}
-
-The system maintains persistent state across sessions:
-
-\begin{lstlisting}[language=Python]
-class PersistentKnowledgeBase:
-    def __init__(self, path):
-        self.path = path
-        self.facts = self.load_facts()
-        self.rules = self.load_rules()
-        self.metadata = self.load_metadata()
-
-    def checkpoint(self):
-        # Save current state
-        self.save_facts()
-        self.save_rules()
-        self.save_metadata()
-
-    def replay_experiences(self):
-        # Load and replay past experiences
-        for exp in self.experience_buffer:
-            self.process_experience(exp)
-\end{lstlisting}
-
-\section{Preliminary Results}
-
-% TODO: Complete this section with actual experimental results
+We evaluate DreamLog on three axes: generalization to unseen entities (the core claim), long-lived knowledge accumulation, and ablation of the compression pipeline. All experiments use Anthropic Claude Haiku~4.5 for Operation G, with total LLM cost under \$0.05 across all experiments.
 
 \subsection{Experimental Setup}
 
-We evaluate DreamLog on several benchmark tasks:
-\begin{itemize}
-\item \textbf{Family Relations}: Learning family relationship rules from examples
-\item \textbf{Mathematical Reasoning}: Discovering arithmetic and algebraic patterns
-\item \textbf{Common Sense Reasoning}: Answering queries requiring world knowledge
-\item \textbf{Program Synthesis}: Learning recursive list operations
-\end{itemize}
+All experiments run on DreamLog's Python implementation with SLD resolution, NAF, and \texttt{call/N}. The LLM provider for Operation G is Anthropic Claude Haiku~4.5 (\$0.25/M input tokens) via API. Each dream cycle invokes the LLM at most twice (once for rule proposal in Operation G, once for predicate naming). Verification suites are constructed automatically from KB state. All compression operations use default parameters: minimum group size 3, shared structure threshold 0.1, maximum 200 prompt facts.
 
-\begin{table}[h]
+\subsection{EX25b: Generalization on a Novel Domain}
+\label{sec:ex25b}
+
+\subsubsection{Motivation}
+The canonical test for compression-driven generalization (a family tree) is problematic: the LLM has likely seen \texttt{father(X,Y) :- parent(X,Y), male(X)} thousands of times during training. We cannot distinguish compression-driven discovery from training data recall. This experiment uses a synthetic domain with invented terms the LLM has never encountered.
+
+\subsubsection{Domain}
+An alchemical crafting workshop with 15 materials having invented names (lumite, vexal, drossite, pyreth, quarl, noctite, aerine, sylphex, thalline, morven, zephore, ethylis, fenrik, glacine, bramith) and properties (phase, material class, hazard status). The domain includes 16 recipes combining materials into products, 9 artisans with skills, and 5 skill requirements. Total: 112 base facts and 61 derived facts across 6 predicates (\texttt{hazardous\_recipe}, \texttt{safe\_recipe}, \texttt{same\_phase\_recipe}, \texttt{metallic\_alloy}, \texttt{can\_craft}, \texttt{master\_artisan}).
+
+\subsubsection{Protocol}
+Four conditions: (1)~\textit{no dream}: baseline KB with no compression; (2)~\textit{symbolic}: dream cycle with Operations A--F only (no LLM); (3)~\textit{full pipeline}: dream cycle with all operations including LLM-assisted Operation~G; (4)~\textit{raw LLM}: prompt Haiku directly with all KB facts and new-entity queries (no compression pipeline). After dreaming, 6 new materials, 8 new recipes, and 4 new artisans are introduced with base facts only. 33 checks (19 positive, 14 negative) test whether derived predicates are correctly inferred for the unseen entities. LLM-dependent conditions are run 5 times; we report mean $\pm$ standard deviation.
+
+\subsubsection{Results}
+
+Table~\ref{tab:novel_generalization} shows the results.
+
+\begin{table}[t]
 \centering
-\caption{Benchmark Dataset Statistics}
-\label{tab:datasets}
-\begin{tabular}{|l|c|c|c|}
-\hline
-Dataset & Facts & Rules & Queries \\
-\hline
-Family Relations & 100 & 10 & 50 \\
-Math Reasoning & 200 & 15 & 100 \\
-Common Sense & 500 & 25 & 200 \\
-Program Synthesis & 50 & 20 & 75 \\
-\hline
+\caption{Generalization on the novel crafting domain (EX25b). 33 checks (19 positive, 14 negative) on unseen entities. LLM conditions: mean $\pm$ std over 5 runs.}
+\label{tab:novel_generalization}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Condition} & \textbf{Rules} & \textbf{Acc} & \textbf{Prec} & \textbf{Recall} \\
+\midrule
+No dream   & 0  & 42\% & ---  & 0\%  \\
+Raw LLM    & 0  & 42\% & ---  & 0\%  \\
+Symbolic   & 5  & 52\% & 59\% & 53\% \\
+Full       & 20 & 58 $\pm$ 1\% & 64 $\pm$ 1\% & 64 $\pm$ 2\% \\
+\bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Knowledge Compression Metrics}
+The \textit{raw LLM} baseline achieves 0\% recall: Haiku answers ``NO'' to every query about invented terms, confirming that direct LLM prompting contributes nothing on novel domains. The compression pipeline is genuinely necessary.
 
-% TODO: Add compression results
-\begin{figure}[h]
-\centering
-\fbox{\parbox{\columnwidth}{\centering\textit{[Graph to be added]\\Shows: KB size reduction over sleep cycles}}}
-\caption{Knowledge Base Size Over Time}
-\label{fig:compression}
-\end{figure}
-
-We measure compression effectiveness using:
+Symbolic compression alone discovers 5 rules and achieves 53\% recall. The key discoveries are:
 \begin{itemize}
-\item \textbf{Compression Ratio}: $\frac{|KB_{initial}|}{|KB_{compressed}|}$
-\item \textbf{Query Coverage}: Percentage of queries answerable
-\item \textbf{Rule Quality}: Accuracy of generated rules on held-out data
+\item \texttt{master\_artisan(X) :- artisan(X), not(exception\ldots)}: generalizes from the pattern that 7 of 9 artisans have 2+ skills.
+\item \texttt{safe\_recipe(X) :- product(X), not(exception\ldots)}: generalizes from the pattern that most recipes use non-hazardous materials.
 \end{itemize}
 
-\subsection{Comparison with Baselines}
+These are discovered by Operation C through MDL-driven fact generalization. No domain knowledge is used; the system finds that ``most artisans are master artisans'' and ``most recipes are safe'' purely from the statistical structure of the data.
 
-\begin{table}[h]
+The full pipeline (mean of 5 runs) achieves $64 \pm 2$\% recall with 20 discovered rules. Operation G adds cross-predicate rules including \texttt{hazardous\_recipe} (via material hazard properties) and concepts like \texttt{volatile\_material} and \texttt{metallic\_material}. The low variance ($\pm 2$\%) confirms that results are stable across LLM generations.
+
+Seven false positives occur from \texttt{safe\_recipe} and \texttt{same\_phase\_recipe} generalizations applying to exception cases (e.g., a liquid-solid mix classified as same-phase). This illustrates the inherent risk of inductive generalization.
+
+The undiscovered predicate is \texttt{can\_craft(Artisan, Product)}, which requires a 3-hop join (artisan $\to$ skill $\to$ requires\_skill $\to$ recipe\_type). This exceeds the current operations' reach.
+
+\subsection{EX25: Generalization on a Canonical Domain}
+\label{sec:ex25}
+
+\subsubsection{Domain}
+A 4-generation family tree with 29 people, 96 base facts (\texttt{person}, \texttt{male}/\texttt{female}, \texttt{parent}), and 204 derived facts across 7 predicates (\texttt{father}, \texttt{mother}, \texttt{grandparent}, \texttt{grandfather}, \texttt{grandmother}, \texttt{great\_grandparent}, \texttt{ancestor}).
+
+\subsubsection{Protocol}
+Same three-condition protocol as EX25b. After dreaming, 6 new people are introduced with base facts only, and 14 checks (10 positive, 4 negative) test derived relationships.
+
+\subsubsection{Results}
+
+Table~\ref{tab:family_generalization} shows the results.
+
+\begin{table}[t]
 \centering
-\caption{Performance Comparison (Preliminary)}
-\label{tab:comparison}
-\begin{tabular}{|l|c|c|c|}
-\hline
-Method & Accuracy & Compression & Time(s) \\
-\hline
-Prolog (manual) & 95\% & N/A & 0.1 \\
-ILP (Metagol) & 82\% & 2.3x & 45 \\
-Neural (NTP) & 78\% & N/A & 3.2 \\
-DreamLog & \textbf{89\%} & \textbf{3.1x} & 2.8 \\
-\hline
+\caption{Generalization on the canonical family tree (EX25). The full pipeline achieves 80\% recall with 100\% precision.}
+\label{tab:family_generalization}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Condition} & \textbf{Rules} & \textbf{Acc} & \textbf{Prec} & \textbf{Recall} & \textbf{KB Size} \\
+\midrule
+No dream   & 0 & 29\% & ---  & 0\%  & 300 \\
+Symbolic   & 1 & 29\% & ---  & 0\%  & --- \\
+Full       & 7 & 86\% & 100\% & 80\% & 184 \\
+\bottomrule
 \end{tabular}
 \end{table}
 
-We compare against:
-\begin{itemize}
-\item \textbf{Manual Prolog}: Hand-coded knowledge base
-\item \textbf{ILP Systems}: Metagol and FOIL
-\item \textbf{Neural Approaches}: Neural Theorem Prover
-\end{itemize}
+The full pipeline discovers 7 rules: \texttt{father} $\leftarrow$ \texttt{parent} + \texttt{male}, \texttt{mother} $\leftarrow$ \texttt{parent} + \texttt{female}, \texttt{grandparent} $\leftarrow$ \texttt{parent} $\circ$ \texttt{parent}, \texttt{grandfather} $\leftarrow$ \texttt{grandparent} + \texttt{male}, \texttt{grandmother} $\leftarrow$ \texttt{grandparent} + \texttt{female}, and variants. The KB compresses from 300 to 184 clauses (ratio 0.613). Precision is 100\%: no false positives.
 
-\subsection{Ablation Studies}
+The sole unrecovered predicate is \texttt{ancestor}, which requires a recursive rule (\texttt{ancestor(X,Y) :- parent(X,Y)} and \texttt{ancestor(X,Z) :- parent(X,Y), ancestor(Y,Z)}). The current LLM prompt does not propose recursive rules, and symbolic operations cannot discover them from flat fact patterns.
 
-\begin{table}[h]
+Symbolic compression discovers only one entity-specific rule (e.g., ``albert is an ancestor of everyone'') rather than the general concept. This highlights the critical role of the LLM: symbolic operations find patterns \emph{within} a predicate, while the LLM discovers relationships \emph{across} predicates.
+
+\subsection{Comparison: Novel vs. Canonical Domain}
+
+Table~\ref{tab:domain_comparison} compares the two domains directly.
+
+\begin{table}[t]
 \centering
-\caption{Ablation Study Results}
-\label{tab:ablation}
-\begin{tabular}{|l|c|c|}
-\hline
-Configuration & Accuracy & Compression \\
-\hline
-Full System & 89\% & 3.1x \\
-No Sleep Cycles & 84\% & 1.2x \\
-No Compression & 87\% & 1.0x \\
-No Experience Replay & 85\% & 2.4x \\
-Random LLM & 62\% & 1.1x \\
-\hline
+\caption{Cross-domain comparison of generalization recall. Raw LLM scores 0\% on both domains.}
+\label{tab:domain_comparison}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Domain} & \textbf{No Dream} & \textbf{Raw LLM} & \textbf{Symbolic} & \textbf{Full} \\
+\midrule
+Crafting (novel)   & 0\% & 0\% & 53\% & 64 $\pm$ 2\% \\
+Family (canonical) & 0\% & 0\% & 0\%  & 80\% \\
+\bottomrule
 \end{tabular}
 \end{table}
 
-Key findings:
-\begin{itemize}
-\item Sleep cycles improve both accuracy and compression
-\item Compression operators are essential for knowledge quality
-\item Experience replay enhances learning efficiency
-\item LLM quality significantly impacts performance
-\end{itemize}
+The novel domain provides the stronger evidence for compression-driven learning. The symbolic operations achieve 50\% recall on a domain with invented terms, demonstrating that MDL-guided generalization works without any prior knowledge. The family domain achieves higher overall recall (80\%) but relies entirely on the LLM (Operation G), making it difficult to disentangle compression-driven discovery from LLM training data memorization.
+
+\subsection{EX25c: Holdout Sweep and the Open-World Mode}
+\label{sec:ex25c}
+
+\subsubsection{Motivation}
+The new-entity tests (EX25, EX25b) introduce entities with no prior facts at all. A complementary protocol, common in inductive logic programming, holds out a fraction of derived facts and asks whether the system can recover them after compressing the remainder. This sweep characterizes the data density threshold for compression-driven generalization on the family tree domain.
+
+\subsubsection{Closed-World versus Open-World Verification}
+Operation G's verification pipeline includes a false-positive check: any rule that derives a ground term absent from the KB is rejected. This is correct for the standard compression setting (a complete KB should not be augmented with novel facts) but pathological for holdout evaluation, where the goal is precisely to recover absent facts.
+
+We introduce an \emph{open-world mode} that disables this check. In this mode, Op G accepts rules that cover at least 2 existing facts and pass the verification suite, regardless of whether the rule also derives facts not in the KB. The closed-world default preserves the strong safety guarantee for normal use; open-world mode is enabled explicitly during holdout evaluation.
+
+\subsubsection{Protocol}
+For each ratio $r \in \{0.05, 0.10, 0.20, 0.30, 0.50\}$, we randomly hold out $r$ of each predicate's derived facts (stratified by predicate). The remaining facts plus all base facts form the training KB. We dream on the training KB (full pipeline, open-world mode) and measure recovery: the fraction of held-out facts derivable from the compressed KB. Three random seeds per ratio.
+
+\subsubsection{Results}
+
+Table~\ref{tab:holdout_sweep} shows the recovery curve.
+
+\begin{table}[t]
+\centering
+\caption{Holdout sweep on family tree (EX25c). 3 seeds per ratio. Closed-world recovery is 0\% at every ratio (the FP check rejects rules that derive any held-out fact). Open-world recovery follows a clear curve.}
+\label{tab:holdout_sweep}
+\begin{tabular}{rccc}
+\toprule
+\textbf{Holdout} & \textbf{Closed-world} & \textbf{Open-world} & \textbf{Compression} \\
+\midrule
+5\%  & 0\% & 100\%       & 0.405 \\
+10\% & 0\% & 100\%       & 0.399 \\
+20\% & 0\% & 100\%       & 0.415 \\
+30\% & 0\% & 85 $\pm$ 21\% & 0.507 \\
+50\% & 0\% & 72 $\pm$ 20\% & 0.660 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three observations:
+
+\textbf{Open-world recovers all held-out facts at low ratios.} At 5--20\% holdout, recovery is 100\%: the discovered rules (\texttt{father} $\leftarrow$ \texttt{parent} + \texttt{male}, etc.) generalize perfectly to the held-out facts. The KB is compressed from 290 to ~118 clauses (ratio 0.40), an even stronger compression than the no-holdout setting in EX25 (0.61), because the smaller KB has less verification overhead.
+
+\textbf{The data density threshold appears at 30\%.} Recovery drops to $85 \pm 21$\% at 30\% holdout and $72 \pm 20$\% at 50\% holdout. The high variance reflects which facts get held out: some random splits leave enough facts per predicate for Op C and Op G to discover the pattern; others do not. Op C requires \texttt{min\_group\_size}=3, so removing more than two-thirds of any predicate's facts can disable it for that predicate.
+
+\textbf{No false positives in either mode.} Even with the FP check disabled, the rules discovered by Op G do not derive incorrect facts. This is because the rules themselves (\texttt{father}=\texttt{parent}+\texttt{male}) are sound; the closed-world FP check was rejecting them not for being wrong but for deriving facts that were intentionally absent.
+
+The closed-world default remains the right choice for production use (strong safety guarantee, zero semantic drift). Open-world mode is an explicit opt-in for evaluation against ILP-style benchmarks where the closed-world assumption is not part of the protocol.
+
+\subsection{EX24: Long-Lived Knowledge Accumulation}
+\label{sec:ex24}
+
+\subsubsection{Motivation}
+Real systems accumulate knowledge incrementally over sessions. We test whether DreamLog exhibits meaningful learning dynamics over an extended interaction.
+
+\subsubsection{Protocol}
+A simulated research lab scenario: ``Dr. Chen'' builds institutional knowledge across 25 sessions spanning two simulated years. Seven domains: people, publications, teaching, grants, infrastructure, collaborations, and service. Sessions vary from 5 to 30 assertions. Session 10 includes corrections (role changes). Session 17 includes user-provided rules with NAF helper predicates. Dream cycles occur every 5 sessions.
+
+\subsubsection{Results}
+
+The final KB contains 451 clauses (422 facts, 29 rules) from 443 total assertions. Table~\ref{tab:ex24_timeline} shows the dream cycle progression.
+
+\begin{table}[t]
+\centering
+\caption{Dream cycle progression in the 25-session research lab (EX24).}
+\label{tab:ex24_timeline}
+\begin{tabular}{lcrrl}
+\toprule
+\textbf{Cycle} & \textbf{Session} & \textbf{Before} & \textbf{After} & \textbf{Key Discoveries} \\
+\midrule
+1 & S05 & 94  & 91  & 2 symbolic rules \\
+2 & S10 & 179 & 195 & 17 LLM cross-domain rules \\
+3 & S15 & 278 & 275 & 2 symbolic rules \\
+4 & S20 & ---  & ---  & Saturation (minor pruning) \\
+5 & S25 & ---  & ---  & No change \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three phases are visible:
+\begin{enumerate}
+\item \textbf{Investment} (Dream 2): The LLM discovers 17 cross-domain rules including \texttt{grant\_funded\_work}, \texttt{cross\_institution\_collaboration} (a 4-body rule with NAF), and \texttt{mentorship\_chain}. The KB \emph{expands} from 179 to 195 (ratio 1.09), investing in structural rules.
+\item \textbf{Compression} (Dream 3): Symbolic operations capitalize on accumulated rules, achieving net compression.
+\item \textbf{Saturation} (Dreams 4--5): No new patterns remain. The KB is fully compressed.
+\end{enumerate}
+
+This invest-then-compress-then-saturate dynamic matches DreamCoder's convergence behavior~\cite{ellis2021dreamcoder}. The 29 discovered rules come from three sources: 4 symbolic (Operation C), 17 LLM (Operation G), and 8 user-provided. All 13 correctness checks pass, including transitive citation chains, NAF-based active membership, and negative examples. Total LLM cost: \$0.023.
+
+\subsection{Ablation Analysis}
+\label{sec:ablation}
+
+Table~\ref{tab:ablation_ops} summarizes the ablation from Experiment EX08 on a 119-clause KB with diverse pattern types.
+
+\begin{table}[t]
+\centering
+\caption{Leave-one-out ablation on a 119-clause KB (EX08). Percentages are not additive: each row shows the compression lost when that operation alone is disabled.}
+\label{tab:ablation_ops}
+\begin{tabular}{lrl}
+\toprule
+\textbf{Operation} & \textbf{Contribution} & \textbf{Role} \\
+\midrule
+C: Generalization     & 85\% (11 clauses) & Primary compressor \\
+B: Fact pruning       & 15\% (2 clauses)  & Post-rule cleanup \\
+D: Predicate invention & 15\% (2 clauses) & Structural abstraction \\
+E: Body extraction    & $-$15\% (+2 clauses) & Adds structural clarity \\
+A, F, H              & 0\%               & Situational \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Operation C is the workhorse, contributing 85\% of compression on this KB. Operation E \emph{increases} clause count (it adds a clause for the extracted predicate) but improves structural clarity, which may benefit future compression cycles. Operations A and F contribute on KBs with subsumed or dead clauses, and Operation H contributes to query performance rather than KB size.
+
+The generalization experiments (Tables~\ref{tab:novel_generalization} and~\ref{tab:family_generalization}) provide a complementary ablation: symbolic operations (C primarily) discover entity-level generalizations (``most artisans are masters''), while Operation G discovers cross-predicate concepts (``father = male parent''). Neither alone achieves the full pipeline's performance.
+
+\subsection{Additional Results}
+
+\subsubsection{Convergence (EX01)} The dream cycle converges in exactly 2 iterations across all tested KBs: cycle 1 compresses, cycle 2 confirms no further opportunities exist. The cycle is a monotone operator on KB size that converges quickly in practice.
+
+\subsubsection{Semantic Drift (EX02)} Zero drift across 200 held-out queries over all dream cycles. The verification suite with positive and negative queries prevents any behavioral change. This is a strong safety guarantee for production use.
+
+\subsubsection{DreamCoder Benchmark (EX03)} On list-processing programs (member, append, reverse, length, map, filter), the system discovers \texttt{forall/2}: a parameterized predicate equivalent to DreamCoder's ``every'' combinator. This validates the architectural analogy between the two systems.
+
+\subsubsection{Scaling (EX09)} Compression ratio is stable at 0.88 across KBs from 69 to 1019 clauses (10 to 200 entities). Throughput degrades from 75 clauses/s to 12 clauses/s due to quadratic verification cost.
+
+\subsubsection{Noise Tolerance (EX11)} Robust to 0--20\% noise (incorrect facts left as isolated facts, not generalized). At 30\%+ noise, Operation C generalizes erroneous patterns that share sufficient structural regularity.
+
+\subsubsection{Query Speedup (EX10)} After dreaming, query time drops from 25.0ms to 1.1ms (23.6$\times$ speedup). Operation H caches 15 frequently derived lemma facts, converting multi-step recursive resolutions into direct lookups.
+
+%%% ===================================================================
+%%% 5. DISCUSSION
+%%% ===================================================================
 
 \section{Discussion}
+\label{sec:discussion}
 
-\subsection{Implications for Neural-Symbolic AI}
+\subsection{What Symbolic vs. LLM Operations Contribute}
 
-DreamLog demonstrates that neural and symbolic approaches can be integrated without sacrificing the strengths of either paradigm. By maintaining a clear separation between reasoning and knowledge generation, we preserve the interpretability of logic programming while leveraging the vast knowledge encoded in LLMs.
+The experiments reveal a clean division of labor. Symbolic operations (particularly Operation C) discover generalizations \emph{within} a predicate: ``most artisans are master artisans,'' ``most recipes are safe.'' These are statistical regularities visible from the distribution of ground facts. The LLM (Operation G) discovers relationships \emph{across} predicates: ``father = parent who is male,'' ``hazardous recipe = recipe using a hazardous material.'' These require understanding how distinct predicates relate semantically.
 
-The compression-based learning mechanism provides a principled way to discover patterns and generalize knowledge, addressing a key limitation of both pure neural and pure symbolic approaches. This suggests that compression may be a fundamental principle for achieving artificial general intelligence.
+On the novel crafting domain, symbolic compression achieves 53\% recall while the full pipeline reaches 64\%. On the canonical family tree, symbolic compression achieves 0\% recall (it finds only entity-specific patterns) while the full pipeline achieves 80\%. Critically, a raw LLM baseline (prompting Haiku directly with all facts) achieves 0\% on both domains, confirming that the compression pipeline provides the generalization capability, not the LLM alone. This asymmetry reflects the nature of the domains: the crafting domain has within-predicate regularities (most artisans are masters) while the family domain's generalization opportunities are entirely cross-predicate.
 
-\subsection{Compositional Knowledge Discovery}
+\subsection{The Novel Domain as Honest Evaluation}
 
-A central contribution of DreamLog is its support for compositional knowledge building through recursive generation. Unlike traditional logic programming systems that require complete knowledge specification upfront, or ILP systems that learn from fixed training sets, DreamLog enables \textit{exploratory} knowledge discovery:
+The crafting domain result provides stronger evidence for compression-driven generalization than the family tree. When the LLM proposes \texttt{father(X,Y) :- parent(X,Y), male(X)} for a family KB, it may be recalling this rule from training data rather than discovering it from structural patterns. The invented terms in the crafting domain (lumite, vexal, drossite) eliminate this confound. That symbolic compression alone achieves 53\% recall on invented terms, while the raw LLM achieves 0\%, demonstrates genuine MDL-driven concept discovery independent of any LLM prior knowledge.
 
-\begin{itemize}
-\item \textbf{Top-down decomposition}: Complex queries trigger the generation of high-level predicates, which are recursively decomposed into simpler ones
-\item \textbf{Bottom-up grounding}: The recursion terminates when predicates are grounded in user-provided facts or common-sense knowledge from the LLM
-\item \textbf{Emergent abstraction hierarchies}: The system naturally develops layered conceptual structures without explicit hierarchy design
-\item \textbf{Incremental refinement}: Each query potentially adds new predicates, enabling the knowledge base to grow organically
-\end{itemize}
+The family tree remains useful as a benchmark because its higher recall (80\%) demonstrates the ceiling achievable when the LLM can draw on domain familiarity. The two domains together bracket the system's capability: novel domains test pure compression, canonical domains test the LLM integration.
 
-This compositional approach mirrors human conceptual development, where complex ideas are built from simpler primitives through recursive combination. The validation system's deliberate allowance of undefined body predicates is crucial: it transforms what would traditionally be considered an error into an opportunity for further knowledge discovery.
+\subsection{Limitations}
 
-\subsection{KB-Aware RAG and Adaptive Learning}
+\subsubsection{Multi-hop rules} The system cannot discover rules requiring 3+ hop joins. \texttt{can\_craft(Artisan, Product)} requires chaining artisan $\to$ skill $\to$ requires\_skill $\to$ recipe\_type, which exceeds the body length of rules currently discoverable by either symbolic or LLM operations.
 
-The integration of KB-aware RAG significantly improves generation quality beyond traditional query-only retrieval. By computing weighted embeddings that combine query similarity (70\%) with knowledge base context (30\%), the system retrieves examples that are relevant not just to the query structure but also to the current reasoning state. This enables context-dependent example selection: the same query may retrieve different examples depending on what knowledge is already available.
+\subsubsection{Recursive rules} The ancestor predicate (\texttt{ancestor(X,Z) :- parent(X,Y), ancestor(Y,Z)}) is not discovered. Symbolic operations work on flat fact patterns; the LLM prompt does not currently encourage recursive proposals. Supporting recursive rule discovery is an important direction for future work.
 
-The success-based learning mechanism adds a second dimension of adaptivity. As examples prove useful in practice, they receive logarithmically-dampened boosts (Equation~\ref{eq:success_score}) that increase their retrieval probability while preventing any single example from dominating. This creates a virtuous cycle where the system progressively learns which structural patterns are most effective for different query types.
+\subsubsection{Minimum data threshold} The holdout sweep (EX25c) shows recovery degrades sharply once more than 30\% of facts per predicate are held out. Operation C requires a minimum group size (default 3) to trigger, and Op G's rule discovery becomes less reliable when too few facts remain per predicate. Compression-driven learning needs sufficient data density per predicate to activate; the threshold is roughly 7--10 facts per predicate for the family tree domain.
 
-The curated library of 35 examples across diverse domains (family relations, graph traversal, academic courses, social networks, transportation, taxonomies, temporal reasoning) provides broad coverage while remaining manageable. Integration testing with Ollama's \texttt{nomic-embed-text} model (768-dimensional embeddings) confirms that semantic similarity effectively clusters related patterns.
+\subsubsection{Scaling} Verification cost is quadratic in KB size due to exhaustive query checking. KBs beyond 1000 clauses would benefit from sampled verification or cached resolution.
 
-\subsection{Robustness to LLM Imperfections}
+\subsubsection{LLM dependence for cross-predicate rules} The family tree ablation shows that symbolic operations alone achieve 0\% generalization recall when all opportunities are cross-predicate. The system relies on the LLM for this critical capability, introducing dependence on LLM quality and availability.
 
-The multi-layered validation and error-tolerant parsing make DreamLog robust to common LLM failure modes:
+\subsection{Relation to Solomonoff Induction}
 
-\begin{itemize}
-\item \textbf{Format errors}: The parser handles unquoted JSON, mixed formats, and markdown code blocks
-\item \textbf{Logical errors}: Multi-stage validation catches unsafe variables, circular rules, and malformed structures
-\item \textbf{Rule hallucination}: LLM-as-judge verification can detect semantically incorrect rules by checking logical consistency
-\item \textbf{Fact hallucination}: Fact verification checks common-sense consistency, rejecting implausible facts (e.g., \texttt{male(mary)})
-\item \textbf{Partial failures}: Correction-based retry enables iterative refinement
-\end{itemize}
+Our results are consistent with the Solomonoff thesis. The compressed KBs generalize better than the uncompressed originals. However, our MDL criterion (clause count) is a coarse proxy for Kolmogorov complexity, and two domains do not establish a predictive relationship between compression ratio and generalization recall. A more faithful implementation would account for clause complexity (number of variables, body length) rather than treating all clauses as unit cost. We leave this refinement to future work.
 
-This robustness is essential for practical deployment, especially when using local or smaller models that may be less reliable than large commercial APIs. The extension of LLM-as-judge to fact verification provides an additional safety layer, particularly important when facts directly influence reasoning outcomes.
-
-\subsection{Biological Analogies}
-
-The wake-sleep architecture in DreamLog mirrors several aspects of biological cognition:
-
-\begin{itemize}
-\item \textbf{Dual-process theory}: Fast, automatic (LLM) vs. slow, deliberate (logic) thinking
-\item \textbf{Memory consolidation}: Transfer from episodic to semantic memory
-\item \textbf{Abstraction hierarchy}: Progressive extraction of general principles
-\item \textbf{Forgetting curve}: Pruning of unused knowledge over time
-\end{itemize}
-
-These parallels suggest that our approach may capture fundamental principles of learning and reasoning that transcend the specific implementation substrate.
-
-\subsection{Limitations and Future Work}
-
-Several limitations remain to be addressed:
-
-\begin{enumerate}
-\item \textbf{Recursive Depth Control}: While recursive generation is powerful, it can lead to deep call chains. Implementing depth limits and cycle detection is needed for robustness
-\item \textbf{Computational Cost}: LLM queries, especially with LLM-as-judge validation, are expensive. Caching and selective validation help but do not eliminate this cost
-\item \textbf{Theoretical Gaps}: Formal convergence proofs for the compression-based learning mechanism under realistic LLM assumptions remain open
-\item \textbf{Scalability}: Performance on very large knowledge bases (100K+ facts/rules) needs evaluation
-\item \textbf{Ground Truth Requirements}: The system still requires user-provided facts as ground truth; fully autonomous fact acquisition remains challenging
-\end{enumerate}
-
-Recent implementations have addressed several previously identified limitations:
-\begin{itemize}
-\item \textbf{Validation mechanisms}: Multi-layered validation with structural, semantic, and optional LLM-judge verification is now implemented
-\item \textbf{Prompt quality}: RAG-based example retrieval and adaptive template selection significantly improve generation quality
-\item \textbf{Parser robustness}: Error-tolerant parsing enables use of smaller, local models
-\item \textbf{Compositional reasoning}: Recursive generation mechanism enables exploratory knowledge discovery
-\end{itemize}
-
-Future work includes:
-\begin{itemize}
-\item \textbf{Formal verification}: Developing theorem-proving techniques to verify generated rules against specifications
-\item \textbf{Probabilistic extension}: Incorporating uncertainty and probabilistic reasoning into the framework
-\item \textbf{Distributed learning}: Exploring federated or distributed implementations for large-scale deployment
-\item \textbf{Domain adaptation}: Investigating techniques for adapting the system to specialized domains (scientific, legal, medical)
-\item \textbf{Advanced compression}: Implementing more sophisticated compression operators based on category theory, type theory, and program synthesis
-\item \textbf{Active learning}: Enabling the system to request clarification or additional facts when knowledge is ambiguous
-\item \textbf{Application domains}: Evaluating DreamLog in robotics, planning, scientific discovery, and knowledge graph construction
-\end{itemize}
+%%% ===================================================================
+%%% 6. CONCLUSION
+%%% ===================================================================
 
 \section{Conclusion}
+\label{sec:conclusion}
 
-We presented DreamLog, a neural-symbolic system that integrates logic programming with large language models through compression-based learning and wake-sleep cycles. Our approach addresses fundamental limitations of both symbolic and neural AI by:
+We have presented DreamLog, a logic programming system that discovers generalizable concepts through knowledge base compression. The central finding is that compression enables generalization: a KB compressed from 300 to 184 clauses derives facts about entities it has never seen, including on novel domains with invented vocabulary. Symbolic compression alone achieves 53\% recall on such domains, while a raw LLM baseline achieves 0\%, validating MDL-driven concept discovery independent of any LLM prior knowledge. The full pipeline, combining symbolic and LLM-assisted operations, achieves up to 80\% recall with 100\% precision on canonical domains.
 
-\begin{enumerate}
-\item \textbf{Recursive Knowledge Generation}: Automatically generating knowledge for undefined predicates through recursive LLM invocation, enabling compositional reasoning and exploratory knowledge discovery
-\item \textbf{KB-Aware RAG}: Using weighted embeddings that combine query similarity with knowledge base context, enabling context-dependent example retrieval
-\item \textbf{Success-Based Learning}: Tracking example effectiveness with logarithmically-dampened boosts, progressively improving retrieval quality through experience
-\item \textbf{Multi-Layered Validation}: Combining structural, semantic, and optional LLM-based verification for both rules \emph{and facts}, with common-sense checking for generated facts
-\item \textbf{Error-Tolerant Parsing}: Robust parsing that handles common LLM formatting errors, enabling use of smaller, local models
-\item \textbf{Compression-Based Learning}: Consolidating and compressing knowledge through biologically-inspired wake-sleep cycles grounded in algorithmic information theory
-\end{enumerate}
+The system exhibits meaningful learning dynamics over extended interactions: an invest-then-compress-then-saturate pattern consistent with DreamCoder's convergence behavior, suggesting a general property of compression-based learning systems.
 
-The central insight of DreamLog is that compositional knowledge discovery through recursive generation transforms the brittleness of traditional logic programming into an opportunity for learning. By deliberately allowing undefined predicates in rule bodies, the system enables top-down decomposition of complex concepts into simpler primitives, with recursion terminating at user-provided facts or common-sense knowledge from the LLM.
+Several directions remain open. Direct comparison with ILP systems (ILASP, Metagol) on shared benchmarks would position DreamLog precisely in the landscape of rule learners. Support for recursive rule discovery would address the ancestor predicate gap. Transfer learning experiments (training on one domain, compressing a combined KB with a second) would test whether compression discovers cross-domain abstractions. Scaling beyond 1000 clauses requires sampled verification. Finally, a richer MDL metric incorporating clause complexity (variable count, body length, nesting depth) would bring the system closer to Solomonoff's theoretical ideal.
 
-The KB-aware RAG mechanism and success-based learning represent a step toward systems that improve through use. Rather than static example retrieval, the system learns which structural patterns are most effective for different query types, with retrieval conditioned on both the query and the current knowledge state. This creates context-dependent memory access analogous to biological memory systems.
+The code, all experiment scripts, and the experiment registry with full provenance are available at \url{https://github.com/queelius/dreamlog}.
 
-While significant work remains---particularly in formal verification, scalability, and theoretical guarantees---DreamLog demonstrates that neural-symbolic integration can preserve the interpretability of symbolic reasoning while leveraging the knowledge and pattern recognition capabilities of large language models. The combination of KB-aware RAG, success-based learning, multi-layered validation, and compositional generation provides a practical framework for building AI systems that learn and reason over structured knowledge.
+%%% ===================================================================
+%%% REFERENCES
+%%% ===================================================================
 
-The compression-based learning framework suggests that the path to artificial general intelligence may lie not in ever-larger models, but in systems that can efficiently compress and generalize knowledge through compositional reasoning---mirroring the fundamental processes observed in biological intelligence.
-
-% TODO: Update acknowledgments for final submission
-\section*{Acknowledgments}
-We thank the anonymous reviewers for their valuable feedback. This work was supported by [funding sources to be added].
-
-% Bibliography with placeholder and actual references
-\begin{thebibliography}{99}
-
-% Actual references
-\bibitem{sterling1994art}
-L. Sterling and E. Shapiro, \textit{The Art of Prolog}, MIT Press, 1994.
-
-\bibitem{kowalski1974predicate}
-R. Kowalski, "Predicate Logic as Programming Language," \textit{Proceedings IFIP Congress}, pp. 569-574, 1974.
-
-\bibitem{muggleton1994inductive}
-S. Muggleton and L. De Raedt, "Inductive Logic Programming: Theory and Methods," \textit{Journal of Logic Programming}, vol. 19, pp. 629-679, 1994.
-
-\bibitem{quinlan1990learning}
-J. R. Quinlan, "Learning Logical Definitions from Relations," \textit{Machine Learning}, vol. 5, pp. 239-266, 1990.
-
-\bibitem{muggleton1995inverse}
-S. Muggleton, "Inverse Entailment and Progol," \textit{New Generation Computing}, vol. 13, pp. 245-286, 1995.
-
-\bibitem{muggleton2015meta}
-S. H. Muggleton, D. Lin, and A. Tamaddoni-Nezhad, "Meta-interpretive Learning of Higher-order Dyadic Datalog," \textit{Machine Learning}, vol. 100, pp. 49-73, 2015.
-
-\bibitem{evans2018learning}
-R. Evans and E. Grefenstette, "Learning Explanatory Rules from Noisy Data," \textit{Journal of Artificial Intelligence Research}, vol. 61, pp. 1-64, 2018.
-
-\bibitem{rocktaschel2017end}
-T. Rocktäschel and S. Riedel, "End-to-end Differentiable Proving," \textit{Advances in Neural Information Processing Systems}, pp. 3788-3800, 2017.
-
-\bibitem{serafini2016logic}
-L. Serafini and A. S. d'Avila Garcez, "Logic Tensor Networks: Deep Learning and Logical Reasoning from Data and Knowledge," \textit{arXiv preprint arXiv:1606.04422}, 2016.
-
-\bibitem{manhaeve2018deepproblog}
-R. Manhaeve et al., "DeepProbLog: Neural Probabilistic Logic Programming," \textit{Advances in Neural Information Processing Systems}, pp. 3749-3759, 2018.
-
-\bibitem{gulwani2017program}
-S. Gulwani, O. Polozov, and R. Singh, "Program Synthesis," \textit{Foundations and Trends in Programming Languages}, vol. 4, pp. 1-119, 2017.
-
-\bibitem{grunwald2007minimum}
-P. Grünwald, \textit{The Minimum Description Length Principle}, MIT Press, 2007.
-
-\bibitem{walker2009role}
-M. P. Walker, "The Role of Sleep in Cognition and Emotion," \textit{Annals of the New York Academy of Sciences}, vol. 1156, pp. 168-197, 2009.
-
-\bibitem{mcclelland1995why}
-J. L. McClelland et al., "Why There Are Complementary Learning Systems in the Hippocampus and Neocortex," \textit{Psychological Review}, vol. 102, pp. 419-457, 1995.
-
-\bibitem{hinton1995wake}
-G. E. Hinton et al., "The Wake-sleep Algorithm for Unsupervised Neural Networks," \textit{Science}, vol. 268, pp. 1158-1161, 1995.
-
-\bibitem{andrychowicz2017hindsight}
-M. Andrychowicz et al., "Hindsight Experience Replay," \textit{Advances in Neural Information Processing Systems}, pp. 5048-5058, 2017.
-
-% Additional placeholder references for future citations
-\bibitem{solomonoff1964formal}
-R. J. Solomonoff, "A Formal Theory of Inductive Inference," \textit{Information and Control}, vol. 7, pp. 1-22, 224-254, 1964.
-
-\bibitem{kolmogorov1965three}
-A. N. Kolmogorov, "Three Approaches to the Quantitative Definition of Information," \textit{Problems of Information Transmission}, vol. 1, pp. 1-7, 1965.
-
-\bibitem{schmidhuber2015deep}
-J. Schmidhuber, "Deep Learning in Neural Networks: An Overview," \textit{Neural Networks}, vol. 61, pp. 85-117, 2015.
-
-\bibitem{bengio2013representation}
-Y. Bengio, A. Courville, and P. Vincent, "Representation Learning: A Review and New Perspectives," \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol. 35, pp. 1798-1828, 2013.
-
-\bibitem{lake2017building}
-B. M. Lake et al., "Building Machines That Learn and Think Like People," \textit{Behavioral and Brain Sciences}, vol. 40, 2017.
-
-\end{thebibliography}
+\bibliographystyle{IEEEtran}
+\bibliography{references}
 
 \end{document}
