@@ -1,0 +1,37 @@
+{
+  "title": "Compression Enables Generalization: Wake-Sleep Cycles for Logic Programming with LLM Integration",
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "description": "Knowledge bases in logic programming grow through fact accumulation but do not learn. We present DreamLog, a system that compresses its knowledge base through wake-sleep cycles, discovering rules that generalize to unseen entities. On a synthetic crafting domain with invented terms unknown to the LLM, compression enables 64% recall on unseen entities (up from 0%), with symbolic compression alone achieving 53%. A raw LLM baseline achieves 0%, confirming that the compression pipeline is genuinely necessary. On a canonical family tree, the full pipeline achieves 80% recall with 100% precision. A holdout sweep shows 100% recovery of held-out facts at up to 20% holdout in open-world verification mode, with the data density threshold appearing around 30%. These results are consistent with the Solomonoff induction thesis: shorter programs generalize better.",
+  "creators": [
+    {
+      "name": "Towell, Alexander",
+      "affiliation": "Southern Illinois University Edwardsville",
+      "orcid": "0000-0001-6443-9897"
+    }
+  ],
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "publication_date": "2026-04-09",
+  "keywords": [
+    "compression-based learning",
+    "logic programming",
+    "wake-sleep cycles",
+    "knowledge base compression",
+    "inductive logic programming",
+    "Solomonoff induction",
+    "Minimum Description Length",
+    "anti-unification",
+    "LLM integration",
+    "neurosymbolic AI"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/queelius/dreamlog",
+      "relation": "isSupplementTo",
+      "resource_type": "software"
+    }
+  ],
+  "communities": [],
+  "notes": "Code and experiment registry available at https://github.com/queelius/dreamlog. All experiment scripts (EX23-EX25c) with full provenance and reproducible results."
+}

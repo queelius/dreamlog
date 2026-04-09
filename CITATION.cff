@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+title: "DreamLog: Compression Enables Generalization in Logic Programming"
+message: "If you use this software or refer to the DreamLog paper, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Towell
+    given-names: Alexander
+    email: lex@metafunctor.com
+    affiliation: Southern Illinois University Edwardsville
+    orcid: "https://orcid.org/0000-0001-6443-9897"
+repository-code: "https://github.com/queelius/dreamlog"
+url: "https://github.com/queelius/dreamlog"
+abstract: >-
+  DreamLog is a logic programming system that discovers generalizable
+  concepts through knowledge base compression. It implements wake-sleep
+  cycles inspired by DreamCoder: wake phases answer queries via SLD
+  resolution with optional LLM rule generation for undefined predicates,
+  and sleep phases compress the knowledge base through eight operations
+  (subsumption, redundant fact pruning, generalization with exceptions,
+  predicate invention, body pattern extraction, dead clause pruning,
+  LLM-assisted compression, and lemma caching), all verified against a
+  test suite of positive and negative queries with atomic rollback.
+keywords:
+  - compression-based learning
+  - logic programming
+  - wake-sleep cycles
+  - knowledge base compression
+  - inductive logic programming
+  - Solomonoff induction
+  - Minimum Description Length
+  - anti-unification
+  - LLM integration
+  - neurosymbolic AI
+license: MIT
+version: "0.9.0"
+date-released: "2026-04-09"
+preferred-citation:
+  type: article
+  title: "Compression Enables Generalization: Wake-Sleep Cycles for Logic Programming with LLM Integration"
+  authors:
+    - family-names: Towell
+      given-names: Alexander
+      email: lex@metafunctor.com
+      affiliation: Southern Illinois University Edwardsville
+      orcid: "https://orcid.org/0000-0001-6443-9897"
+  year: 2026
+  month: 4
+  abstract: >-
+    Knowledge bases in logic programming grow through fact accumulation
+    but do not learn. We present DreamLog, a system that compresses its
+    knowledge base through wake-sleep cycles, discovering rules that
+    generalize to unseen entities. On a synthetic crafting domain with
+    invented terms unknown to the LLM, compression enables 64% recall
+    on unseen entities (up from 0%), with symbolic compression alone
+    achieving 53%. A raw LLM baseline achieves 0%, confirming that the
+    compression pipeline is genuinely necessary. On a canonical family
+    tree, the full pipeline achieves 80% recall with 100% precision.
+    A holdout sweep shows 100% recovery of held-out facts at up to 20%
+    holdout in open-world verification mode.
