@@ -676,3 +676,51 @@ experiments:
       with deeper anti-unification or chain extraction.
 
       Total LLM cost: $0.006 (2 Haiku calls).
+
+  EX25c_holdout_sweep:
+    title: "Holdout Sweep and Open-World Verification"
+    date: 2026-04-09
+    script: experiments/ex25c_holdout_sweep.py
+    status: complete
+    depends_on: [EX25]
+    motivation: |
+      EX25's original holdout result (0% recovery at 20%) was buried in
+      the limitations section and poorly understood. This experiment
+      sweeps the holdout ratio from 5% to 50% on the family tree domain,
+      and diagnoses the root cause: Op G's closed-world false-positive
+      check rejects rules that derive held-out facts, because the check
+      correctly interprets them as "facts absent from the KB." The check
+      is correct for compression on a complete KB but pathological for
+      holdout evaluation, where the goal is precisely to recover absent
+      facts.
+    method: |
+      Added an `open_world` parameter (default False) to
+      KnowledgeBaseDreamer that gates the Op G false-positive check.
+      In open-world mode, rules that cover existing facts and pass
+      the verification suite are accepted regardless of whether they
+      also derive novel ground terms. Ran the sweep in both modes
+      across 5 ratios and 3 seeds.
+    key_result: |
+      Closed-world (default): 0% recovery at every ratio. The FP check
+      rejects all cross-predicate rules as soon as any fact is held out.
+
+      Open-world: 100% / 100% / 100% / 85 +/- 21% / 72 +/- 20% at
+      5% / 10% / 20% / 30% / 50% holdout respectively. The transition
+      begins at 30%, matching the min_group_size=3 constraint of Op C.
+      Zero false positives in either mode.
+
+      KB compression is even stronger with holdout: at 5% the train KB
+      compresses from 290 to 118 clauses (ratio 0.405), vs 0.613 for
+      the no-holdout EX25 setting. Less data = more compression
+      pressure = stronger rule discovery.
+    implications: |
+      Closed-world is the right default for production (strong safety
+      guarantee, zero semantic drift). Open-world is the opt-in mode
+      for ILP-style holdout benchmarks where closed-world assumption
+      is not part of the protocol. Both modes coexist cleanly; the
+      only code change is a single `if not self.open_world:` gate
+      around the FP check in _llm_compress.
+
+      Reframes a previously buried limitation as a methodological
+      contribution: the paper now explicitly documents the two modes
+      and shows both results.

@@ -98,9 +98,11 @@ class PrologEvaluator:
             return
 
         self._recursion_depth = 0
-        # Don't reset _total_calls — it's cumulative when max_total_calls
-        # is set, so a single evaluator has a fixed call budget across all
-        # queries (prevents combinatorial explosion in verification suites).
+        # _total_calls persists across query() invocations on the same
+        # evaluator instance. Callers can enforce a per-evaluator budget
+        # by reusing one evaluator across queries, or a per-query budget
+        # by creating a fresh evaluator each time. VerificationSuite.verify
+        # uses the per-query pattern so one slow query cannot starve others.
         initial_goals = [Goal(goal, {}) for goal in goals]
         
         # Generate solutions using SLD resolution

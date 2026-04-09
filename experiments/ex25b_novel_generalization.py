@@ -35,51 +35,13 @@ from dataclasses import dataclass, field
 
 sys.path.insert(0, ".")
 
-from dreamlog.knowledge import KnowledgeBase, Fact, Rule
-from dreamlog.terms import Compound, Atom
+from dreamlog.knowledge import KnowledgeBase, Fact
 from dreamlog.prefix_parser import parse_s_expression
-from dreamlog.evaluator import PrologEvaluator
-from dreamlog.kb_dreamer import KnowledgeBaseDreamer
 from dreamlog.llm_client import LLMClient
 
 
-# ═══════════════════════════════════════════════════════════════════
-# HELPERS (shared with EX25)
-# ═══════════════════════════════════════════════════════════════════
-
-def build_kb(fact_strings: List[str]) -> KnowledgeBase:
-    kb = KnowledgeBase()
-    for s in fact_strings:
-        if ":-" in s:
-            parts = s.split(":-")
-            head = parse_s_expression(parts[0].strip())
-            body = [parse_s_expression(b.strip())
-                    for b in parts[1].split(",")]
-            kb.add_rule(Rule(head, body))
-        else:
-            kb.add_fact(Fact(parse_s_expression(s)))
-    return kb
-
-
-def is_derivable(kb: KnowledgeBase, query: str,
-                 max_calls: int = 10000) -> bool:
-    term = parse_s_expression(query)
-    ev = PrologEvaluator(kb, max_total_calls=max_calls)
-    return ev.has_solution(term)
-
-
-def dream_kb(kb: KnowledgeBase, llm_client: Optional[LLMClient] = None,
-             max_prompt_facts: int = 200,
-             ) -> Tuple[float, List[str]]:
-    dreamer = KnowledgeBaseDreamer(llm_client=llm_client,
-                                   max_prompt_facts=max_prompt_facts)
-    session = dreamer.dream(kb, verify=True)
-    rules = []
-    for op in session.operations:
-        for c in op.new_clauses:
-            if isinstance(c, Rule):
-                rules.append(str(c))
-    return session.compression_ratio, rules
+# Helpers (build_kb, is_derivable, dream_kb) are imported from
+# ex25_generalization below, alongside the family-tree fixtures.
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -385,10 +347,11 @@ NEW_CRAFTING_CHECKS = [
 
 
 # ═══════════════════════════════════════════════════════════════════
-# FAMILY TREE (canonical baseline, from EX25)
+# Imports from EX25 (shared helpers + family-tree baseline fixtures)
 # ═══════════════════════════════════════════════════════════════════
 
 from experiments.ex25_generalization import (
+    build_kb, is_derivable, dream_kb,
     build_family_tree, family_base_facts, family_derived_facts,
     family_negatives, NEW_FAMILY_BASE, NEW_ENTITY_CHECKS,
 )

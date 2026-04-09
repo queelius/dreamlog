@@ -19,7 +19,7 @@ shorter.
 import json
 import math
 import re
-from typing import Dict, List, Optional, Union, Set
+from typing import Any, Dict, List, Optional, Union, Set
 from dataclasses import dataclass, field
 from .terms import Term, Atom, Variable, Compound
 from .knowledge import KnowledgeBase, Fact, Rule
@@ -174,7 +174,7 @@ def build_verification_suite(kb: KnowledgeBase) -> VerificationSuite:
     """Build verification suite from current KB state."""
     positive = [fact.term for fact in kb.facts]
 
-    atom_pool: Set[str] = set()
+    atom_pool: Set[Any] = set()
     fact_terms_by_key = {}
     for fact in kb.facts:
         term = fact.term
@@ -549,7 +549,7 @@ class KnowledgeBaseDreamer:
 
                     # Build exception functor name from constants
                     constant_str = "_".join(
-                        a.value if isinstance(a, Atom) else str(a)
+                        str(a.value) if isinstance(a, Atom) else str(a)
                         for a in constant_args) if constant_args else ""
                     exception_functor = (
                         f"exception_{functor}_{constant_str}_{guard_functor}"

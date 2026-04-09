@@ -211,10 +211,11 @@ class KnowledgeStore:
             "llm_used": use_llm,
         }
 
-    def explain(self, sexpr: str) -> Dict[str, Any]:
+    def explain(self, sexpr: str,
+                max_total_calls: int = 5000) -> Dict[str, Any]:
         """Explain how a query resolves."""
         term = parse_s_expression(sexpr)
-        ev = PrologEvaluator(self.kb, max_total_calls=5000)
+        ev = PrologEvaluator(self.kb, max_total_calls=max_total_calls)
         derivable = ev.has_solution(term)
 
         # Find matching facts
