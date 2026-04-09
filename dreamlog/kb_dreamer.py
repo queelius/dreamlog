@@ -155,13 +155,14 @@ class VerificationSuite:
     negative_queries: List[Term]
 
     def verify(self, kb: KnowledgeBase, evaluator_factory) -> VerificationResult:
-        evaluator = evaluator_factory(kb)
         failures = []
         for q in self.positive_queries:
-            if not evaluator.has_solution(q):
+            ev = evaluator_factory(kb)
+            if not ev.has_solution(q):
                 failures.append(("false_negative", q))
         for q in self.negative_queries:
-            if evaluator.has_solution(q):
+            ev = evaluator_factory(kb)
+            if ev.has_solution(q):
                 failures.append(("false_positive", q))
         return VerificationResult(
             passed=len(failures) == 0, failures=failures,
@@ -199,7 +200,7 @@ def build_verification_suite(kb: KnowledgeBase) -> VerificationSuite:
             novel_values = atom_pool - existing_values
             if not novel_values:
                 continue
-            novel = sorted(novel_values)[0]
+            novel = sorted(novel_values, key=str)[0]
             base = terms[0]
             new_args = list(base.args)
             new_args[pos] = Atom(novel)
@@ -233,7 +234,7 @@ def extend_verification_for_rules(suite: VerificationSuite,
     if not atom_values:
         return
 
-    atoms = sorted(atom_values)
+    atoms = sorted(atom_values, key=str)
 
     rule_preds = {}
     for rule in kb.rules:
@@ -288,10 +289,19 @@ class KnowledgeBaseDreamer:
 
     def __init__(self, min_group_size: int = 3,
                  shared_structure_threshold: float = 0.1,
-                 llm_client=None):
+                 llm_client=None,
+                 max_prompt_facts: int = 50,
+                 open_world: bool = False):
         self.min_group_size = min_group_size
         self.shared_structure_threshold = shared_structure_threshold
         self.llm_client = llm_client
+        self.max_prompt_facts = max_prompt_facts
+        # Open-world mode: when True, Op G's false-positive check accepts
+        # rules that derive ground terms not in the KB (instead of rejecting).
+        # This is necessary for holdout-style evaluations where the goal is
+        # precisely to recover absent facts. Default False (closed-world)
+        # preserves the safety guarantee for the standard compression setting.
+        self.open_world = open_world
 
     def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
         original_size = len(kb)
@@ -567,7 +577,7 @@ class KnowledgeBaseDreamer:
                     ]
                     new_clauses.append(Rule(rule_head, rule_body))
 
-                    for exc_val in sorted(exceptions):
+                    for exc_val in sorted(exceptions, key=str):
                         new_clauses.append(
                             Fact(Compound(exception_functor, [Atom(exc_val)])))
 
@@ -1047,24 +1057,24 @@ class KnowledgeBaseDreamer:
 
         # Sample facts for the prompt, using Prolog notation
         # Sample facts ensuring every predicate is represented
-        MAX_PROMPT_FACTS = 50
+        max_facts = self.max_prompt_facts
         facts_by_pred: Dict[str, list] = {}
         for fact in kb.facts:
             if isinstance(fact.term, Compound):
                 facts_by_pred.setdefault(fact.term.functor, []).append(fact)
         sampled: list = []
-        # Round-robin: take up to MAX_PROMPT_FACTS / n_preds from each
-        per_pred = max(2, MAX_PROMPT_FACTS // max(len(facts_by_pred), 1))
+        # Round-robin: take up to max_facts / n_preds from each
+        per_pred = max(2, max_facts // max(len(facts_by_pred), 1))
         for fn in sorted(facts_by_pred):
             sampled.extend(facts_by_pred[fn][:per_pred])
-        sampled = sampled[:MAX_PROMPT_FACTS]
+        sampled = sampled[:max_facts]
 
         fact_lines = []
         for fact in sampled:
             term = fact.term
             if isinstance(term, Compound):
                 args = ", ".join(
-                    a.value if isinstance(a, Atom) else str(a)
+                    str(a.value) if isinstance(a, Atom) else str(a)
                     for a in term.args)
                 fact_lines.append(f"{term.functor}({args}).")
             else:
@@ -1112,7 +1122,9 @@ class KnowledgeBaseDreamer:
 
         # Collect user-defined (non-system) functors once for validation
         kb_functors = _collect_user_functors(kb)
-        MAX_CALLS = 500
+        # Scale call budget with KB size — small KBs need ~500, but
+        # transitive predicates in large KBs need proportionally more.
+        MAX_CALLS = max(500, len(kb) * 10)
 
         # Phase 1: Parse and structurally validate all proposed rules
         parsed_rules: List[Rule] = []
@@ -1204,22 +1216,27 @@ class KnowledgeBaseDreamer:
                 # False-positive check: the rule must not derive ground
                 # terms absent from the KB. Enumerate solutions for the
                 # head pattern and reject if any is a novel (spurious) fact.
-                existing_terms = {f.term for f in kb.facts
-                                  if isinstance(f.term, Compound)
-                                  and f.term.functor == rule.head.functor}
-                ev_fp = PrologEvaluator(test_kb, max_total_calls=MAX_CALLS)
-                head_query = rule.head  # has variables
-                has_false_positive = False
-                try:
-                    for sol in ev_fp.query([head_query]):
-                        ground = head_query.substitute(sol.bindings)
-                        if not ground.get_variables() and ground not in existing_terms:
-                            has_false_positive = True
-                            break
-                except RecursionError:
-                    has_false_positive = True
-                if has_false_positive:
-                    continue
+                #
+                # Skipped in open-world mode (e.g., during holdout evaluation)
+                # where the goal is precisely to recover absent facts.
+                if not self.open_world:
+                    existing_terms = {f.term for f in kb.facts
+                                      if isinstance(f.term, Compound)
+                                      and f.term.functor == rule.head.functor}
+                    ev_fp = PrologEvaluator(test_kb, max_total_calls=MAX_CALLS)
+                    head_query = rule.head  # has variables
+                    has_false_positive = False
+                    try:
+                        for sol in ev_fp.query([head_query]):
+                            ground = head_query.substitute(sol.bindings)
+                            if (not ground.get_variables()
+                                    and ground not in existing_terms):
+                                has_false_positive = True
+                                break
+                    except RecursionError:
+                        has_false_positive = True
+                    if has_false_positive:
+                        continue
 
                 accepted_rules.append(rule)
 
