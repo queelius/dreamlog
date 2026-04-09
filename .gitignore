@@ -188,3 +188,10 @@ Thumbs.db
 *.bbl
 *.blg
 .mcp.json
+
+# Papermill workspace (state, reviews, drafts)
+.papermill/
+paper/.papermill/
+
+# Generated HTML paper output
+paper/html_paper/
