@@ -48,7 +48,7 @@
 
   \vspace{0.8em}
 
-  \textbf{Claim.} Compression \emph{is} learning (Solomonoff, MDL).
+  \textbf{Claim.} Compression \emph{is} learning (Solomonoff's idea).
   The shortest KB consistent with the data generalizes best.
 
   \vspace{0.8em}
@@ -57,11 +57,12 @@
   inspired by DreamCoder.
 
   \begin{itemize}
-    \item \textbf{Wake:} answer queries via SLD resolution, optionally
-          call an LLM to propose rules for undefined predicates.
+    \item \textbf{Wake:} answer queries against the KB, and if a
+          predicate is undefined, optionally ask an LLM to propose
+          rules for it.
     \item \textbf{Sleep:} run 8 compression operations (7 symbolic,
           1 LLM-assisted), each verified against positive and
-          negative queries with atomic rollback.
+          negative test queries with atomic rollback.
   \end{itemize}
 
   Every compression is behaviorally equivalent to the original KB on
@@ -91,8 +92,8 @@
 (exception_master_artisan fen).
 \end{lstlisting}
 
-  Seven facts become three clauses. MDL accepts: one rule plus two
-  exceptions is shorter than seven facts.
+  Seven facts become three clauses. The compression is accepted
+  because one rule plus two exceptions is shorter than seven facts.
 
   \textbf{At test time,} adding \texttt{(artisan venn)} makes
   \texttt{(master\_artisan venn)} derivable. Nobody wrote that fact;
@@ -127,9 +128,8 @@
 
   The raw LLM scores 0\% because the terms are invented. Symbolic
   compression alone hits 53\% without any LLM involvement, which means
-  MDL-driven generalization discovers real concepts from data
-  structure, not from prior knowledge. The LLM adds another 11 points
-  on top.
+  compression discovers real concepts from data structure, not from
+  prior knowledge. The LLM adds another 11 points on top.
 
   \vspace{0.4em}
 
