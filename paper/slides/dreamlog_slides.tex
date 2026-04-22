@@ -87,13 +87,15 @@
   \textbf{After one sleep cycle:}
 \begin{lstlisting}
 (master_artisan X) :- (artisan X),
-                      (not (exception_master_artisan X)).
-(exception_master_artisan thom).
-(exception_master_artisan fen).
+                      (not (exception_master_artisan_artisan X)).
+(exception_master_artisan_artisan thom).
+(exception_master_artisan_artisan fen).
 \end{lstlisting}
 
-  Seven facts become three clauses. The compression is accepted
-  because one rule plus two exceptions is shorter than seven facts.
+  Seven facts become three clauses. The system invents a fresh
+  predicate named \texttt{exception\_\{head\}\_\{guard\}} to hold the
+  two exceptions. The compression is accepted because one rule plus
+  two exceptions is shorter than seven facts.
 
   \textbf{At test time,} adding \texttt{(artisan venn)} makes
   \texttt{(master\_artisan venn)} derivable. Nobody wrote that fact;
