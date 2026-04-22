@@ -74,7 +74,11 @@
 %%% =====================================================================
 \begin{frame}[fragile]{What ``compression discovers concepts'' looks like}
 
-  From the crafting experiment, symbolic compression only (no LLM).
+  \textbf{Pattern: compression via exceptions.} Pick a default that
+  covers most cases, list the exceptions. You gain compression
+  whenever the exceptions are fewer than the non-exceptions.
+
+  From the crafting experiment, symbolic only (no LLM).
 
   \textbf{Input:} seven ground facts, one per master artisan.
 \begin{lstlisting}
@@ -92,10 +96,9 @@
 (exception_master_artisan_artisan fen).
 \end{lstlisting}
 
-  Seven facts become three clauses. The system invents a fresh
-  predicate named \texttt{exception\_\{head\}\_\{guard\}} to hold the
-  two exceptions. The compression is accepted because one rule plus
-  two exceptions is shorter than seven facts.
+  Seven facts become three clauses: ``every artisan is a master
+  unless listed.'' The system invents a fresh predicate named
+  \texttt{exception\_\{head\}\_\{guard\}} to hold the two exceptions.
 
   \textbf{At test time,} adding \texttt{(artisan venn)} makes
   \texttt{(master\_artisan venn)} derivable. Nobody wrote that fact;
