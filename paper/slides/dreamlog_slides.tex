@@ -60,9 +60,14 @@
     \item \textbf{Wake:} answer queries against the KB, and if a
           predicate is undefined, optionally ask an LLM to propose
           rules for it.
-    \item \textbf{Sleep:} run 8 compression operations (7 symbolic,
-          1 LLM-assisted), each verified against positive and
-          negative test queries with atomic rollback.
+    \item \textbf{Sleep:} 8 compression operations, each verified
+          with atomic rollback. Examples: prune facts already
+          derivable from rules; compress repeated patterns as
+          ``rule + exceptions'' (next slide); invent a new
+          predicate when two existing ones share the same logical
+          shape; LLM proposes cross-predicate rules like
+          \texttt{father} $\leftarrow$ \texttt{parent} $+$
+          \texttt{male}.
   \end{itemize}
 
   Every compression is behaviorally equivalent to the original KB on
