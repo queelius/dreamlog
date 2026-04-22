@@ -1,0 +1,205 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamerfont{frametitle}{size=\large}
+\setbeamerfont{title}{size=\Large}
+
+\usepackage{booktabs}
+\usepackage{amsmath, amssymb}
+\usepackage{listings}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=none,
+  showstringspaces=false,
+}
+
+\title{DreamLog}
+\subtitle{Compression Enables Generalization in Logic Programming}
+\author{Alexander Towell}
+\institute{Southern Illinois University Edwardsville}
+\date{April 2026}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+%%% =====================================================================
+%%% Slide 1: What I want from this meeting
+%%% =====================================================================
+\begin{frame}{Three questions}
+  \begin{enumerate}
+    \setlength\itemsep{0.8em}
+    \item Is this paper interesting enough for you to coauthor?
+    \item Does it fit into my dissertation, or is it a side project?
+    \item What would strengthening it look like before submission?
+  \end{enumerate}
+
+  \vspace{1em}
+  \begin{block}{Status}
+  \begin{itemize}
+    \item Preprint on Zenodo (DOI \texttt{10.5281/zenodo.19490027})
+    \item 9-page draft, code and experiments public on GitHub
+    \item Reviewed twice (self-review via a multi-agent reviewer); open issues are known
+  \end{itemize}
+  \end{block}
+\end{frame}
+
+%%% =====================================================================
+%%% Slide 2: The idea
+%%% =====================================================================
+\begin{frame}{The idea}
+
+  \textbf{Problem.} Knowledge bases grow but do not learn. You can add
+  300 facts about a family tree, and the system still cannot tell you
+  whether a new person is someone's father. The facts accumulate,
+  understanding does not.
+
+  \vspace{0.8em}
+
+  \textbf{Claim.} Compression \emph{is} learning (Solomonoff, MDL).
+  The shortest KB consistent with the data generalizes best.
+
+  \vspace{0.8em}
+
+  \textbf{System.} DreamLog, a logic programming system with
+  wake-sleep cycles inspired by DreamCoder:
+
+  \begin{itemize}
+    \item \textbf{Wake:} answer queries via SLD resolution, optionally
+          call an LLM to propose rules for undefined predicates.
+    \item \textbf{Sleep:} run 8 compression operations (7 symbolic,
+          1 LLM-assisted), each verified against positive and
+          negative queries with atomic rollback.
+  \end{itemize}
+
+  Every compression is behaviorally equivalent to the original KB on
+  the verification suite. Nothing gets ``worse.''
+\end{frame}
+
+%%% =====================================================================
+%%% Slide 3: Key experiment
+%%% =====================================================================
+\begin{frame}{The result I care most about}
+
+  A synthetic crafting domain. 15 materials with invented names
+  (\textit{lumite}, \textit{vexal}, \textit{drossite}, \ldots). The LLM
+  has never seen these terms in training.
+
+  \vspace{0.5em}
+  33 checks on unseen materials / artisans / recipes, 5 runs per
+  condition:
+
+  \begin{center}
+  \begin{tabular}{lccc}
+    \toprule
+    Condition & Recall & Precision & Rules \\
+    \midrule
+    No dream          & 0\%        & ---  & 0 \\
+    Raw LLM prompting & 0\%        & ---  & 0 \\
+    Symbolic only     & 53\%       & 59\% & 5 \\
+    Full pipeline     & $64 \pm 2$\% & 64\% & 20 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.8em}
+
+  The raw LLM scores 0\% because the terms are invented. Symbolic
+  compression alone hits 53\% without any LLM involvement, which means
+  MDL-driven generalization discovers real concepts from data
+  structure, not from prior knowledge. The LLM adds another 11 points
+  on top.
+
+  \vspace{0.4em}
+
+  This is the cleanest evidence I have for the thesis.
+
+\end{frame}
+
+%%% =====================================================================
+%%% Slide 4: Honest assessment
+%%% =====================================================================
+\begin{frame}{What's strong, what's missing}
+
+  \begin{columns}[t]
+
+  \column{0.48\textwidth}
+  \textbf{Strong}
+  \begin{itemize}
+    \item Novel-domain test isolates compression from LLM memorization
+    \item Zero false positives in either verification mode
+    \item Open-world / closed-world distinction is a real
+          methodological contribution
+    \item Reproducible: all experiments scripted, registry tracks
+          provenance
+    \item Scales to 443 assertions, 78 predicates (research lab
+          simulation)
+    \item LLM cost under \$0.05 for all experiments combined
+  \end{itemize}
+
+  \column{0.48\textwidth}
+  \textbf{Missing}
+  \begin{itemize}
+    \item No head-to-head ILP baseline (Popper, Metagol)
+    \item No figures; a wake-sleep diagram would help
+    \item Single-author empirical paper is a harder venue sell
+    \item Recursive rule discovery fails (\texttt{ancestor} predicate)
+    \item Scale is tens of predicates, not thousands
+  \end{itemize}
+
+  \end{columns}
+
+\end{frame}
+
+%%% =====================================================================
+%%% Slide 5: The ask
+%%% =====================================================================
+\begin{frame}{The ask}
+
+  \textbf{What coauthoring might look like.} Where I think you could
+  contribute:
+
+  \begin{itemize}
+    \item Statistical rigor on the empirical claims (your ransomware
+          work set a bar for how to report these)
+    \item Venue strategy; a senior coauthor materially changes what's
+          reachable
+    \item Framing with respect to my dissertation: is this a chapter
+          or a side project?
+    \item Advocating for a Popper benchmark run, which is mostly
+          student-time effort but needs to be scoped
+  \end{itemize}
+
+  \vspace{0.8em}
+
+  \textbf{What I'd do.} Everything else: bug fixes, experiments,
+  writing, figures, the ILP benchmark setup, revisions.
+
+\end{frame}
+
+%%% =====================================================================
+%%% Slide 6: Open questions
+%%% =====================================================================
+\begin{frame}{Open questions for discussion}
+
+  \begin{enumerate}
+    \setlength\itemsep{0.8em}
+    \item Dissertation fit. The listed advising scope is AI safety,
+          interpretability, network analysis. DreamLog produces
+          interpretable rules from unstructured KBs. Does that count?
+    \item Venue. NeSy 2026 (Lisbon, September), NeurIPS workshop
+          (December), or ILP 2027? Each has different bar, different
+          timeline.
+    \item Priority ordering. If strengthening, what goes first:
+          Popper benchmark, figures, or scale?
+  \end{enumerate}
+
+\end{frame}
+
+\end{document}
