@@ -9,12 +9,18 @@
 \usepackage{booktabs}
 \usepackage{amsmath, amssymb}
 \usepackage{listings}
+\usepackage{xcolor}
 
+\definecolor{codebg}{rgb}{0.96, 0.96, 0.94}
 \lstset{
   basicstyle=\ttfamily\footnotesize,
   breaklines=true,
   frame=none,
+  backgroundcolor=\color{codebg},
   showstringspaces=false,
+  xleftmargin=1em,
+  aboveskip=0.3em,
+  belowskip=0.3em,
 }
 
 \title{DreamLog}
@@ -30,7 +36,7 @@
 \end{frame}
 
 %%% =====================================================================
-%%% Slide 1: What I want from this meeting
+%%% Slide: Three questions
 %%% =====================================================================
 \begin{frame}{Three questions}
   \begin{enumerate}
@@ -45,13 +51,13 @@
   \begin{itemize}
     \item Preprint on Zenodo (DOI \texttt{10.5281/zenodo.19490027})
     \item 9-page draft, code and experiments public on GitHub
-    \item Reviewed twice (self-review via a multi-agent reviewer); open issues are known
+    \item Reviewed twice internally; open issues are known
   \end{itemize}
   \end{block}
 \end{frame}
 
 %%% =====================================================================
-%%% Slide 2: The idea
+%%% Slide: The idea
 %%% =====================================================================
 \begin{frame}{The idea}
 
@@ -67,8 +73,8 @@
 
   \vspace{0.8em}
 
-  \textbf{System.} DreamLog, a logic programming system with
-  wake-sleep cycles inspired by DreamCoder:
+  \textbf{System.} DreamLog, a Prolog variant with wake-sleep cycles
+  inspired by DreamCoder.
 
   \begin{itemize}
     \item \textbf{Wake:} answer queries via SLD resolution, optionally
@@ -83,16 +89,45 @@
 \end{frame}
 
 %%% =====================================================================
-%%% Slide 3: Key experiment
+%%% Slide: Worked example
+%%% =====================================================================
+\begin{frame}[fragile]{What ``compression discovers concepts'' looks like}
+
+  From the crafting experiment, symbolic compression only (no LLM).
+
+  \textbf{Input:} seven ground facts, one per master artisan.
+\begin{lstlisting}
+(master_artisan kael)    (master_artisan sera)
+(master_artisan yara)    (master_artisan dax)
+(master_artisan mira)    (master_artisan orin)
+(master_artisan zara)
+\end{lstlisting}
+
+  \textbf{After one sleep cycle:}
+\begin{lstlisting}
+(master_artisan X) :- (artisan X),
+                      (not (exception_master_artisan X)).
+(exception_master_artisan thom).
+(exception_master_artisan fen).
+\end{lstlisting}
+
+  Seven facts become three clauses. MDL accepts: one rule plus two
+  exceptions is shorter than seven facts.
+
+  \textbf{At test time,} adding \texttt{(artisan venn)} makes
+  \texttt{(master\_artisan venn)} derivable. Nobody wrote that fact;
+  the system classified a new entity using a concept it discovered
+  from structure alone.
+
+\end{frame}
+
+%%% =====================================================================
+%%% Slide: The result that matters most
 %%% =====================================================================
 \begin{frame}{The result I care most about}
 
-  A synthetic crafting domain. 15 materials with invented names
-  (\textit{lumite}, \textit{vexal}, \textit{drossite}, \ldots). The LLM
-  has never seen these terms in training.
-
-  \vspace{0.5em}
-  33 checks on unseen materials / artisans / recipes, 5 runs per
+  The worked example above is one rule from the crafting experiment.
+  Aggregate over 33 test checks (19 positive, 14 negative), 5 runs per
   condition:
 
   \begin{center}
@@ -123,44 +158,14 @@
 \end{frame}
 
 %%% =====================================================================
-%%% Slide 4: Honest assessment
-%%% =====================================================================
-\begin{frame}{What's strong, what's missing}
-
-  \begin{columns}[t]
-
-  \column{0.48\textwidth}
-  \textbf{Strong}
-  \begin{itemize}
-    \item Novel-domain test isolates compression from LLM memorization
-    \item Zero false positives in either verification mode
-    \item Open-world / closed-world distinction is a real
-          methodological contribution
-    \item Reproducible: all experiments scripted, registry tracks
-          provenance
-    \item Scales to 443 assertions, 78 predicates (research lab
-          simulation)
-    \item LLM cost under \$0.05 for all experiments combined
-  \end{itemize}
-
-  \column{0.48\textwidth}
-  \textbf{Missing}
-  \begin{itemize}
-    \item No head-to-head ILP baseline (Popper, Metagol)
-    \item No figures; a wake-sleep diagram would help
-    \item Single-author empirical paper is a harder venue sell
-    \item Recursive rule discovery fails (\texttt{ancestor} predicate)
-    \item Scale is tens of predicates, not thousands
-  \end{itemize}
-
-  \end{columns}
-
-\end{frame}
-
-%%% =====================================================================
-%%% Slide 5: The ask
+%%% Slide: The ask
 %%% =====================================================================
 \begin{frame}{The ask}
+
+  The paper needs work before it's venue-ready: a head-to-head Popper
+  or Metagol baseline, figures, and likely a larger-scale run.
+
+  \vspace{1em}
 
   \textbf{What coauthoring might look like.} Where I think you could
   contribute:
@@ -172,33 +177,14 @@
           reachable
     \item Framing with respect to my dissertation: is this a chapter
           or a side project?
-    \item Advocating for a Popper benchmark run, which is mostly
-          student-time effort but needs to be scoped
+    \item Advocating for a Popper benchmark run, mostly student-time
+          effort but needs to be scoped
   \end{itemize}
 
   \vspace{0.8em}
 
-  \textbf{What I'd do.} Everything else: bug fixes, experiments,
-  writing, figures, the ILP benchmark setup, revisions.
-
-\end{frame}
-
-%%% =====================================================================
-%%% Slide 6: Open questions
-%%% =====================================================================
-\begin{frame}{Open questions for discussion}
-
-  \begin{enumerate}
-    \setlength\itemsep{0.8em}
-    \item Dissertation fit. The listed advising scope is AI safety,
-          interpretability, network analysis. DreamLog produces
-          interpretable rules from unstructured KBs. Does that count?
-    \item Venue. NeSy 2026 (Lisbon, September), NeurIPS workshop
-          (December), or ILP 2027? Each has different bar, different
-          timeline.
-    \item Priority ordering. If strengthening, what goes first:
-          Popper benchmark, figures, or scale?
-  \end{enumerate}
+  \textbf{What I'd do.} Everything else: bugs, experiments, writing,
+  figures, the ILP benchmark setup, revisions.
 
 \end{frame}
 
