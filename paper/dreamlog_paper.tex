@@ -318,7 +318,7 @@ The undiscovered predicate is \texttt{can\_craft(Artisan, Product)}, which requi
 A 4-generation family tree with 29 people, 96 base facts (\texttt{person}, \texttt{male}/\texttt{female}, \texttt{parent}), and 204 derived facts across 7 predicates (\texttt{father}, \texttt{mother}, \texttt{grandparent}, \texttt{grandfather}, \texttt{grandmother}, \texttt{great\_grandparent}, \texttt{ancestor}).
 
 \subsubsection{Protocol}
-Same three-condition protocol as EX25b. After dreaming, 6 new people are introduced with base facts only, and 14 checks (10 positive, 4 negative) test derived relationships.
+Same conditions as EX25b, including the raw LLM baseline. After dreaming, 6 new people are introduced with base facts only, and 14 checks (10 positive, 4 negative) test derived relationships.
 
 \subsubsection{Results}
 
@@ -363,7 +363,7 @@ Family (canonical) & 0\% & 0\% & 0\%  & 80\% \\
 \end{tabular}
 \end{table}
 
-The novel domain provides the stronger evidence for compression-driven learning. The symbolic operations achieve 50\% recall on a domain with invented terms, demonstrating that MDL-guided generalization works without any prior knowledge. The family domain achieves higher overall recall (80\%) but relies entirely on the LLM (Operation G), making it difficult to disentangle compression-driven discovery from LLM training data memorization.
+The novel domain provides the stronger evidence for compression-driven learning. The symbolic operations achieve 53\% recall on a domain with invented terms, demonstrating that MDL-guided generalization works without any prior knowledge. The family domain achieves higher overall recall (80\%) but relies entirely on the LLM (Operation G), making it difficult to disentangle compression-driven discovery from LLM training data memorization.
 
 \subsection{EX25c: Holdout Sweep and the Open-World Mode}
 \label{sec:ex25c}
@@ -404,7 +404,7 @@ Three observations:
 
 \textbf{Open-world recovers all held-out facts at low ratios.} At 5--20\% holdout, recovery is 100\%: the discovered rules (\texttt{father} $\leftarrow$ \texttt{parent} + \texttt{male}, etc.) generalize perfectly to the held-out facts. The KB is compressed from 290 to ~118 clauses (ratio 0.40), an even stronger compression than the no-holdout setting in EX25 (0.61), because the smaller KB has less verification overhead.
 
-\textbf{The data density threshold appears at 30\%.} Recovery drops to $85 \pm 21$\% at 30\% holdout and $72 \pm 20$\% at 50\% holdout. The high variance reflects which facts get held out: some random splits leave enough facts per predicate for Op C and Op G to discover the pattern; others do not. Op C requires \texttt{min\_group\_size}=3, so removing more than two-thirds of any predicate's facts can disable it for that predicate.
+\textbf{The data density threshold appears at 30\%.} Recovery drops to $85 \pm 21$\% at 30\% holdout and $72 \pm 20$\% at 50\% holdout. The high variance reflects which facts get held out: some random splits leave enough facts per predicate for Op G to propose a rule that derives at least 2 existing facts (Op G's acceptance gate); others do not. On the family tree, the cross-predicate rules that drive recovery (\texttt{father} $\leftarrow$ \texttt{parent} + \texttt{male}, etc.) come from Op G rather than Op C, so the relevant constraint is Op G's minimum-coverage gate, not Op C's \texttt{min\_group\_size}.
 
 \textbf{No false positives in either mode.} Even with the FP check disabled, the rules discovered by Op G do not derive incorrect facts. This is because the rules themselves (\texttt{father}=\texttt{parent}+\texttt{male}) are sound; the closed-world FP check was rejecting them not for being wrong but for deriving facts that were intentionally absent.
 
@@ -502,7 +502,7 @@ The experiments reveal a clean division of labor. Symbolic operations (particula
 
 On the novel crafting domain, symbolic compression achieves 53\% recall while the full pipeline reaches 64\%. On the canonical family tree, symbolic compression achieves 0\% recall (it finds only entity-specific patterns) while the full pipeline achieves 80\%. Critically, a raw LLM baseline (prompting Haiku directly with all facts) achieves 0\% on both domains, confirming that the compression pipeline provides the generalization capability, not the LLM alone. This asymmetry reflects the nature of the domains: the crafting domain has within-predicate regularities (most artisans are masters) while the family domain's generalization opportunities are entirely cross-predicate.
 
-\subsection{The Novel Domain as Honest Evaluation}
+\subsection{The Novel Domain Isolates Compression from LLM Memorization}
 
 The crafting domain result provides stronger evidence for compression-driven generalization than the family tree. When the LLM proposes \texttt{father(X,Y) :- parent(X,Y), male(X)} for a family KB, it may be recalling this rule from training data rather than discovering it from structural patterns. The invented terms in the crafting domain (lumite, vexal, drossite) eliminate this confound. That symbolic compression alone achieves 53\% recall on invented terms, while the raw LLM achieves 0\%, demonstrates genuine MDL-driven concept discovery independent of any LLM prior knowledge.
 
@@ -514,7 +514,7 @@ The family tree remains useful as a benchmark because its higher recall (80\%) d
 
 \subsubsection{Recursive rules} The ancestor predicate (\texttt{ancestor(X,Z) :- parent(X,Y), ancestor(Y,Z)}) is not discovered. Symbolic operations work on flat fact patterns; the LLM prompt does not currently encourage recursive proposals. Supporting recursive rule discovery is an important direction for future work.
 
-\subsubsection{Minimum data threshold} The holdout sweep (EX25c) shows recovery degrades sharply once more than 30\% of facts per predicate are held out. Operation C requires a minimum group size (default 3) to trigger, and Op G's rule discovery becomes less reliable when too few facts remain per predicate. Compression-driven learning needs sufficient data density per predicate to activate; the threshold is roughly 7--10 facts per predicate for the family tree domain.
+\subsubsection{Minimum data threshold} The holdout sweep (EX25c) shows recovery degrades sharply once more than 30\% of facts per predicate are held out. Op G accepts a proposed rule only if it derives at least 2 existing facts, so rules become harder to discover as the remaining fact count per predicate shrinks. Op C's generalizations also weaken (its default \texttt{min\_group\_size} is 3), but on the family tree the recovery curve is driven by Op G's cross-predicate rules. Compression-driven learning needs sufficient data density per predicate to activate; the threshold is roughly 7--10 facts per predicate for the family tree domain.
 
 \subsubsection{Scaling} Verification cost is quadratic in KB size due to exhaustive query checking. KBs beyond 1000 clauses would benefit from sampled verification or cached resolution.
 
