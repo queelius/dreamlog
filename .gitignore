@@ -187,6 +187,10 @@ Thumbs.db
 # LaTeX build artifacts
 *.bbl
 *.blg
+*.nav
+*.snm
+*.toc
+*.vrb
 .mcp.json
 
 # Papermill workspace (state, reviews, drafts)

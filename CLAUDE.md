@@ -10,7 +10,7 @@ DreamLog is a Prolog-like logic programming language with S-expression syntax an
 
 ### Testing
 ```bash
-# Run all tests (689 tests, 80% coverage enforced by pyproject.toml)
+# Run all tests (~671 passing + ~11 skipped, 80% coverage enforced by pyproject.toml)
 python -m pytest tests/ -v
 
 # Run specific test file, class, or method
@@ -81,7 +81,7 @@ When an undefined predicate is queried, the LLM pipeline activates:
 ### Layer 5: Sleep Cycle (the core innovation)
 `kb_dreamer.py`, `anti_unification.py`, `skeleton.py`
 
-`KnowledgeBaseDreamer().dream(kb)` runs six compression operations in sequence:
+`KnowledgeBaseDreamer().dream(kb)` runs eight compression operations (A-H) in sequence:
 
 - **Operation A (Subsumption elimination)**: Remove rules subsumed by more general rules (same-body-length restriction). Remove facts subsumed by bodyless rules.
 - **Operation B (Redundant fact pruning)**: Remove facts derivable from rules + other facts. Batch removal with one-at-a-time fallback for mutual dependencies.
@@ -92,12 +92,19 @@ When an undefined predicate is queried, the LLM pipeline activates:
 - **Operation G (LLM-assisted compression)**: Ask LLM (default: Anthropic Haiku) to propose cross-functor rules the symbolic operations can't discover. Pipeline: (1) build prompt with facts + predicate counts + directionality constraints, (2) parse JSON response with nested term support (including `not/1`), (3) filter cyclic rules via DFS on functor dependency graph, (4) separate helper predicates from main rules, (5) evaluate each main rule (with helpers) against original KB, (6) false-positive check: reject rules that derive ground terms absent from KB, (7) verify combined set. Supports `not/1` via helper predicate pattern (e.g., `has_non_vegan(X) :- uses(X,Y), vegan(Y,false)` + `vegan_recipe(X) :- recipe(X), not(has_non_vegan(X))`).
 - **Operation H (Lemma caching)**: Add frequently-derived terms as facts for faster resolution.
 
-All operations use MDL (Minimum Description Length) scoring and are verified against a test suite of positive/negative queries with atomic rollback on failure. Post-Op-G verification uses bounded evaluators (`max_total_calls`) to prevent combinatorial explosion from LLM-proposed rules that create resolution loops.
+All operations use MDL (Minimum Description Length) scoring and are verified against a test suite of positive/negative queries with atomic rollback on failure. Post-Op-G verification uses bounded evaluators (`max_total_calls`, scaled with KB size) to prevent combinatorial explosion from LLM-proposed rules that create resolution loops. `VerificationSuite.verify()` creates a fresh evaluator per query so one slow transitive query cannot starve the budget for subsequent ones.
+
+**`KnowledgeBaseDreamer` constructor parameters:**
+- `llm_client`: optional; if None, only symbolic ops (A-F, H) run.
+- `min_group_size` (default 3): minimum facts per group before Op C triggers.
+- `shared_structure_threshold` (default 0.1): anti-unification score threshold.
+- `max_prompt_facts` (default 50): round-robin sample size for Op G's LLM prompt. Raise for KBs with many predicates (200+ works well for domains with 7-10 predicates; see `experiments/ex25_generalization.py`).
+- `open_world` (default False): when True, Op G's false-positive check (reject rules that derive ground terms absent from the KB) is disabled. Closed-world default preserves the zero-drift safety guarantee for production compression; open-world is the opt-in for holdout-style evaluation where the goal is precisely to recover absent facts. **Important gotcha**: `open_world=True` only disables the FP enumeration check; the synthetic negative queries in `build_verification_suite` are still enforced, so it is a *partial* relaxation of closed-world.
 
 **Key modules:**
 - `anti_unification.py`: Plotkin's algorithm (dual of unification). `anti_unify`, `anti_unify_many`, `node_count`, `shared_structure` scoring.
 - `skeleton.py`: Rule-set structural fingerprinting. `extract_skeleton` normalizes variable names, classifies functors as SELF/PARAM, produces hashable `RuleSetSkeleton`.
-- `kb_dreamer.py`: The dreamer orchestrator, verification suite (`build_verification_suite`, `extend_verification_for_rules`), and all six operations.
+- `kb_dreamer.py`: The dreamer orchestrator, verification suite (`build_verification_suite`, `extend_verification_for_rules`), and all eight operations.
 
 ### Layer 6: High-Level APIs
 - `engine.py`: `DreamLogEngine` combines all components. Entry point for most operations.
@@ -105,7 +112,16 @@ All operations use MDL (Minimum Description Length) scoring and are verified aga
 - `tui.py`: Terminal UI with `/dream`, `/dream --dry-run`, `/analyze`, `/dream-status` commands
 
 ### Integrations
-- `integrations/mcp/dreamlog_mcp_server.py`: Model Context Protocol server
+- `integrations/mcp/dreamlog_mcp_server.py`: Model Context Protocol server (FastMCP v2). Exposes 5 tools (`assert`, `query`, `dream`, `explain`, `status`) and 2 resources (`dreamlog://kb`, `dreamlog://stats`). Configured via env vars: `DREAMLOG_STORE`, `DREAMLOG_LLM_BUDGET`, `DREAMLOG_DREAM_THRESHOLD`.
+- `integrations/mcp/knowledge_store.py`: `KnowledgeStore` class wrapping `DreamLogEngine` with disk persistence (atomic writes via envelope format `{"version": 1, "kb": [...], "metadata": {...}}`), LLM budget tracking, dream-readiness advisory, and session metadata. Both `query()` and `explain()` accept a `max_total_calls` parameter (default 5000) to bound resolution after dreams discover broad-head rules.
+
+### Experiments and paper
+- `experiments/experiment_registry.yaml`: single source of truth for experimental provenance. Each entry has `title`, `date`, `script`, `status`, `motivation`, `method`, `key_result`, `implications`, and optional `depends_on`. Update it when adding a new experiment or revising an old one.
+- `experiments/ex25_generalization.py`: canonical generalization test on a family tree. Defines shared helpers (`build_kb`, `is_derivable`, `dream_kb`, `holdout_split`, `get_llm_client`) that sibling experiments (ex25b, ex25c) import rather than duplicate.
+- `experiments/ex25b_novel_generalization.py`: same protocol on a synthetic crafting domain with invented terms (lumite, vexal, etc.) the LLM has never seen, plus a raw-LLM baseline.
+- `experiments/ex25c_holdout_sweep.py`: holdout ratio sweep; uses `dream_kb(..., open_world=True)`.
+- `paper/dreamlog_paper.tex`: the manuscript ("Compression Enables Generalization"). Build with `cd paper && pdflatex ... && bibtex ... && pdflatex ... (x2)`. References are in `paper/references.bib`.
+- Paper has a Zenodo deposit: concept DOI `10.5281/zenodo.19490027`, v1 DOI `10.5281/zenodo.19490028`. The deposit is tracked in metafunctor's `pubs_db.json` under slug `dreamlog-compression`. Mint new versions via `mf pubs zenodo register dreamlog-compression --publish` (see `.zenodo.json` and `CITATION.cff`).
 
 ## Development Guidelines
 
