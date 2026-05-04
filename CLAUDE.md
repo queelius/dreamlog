@@ -34,12 +34,14 @@ make repl-llm      # TUI with LLM backend
 make docs-serve    # MkDocs at localhost:8000
 ```
 
-### Running the TUI
+### Running the TUI / MCP server
 ```bash
-dreamlog                              # Entry point (pyproject.toml scripts)
-python -m dreamlog.tui --llm          # With LLM support
+dreamlog                              # TUI entry point
+dreamlog-mcp                          # MCP server entry point
+python -m dreamlog.tui --llm          # TUI with LLM support
 python -m dreamlog.tui --kb file.json # Load knowledge base on startup
 ```
+Both entry points are registered in `pyproject.toml` under `[project.scripts]`.
 
 ## Architecture
 
@@ -54,19 +56,21 @@ Immutable term objects (`Atom`, `Variable`, `Compound`). Factory functions in `f
 `Fact` (ground terms) and `Rule` (head-body Horn clauses) stored in `KnowledgeBase` with functor/arity indexing. KB supports `copy()`/`restore_from()` for atomic rollback, value-based removal, `replace_facts()` for atomic swaps, and per-clause usage counters (`record_usage`/`get_usage`).
 
 ### Layer 3: Inference Engine
-`unification.py`, `evaluator.py`
+`unification.py`, `evaluator.py`, `proof_tree.py`
 
 Robinson's unification with occurs check in three modes (standard, one-way/matching, subsumption). `clause_subsumes()` for rule-level subsumption (same-body-length). `PrologEvaluator` implements SLD resolution with:
 - **`not/1`**: Negation as failure with floundering guard and unknown hook suppression
 - **`call/N`**: Meta-predicate for runtime predicate dispatch (`call(parent, X, Y)` becomes `parent(X, Y)`)
 - **`has_solution(term)`**: Generator-based derivability check (stops at first solution)
+- **`query_with_proof(goals)`**: Yields `(Solution, ProofNode)` pairs; `proof_tree.py` defines `ProofNode` (goal, clause, children, depth) and `ProofLog` for collecting/analyzing proof structure.
 - Usage tracking: records which facts/rules fire during resolution
+- `max_total_calls`: per-evaluator call budget that persists across `query()` invocations on the same evaluator. Verification suites use one fresh evaluator per query so individual transitive queries cannot starve others.
 
 ### Layer 4: LLM Integration Pipeline
 When an undefined predicate is queried, the LLM pipeline activates:
 
 1. **Hook** (`llm_hook.py`): Intercepts undefined predicates, orchestrates the pipeline
-2. **Providers** (`llm_client.py`, `llm_providers.py`, `llm_http_provider.py`): `LLMClient` wraps OpenAI/Anthropic/Ollama SDKs. Default: Anthropic Haiku via `MY_ANTHROPIC_API_KEY`. Supports `provider`, `api_key_env`, `timeout`, per-provider default models.
+2. **Providers** (`llm_client.py`): `LLMClient` wraps OpenAI/Anthropic/Ollama SDKs with lazy imports and per-provider default models. Default: Anthropic Haiku via `MY_ANTHROPIC_API_KEY`. Supports `provider`, `api_key_env`, `timeout`. `LLMUsage` tracks `calls`, `input_tokens`, `output_tokens`; `estimated_cost()` uses a `MODEL_PRICING` table.
 3. **Prompting** (`prompt_template_system.py`, `llm_prompt_templates.py`): Parameterized templates with few-shot learning
 4. **RAG** (`example_retriever.py`): KB-aware semantic example retrieval for prompt context
 5. **Embeddings** (`embedding_providers.py`, `tfidf_embedding_provider.py`): Ollama embeddings or local TF-IDF fallback
@@ -121,7 +125,8 @@ All operations use MDL (Minimum Description Length) scoring and are verified aga
 - `experiments/ex25b_novel_generalization.py`: same protocol on a synthetic crafting domain with invented terms (lumite, vexal, etc.) the LLM has never seen, plus a raw-LLM baseline.
 - `experiments/ex25c_holdout_sweep.py`: holdout ratio sweep; uses `dream_kb(..., open_world=True)`.
 - `paper/dreamlog_paper.tex`: the manuscript ("Compression Enables Generalization"). Build with `cd paper && pdflatex ... && bibtex ... && pdflatex ... (x2)`. References are in `paper/references.bib`.
-- Paper has a Zenodo deposit: concept DOI `10.5281/zenodo.19490027`, v1 DOI `10.5281/zenodo.19490028`. The deposit is tracked in metafunctor's `pubs_db.json` under slug `dreamlog-compression`. Mint new versions via `mf pubs zenodo register dreamlog-compression --publish` (see `.zenodo.json` and `CITATION.cff`).
+- Paper has a Zenodo deposit: concept DOI `10.5281/zenodo.19490027`, v1 DOI `10.5281/zenodo.19490028`. The deposit is tracked in metafunctor's `pubs_db.json` under slug `dreamlog-compression`. Mint new versions via `mf pubs zenodo register dreamlog-compression --publish` (see `.zenodo.json` and `CITATION.cff`). The `mf` CLI lives in `~/github/repos/mf/`; install with `pip install -e ~/github/repos/mf`.
+- `paper/slides/dreamlog_slides.tex`: 5-page Beamer deck for advisor coauthoring discussions (Madrid theme, no external deps).
 
 ## Development Guidelines
 
@@ -145,7 +150,7 @@ Python >=3.8, Black (88 chars), mypy strict mode on `dreamlog/`. Protocols in de
 - Tests focus on **behavior, not implementation** (no testing private attributes)
 - Mark with `@pytest.mark.slow`, `@pytest.mark.integration`, or `@pytest.mark.llm` as appropriate
 - Coverage must stay above 80% (`--cov-fail-under=80` in pyproject.toml)
-- Sleep cycle tests in `tests/test_sleep_cycle.py` cover all six operations with integration tests
+- Sleep cycle tests in `tests/test_sleep_cycle.py` cover all eight operations (A through H) with integration tests
 
 ### Design Specs and Plans
 - Design specs in `docs/superpowers/specs/`
