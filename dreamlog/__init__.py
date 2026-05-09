@@ -19,7 +19,7 @@ from .llm_client import LLMClient
 from .engine import DreamLogEngine, create_engine_with_llm, create_family_kb
 from .prefix_parser import parse_prefix_notation, parse_s_expression
 
-__version__ = "0.8"
+__version__ = "0.9.0"
 __all__ = [
     "Term", "Atom", "Variable", "Compound", "atom", "var", "compound", "term_from_prefix",
     "Fact", "Rule", "KnowledgeBase",
