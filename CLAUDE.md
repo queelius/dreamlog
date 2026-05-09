@@ -115,6 +115,11 @@ All operations use MDL (Minimum Description Length) scoring and are verified aga
 - `pythonic.py`: `DreamLog` fluent chainable API with `RuleBuilder` (`.when()`, `.and_()`, `.build()`)
 - `tui.py`: Terminal UI with `/dream`, `/dream --dry-run`, `/analyze`, `/dream-status` commands
 
+### Examples and benchmarks
+- `examples/*.dl`: S-expression KBs (e.g., `family.dl`, `family2.dl`). The `.dl` extension is just a convention for DreamLog source files; load with `dreamlog --kb examples/family.dl` or `kb.parse(open("...").read())`.
+- `examples/wake_sleep_demo.py`, `examples/persistent_learning_demo.py`: end-to-end demos covering the full wake-sleep loop.
+- `benchmarks/sleep_cycle_bench.py` + `benchmarks/baseline.json`: timing/compression baselines for sleep operations. Use these (not the experiments/) when comparing performance regressions.
+
 ### Integrations
 - `integrations/mcp/dreamlog_mcp_server.py`: Model Context Protocol server (FastMCP v2). Exposes 5 tools (`assert`, `query`, `dream`, `explain`, `status`) and 2 resources (`dreamlog://kb`, `dreamlog://stats`). Configured via env vars: `DREAMLOG_STORE`, `DREAMLOG_LLM_BUDGET`, `DREAMLOG_DREAM_THRESHOLD`.
 - `integrations/mcp/knowledge_store.py`: `KnowledgeStore` class wrapping `DreamLogEngine` with disk persistence (atomic writes via envelope format `{"version": 1, "kb": [...], "metadata": {...}}`), LLM budget tracking, dream-readiness advisory, and session metadata. Both `query()` and `explain()` accept a `max_total_calls` parameter (default 5000) to bound resolution after dreams discover broad-head rules.
