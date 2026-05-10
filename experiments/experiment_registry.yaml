@@ -724,3 +724,98 @@ experiments:
       Reframes a previously buried limitation as a methodological
       contribution: the paper now explicitly documents the two modes
       and shows both results.
+
+  # ================================================================
+  # BASELINE COMPARISONS
+  # ================================================================
+
+  EX26_popper_baseline:
+    title: "Popper ILP Baseline on EX25/EX25b Generalization Protocol"
+    date: null
+    script: experiments/ex26_popper_baseline.py
+    status: planned
+    depends_on: [EX25, EX25b, EX25c]
+    motivation: |
+      The paper's central claim is that compression (DreamLog) discovers
+      generalizable rules without supervision. To position this against
+      established ILP, we need a head-to-head baseline against Popper
+      (Cropper & Morel 2021) — the modern reference ILP system based on
+      learning-from-failures. The state.md flags this as the only remaining
+      hard blocker before NeSy 2026 venue submission.
+
+      A naive comparison would advantage one system or the other unfairly
+      because Popper is supervised (needs E+, E-, modes, bias) while
+      DreamLog is unsupervised (compression-driven, MDL-guided). The
+      design here gives each system the natural form of its required
+      inputs and evaluates both on the same held-out facts.
+
+      The most discriminating test is EX25b (crafting, invented vocabulary).
+      DreamLog symbolic-only achieves 50% recall there with no LLM and no
+      labels. If Popper with closed-world-sampled negatives matches that,
+      it argues the symbolic strategies converge. If Popper underperforms,
+      it argues MDL+verification is doing work that learning-from-failures
+      isn't capturing.
+
+    method: |
+      Apples-to-apples comparison on EX25 family and EX25b crafting
+      domains. Popper given:
+        - bk.pl: same KB as DreamLog (base facts + any user-provided rules)
+        - exs.pl positive: held-in derived facts for the target predicate
+        - exs.pl negative: closed-world random sample, |E-| = |E+|, same
+          seed as the holdout split
+        - bias.pl: hand-written mode declarations from the natural schema
+          per domain, committed BEFORE running (no post-hoc tuning)
+
+      Cross-product:
+        systems x {dreamlog-no-dream, dreamlog-symbolic, dreamlog-full,
+                   popper, raw-llm-baseline}
+        domain  x {family, crafting}
+        seeds   x {42, 43, 44}
+        holdout x {0%}                    # primary
+                  {20%, 50%} x H3 only    # optional data-efficiency
+
+      Per cell: 5-minute timeout. Failure cases (timeout, parse error,
+      Popper crash) reported honestly as 0 rules / N/A recall.
+
+      Analysis: bootstrap 95% CIs on recall (B=1000); Bonferroni-corrected
+      pairwise comparisons across systems within each domain.
+
+      Reproducibility: pin Popper commit hash, persist all generated
+      bk.pl/exs.pl/bias.pl per cell, ship requirements-popper.txt.
+
+    success_criteria: |
+      H1 (canonical-domain bracket): Popper family recall in [40%, 85%]
+        with CI overlap to at least one DreamLog condition.
+      H2 (novel-domain parity): |Popper crafting recall - 50%| <= 15pp
+        AND discovered rules structurally overlap with DreamLog symbolic's
+        master_artisan / safe_recipe.
+      H3 (optional): Popper recall + 1SD < DreamLog open-world recall at
+        50% holdout.
+      Smoke test: at least one cell produces >=1 valid rule end-to-end.
+
+      Honesty floor: if Popper outperforms DreamLog full on both domains,
+      report as-is and revise the paper's positioning.
+
+    pitfalls_addressed: |
+      - Mode declarations hand-written, committed before running, not
+        tuned after seeing results.
+      - Multiple comparisons: 16 pairwise tests -> Bonferroni alpha' =
+        0.003125; use bootstrap CIs as primary comparator.
+      - 5-minute timeout per cell prevents Popper from "winning by
+        slowness."
+      - Negative sampling uses the same seed as the holdout split so the
+        partition is fully determined.
+      - Popper output parser tested against Popper's included `trains`
+        example before running on our domains.
+
+    setup_required: |
+      System dependencies (Ubuntu 24.04):
+        sudo apt install swi-prolog clingo
+      Verify: swipl --version >= 9.2.0; clingo --version >= 5.6.2
+      Pip dependencies (in .venv):
+        pip install janus-swi pysat bitarray
+        pip install git+https://github.com/logic-and-learning-lab/Popper@main
+      Then commit pinned hash to experiments/data/popper/POPPER_COMMIT.txt
+
+    key_result: null
+    implications: null
