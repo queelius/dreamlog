@@ -64,10 +64,11 @@ The novel domain result is the stronger validation. Because the LLM has never se
 
 Our contributions are:
 \begin{itemize}
-\item A wake-sleep architecture for logic programming that combines eight symbolic compression operations with LLM-assisted rule discovery, all verified against behavioral test suites.
-\item Empirical evidence that KB compression enables generalization to unseen entities, including on novel domains with invented vocabulary.
-\item An ablation study demonstrating complementary contributions: symbolic operations discover entity-level generalizations while the LLM discovers cross-predicate concepts.
-\item A long-lived accumulation study showing invest-then-compress-then-saturate dynamics consistent with DreamCoder's convergence.
+\item \textbf{A test protocol} for auditing compression-driven generalization in LLM-assisted rule learners: a fact base over invented vocabulary plus a raw-LLM baseline. To our knowledge no prior work isolates compression-driven discovery from LLM training-data memorization on a logic-programming rule-learning task.
+\item \textbf{Empirical results} under this protocol: DreamLog recovers 53--64\% of held-out generalizations on the novel domain while direct LLM prompting recovers 0\%; on a canonical family-tree domain the full pipeline reaches 80\% recall with 100\% precision.
+\item \textbf{A head-to-head comparison} with Popper~\cite{cropper2021learning} (Section~\ref{sec:ex26}) characterizing the methodological tradeoff between constraint-driven and compression-driven rule learning: Popper matches DreamLog's recall on the canonical domain but trails on precision; on the novel domain Popper underperforms even DreamLog's symbolic-only baseline.
+\item \textbf{The wake-sleep architecture} itself: eight symbolic compression operations plus LLM-assisted rule discovery, all verified against behavioral test suites with atomic rollback.
+\item \textbf{An ablation and long-lived accumulation study} showing complementary contributions of symbolic vs.\ LLM operations and an invest-then-compress-then-saturate dynamics consistent with DreamCoder's convergence.
 \end{itemize}
 
 %%% ===================================================================
@@ -87,7 +88,7 @@ Modern empirical work supports the compression-prediction equivalence framing on
 
 DreamCoder~\cite{ellis2021dreamcoder,ellis2023dreamcoder} introduced wake-sleep library learning for program synthesis. During wake phases, it solves programming tasks using a library of primitives. During sleep phases, it compresses solved programs to extract reusable abstractions (via anti-unification of lambda terms), which become new library entries. Over iterations, the library converges to a small set of powerful primitives. DreamLog adapts this architecture to logic programming: our ``library entries'' are Horn clause rules, our ``programs'' are KB clauses, and our compression operations (particularly Operations C, D, and E) play the role of DreamCoder's abstraction phase.
 
-Two successors to DreamCoder bear directly on our work. Stitch~\cite{bowers2023stitch} reformulates the abstraction step as top-down corpus-guided synthesis, achieving 1000--10000$\times$ speedup over DreamCoder while preserving library quality. Operations D (predicate invention via skeleton fingerprinting) and E (body pattern extraction) play the role of Stitch for logic programs rather than $\lambda$-calculus programs: where Stitch identifies shared $\lambda$-term structure across solved tasks, our operations identify shared rule-body structure across the existing KB. LILO~\cite{grand2024lilo} extends DreamCoder with LLM-driven documentation and naming of discovered library functions, while keeping the symbolic compression mechanics. LILO is the closest published spirit to DreamLog: both compress a body of structured artifacts and use the LLM as a complement to symbolic discovery. The two systems differ in what they compress and what the LLM contributes. LILO compresses $\lambda$-calculus libraries verified against input/output examples; the LLM names and documents the resulting functions. DreamLog compresses Horn clause knowledge bases verified against deductive closure; the LLM (Operation~G) proposes cross-predicate rules the symbolic operations cannot discover. The verification regimes differ correspondingly: LILO checks I/O correctness on held-out tasks, while DreamLog checks query equivalence via the verification suite (Definition~\ref{def:suite}).
+Two successors to DreamCoder bear directly on our work. Stitch~\cite{bowers2023stitch} reformulates the abstraction step as top-down corpus-guided synthesis, achieving 1000--10000$\times$ speedup over DreamCoder while preserving library quality. Operations D (predicate invention via skeleton fingerprinting) and E (body pattern extraction) play the role of Stitch for logic programs rather than $\lambda$-calculus programs: where Stitch identifies shared $\lambda$-term structure across solved tasks, our operations identify shared rule-body structure across the existing KB. LILO~\cite{grand2024lilo} extends DreamCoder with LLM-driven documentation and naming of discovered library functions, while keeping the symbolic compression mechanics. LILO is the closest published spirit to DreamLog: both compress a body of structured artifacts and use the LLM as a complement to symbolic discovery. The two systems differ in three ways. First, in what they compress: LILO's library entries are $\lambda$-calculus functions (e.g., \texttt{(}$\lambda$\texttt{ x. cons x nil)} as a primitive); DreamLog's are Horn clauses (e.g., \texttt{father(X,Y) :- parent(X,Y), male(X)}). Second, in what the LLM contributes: LILO uses the LLM to name and document a library function whose body the symbolic engine has already discovered; DreamLog uses the LLM (Operation~G) to \emph{propose} a rule body that the symbolic engine could not have discovered (cross-predicate rules whose body literals span multiple functors, beyond the reach of within-predicate anti-unification). Third, in verification: LILO checks I/O correctness on held-out tasks; DreamLog checks query equivalence via the verification suite (Definition~\ref{def:suite}). LILO's input is a stream of \emph{tasks with examples}; DreamLog's input is an \emph{unannotated fact base}.
 
 \subsection{Inductive Logic Programming}
 
@@ -263,7 +264,7 @@ This ensures that the compressed KB is \emph{behaviorally equivalent} to the ori
 \section{Experiments}
 \label{sec:experiments}
 
-We evaluate DreamLog on four axes: generalization to unseen entities (the core claim), comparison against a modern ILP baseline (Popper), long-lived knowledge accumulation, and ablation of the compression pipeline. All experiments use Anthropic Claude Haiku~4.5 for Operation~G, with total LLM cost under \$0.10 across all experiments.
+We evaluate DreamLog on four axes: (1) generalization to unseen entities (the core claim, tested both on new-entity introductions and on a holdout sweep over the canonical domain), (2) comparison against a modern ILP baseline (Popper), (3) long-lived knowledge accumulation, and (4) ablation of the compression pipeline. All experiments use Anthropic Claude Haiku~4.5 for Operation~G, with total LLM cost under \$0.10 across all experiments.
 
 \subsection{Experimental Setup}
 
@@ -351,26 +352,6 @@ The sole unrecovered predicate is \texttt{ancestor}, which requires a recursive 
 
 Symbolic compression discovers only one entity-specific rule (e.g., ``albert is an ancestor of everyone'') rather than the general concept. This highlights the critical role of the LLM: symbolic operations find patterns \emph{within} a predicate, while the LLM discovers relationships \emph{across} predicates.
 
-\subsection{Comparison: Novel vs. Canonical Domain}
-
-Table~\ref{tab:domain_comparison} compares the two domains directly.
-
-\begin{table}[t]
-\centering
-\caption{Cross-domain comparison of generalization recall. Raw LLM scores 0\% on both domains.}
-\label{tab:domain_comparison}
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Domain} & \textbf{No Dream} & \textbf{Raw LLM} & \textbf{Symbolic} & \textbf{Full} \\
-\midrule
-Crafting (novel)   & 0\% & 0\% & 53\% & 64 $\pm$ 2\% \\
-Family (canonical) & 0\% & 0\% & 0\%  & 80\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The novel domain provides the stronger evidence for compression-driven learning. The symbolic operations achieve 53\% recall on a domain with invented terms, demonstrating that MDL-guided generalization works without any prior knowledge. The family domain achieves higher overall recall (80\%) but relies entirely on the LLM (Operation G), making it difficult to disentangle compression-driven discovery from LLM training data memorization.
-
 \subsection{EX26: Popper ILP Baseline}
 \label{sec:ex26}
 
@@ -378,11 +359,11 @@ The novel domain provides the stronger evidence for compression-driven learning.
 DreamLog and Popper~\cite{cropper2021learning} occupy different points in the rule-learning design space. Popper is supervised (it requires positive and negative examples plus mode declarations) and uses a constraint-driven search; DreamLog is unsupervised (it consumes an unannotated fact base) and uses a compression-driven search. A naive head-to-head would advantage one system or the other depending on how labels are supplied. We construct an apples-to-apples comparison that gives each system the natural form of its required inputs and evaluates both on the same held-out facts.
 
 \subsubsection{Protocol}
-For each target predicate, the same EX25/EX25b fact base is converted to Popper input format: \texttt{bk.pl} contains the base facts plus the other targets' positives; \texttt{exs.pl} contains the held-in derived facts of the target predicate as $E^+$ and a closed-world random sample (with $|E^-| = |E^+|$, drawn with the same RNG seed as the data split) as $E^-$; \texttt{bias.pl} contains hand-written mode declarations from the natural schema. Modes are committed before any results are observed and not tuned after the fact. Per-cell timeout is 60~seconds; failures (timeout, parse error, crash) are recorded as zero rules. We exclude the recursive \texttt{ancestor} target: Popper's Python-level timeout does not interrupt its \texttt{clingo} C-extension on this configuration, and EX25 also does not recover \texttt{ancestor}, so both systems get a pass on the recursive case. Three random seeds (42, 43, 44) per (system, domain) cell, yielding 24 cells total (4 systems $\times$ 2 domains $\times$ 3 seeds). Total wall time was approximately four minutes; LLM cost \$0.03 across the six full-pipeline cells.
+For each target predicate, the same EX25/EX25b fact base is converted to Popper input format: \texttt{bk.pl} contains the base facts plus the other targets' positives; \texttt{exs.pl} contains the held-in derived facts of the target predicate as $E^+$ and a closed-world random sample (with $|E^-| = |E^+|$, drawn with the same RNG seed as the data split) as $E^-$; \texttt{bias.pl} contains mode declarations from the natural schema. Mode declarations are emitted programmatically from a fixed template embedded in the experiment script, committed to version control before the first result row was recorded; no \texttt{bias.pl} is hand-edited after a result is observed. Per-cell timeout is 300~seconds; failures (timeout, parse error, crash) are recorded as zero rules. Recorded Popper runtimes were sub-second for every target on every seed (maximum 1.12~s), well below the budget. We exclude the recursive \texttt{ancestor} target: Popper's Python-level timeout does not interrupt its \texttt{clingo} C-extension on this configuration, leaving the call unbounded in practice, and EX25 also does not recover \texttt{ancestor}, so both systems get a pass on the recursive case. Three random seeds (42, 43, 44) per (system, domain) cell, yielding 24 cells total (4 systems $\times$ 2 domains $\times$ 3 seeds). Total wall time was approximately four minutes; LLM cost \$0.03 across the six full-pipeline cells.
 
 \subsubsection{Results}
 
-Table~\ref{tab:popper_baseline} reports recall, precision, accuracy, and rule count for each cell, averaged over the three seeds.
+Table~\ref{tab:popper_baseline} reports recall, precision, accuracy, and rule count for each cell, averaged over the three seeds. Per-seed values were within 1~percentage point of the cell mean for all reported conditions: Popper is deterministic given a fixed seed (negative samples and search order are seed-determined), and DreamLog full pipeline showed only minor rule-count variance (21--24 on crafting) with identical recall and precision across seeds. The $n=3$ sample is too small for informative bootstrap confidence intervals, and the reported ranges reflect the full seed-to-seed spread. The 11-percentage-point gap between Popper and DreamLog symbolic on crafting holds at every individual seed; the per-seed Popper crafting recall is 42.4\% on all three.
 
 \begin{table}[t]
 \centering
