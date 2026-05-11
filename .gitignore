@@ -199,3 +199,7 @@ paper/.papermill/
 
 # Generated HTML paper output
 paper/html_paper/
+
+# EX26 Popper baseline run outputs (script-regenerable)
+experiments/data/popper/results.jsonl
+experiments/data/popper/cells/
