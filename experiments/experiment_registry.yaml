@@ -731,9 +731,9 @@ experiments:
 
   EX26_popper_baseline:
     title: "Popper ILP Baseline on EX25/EX25b Generalization Protocol"
-    date: null
+    date: 2026-05-11
     script: experiments/ex26_popper_baseline.py
-    status: planned
+    status: complete
     depends_on: [EX25, EX25b, EX25c]
     motivation: |
       The paper's central claim is that compression (DreamLog) discovers
@@ -831,6 +831,104 @@ experiments:
       Popper still prints progress to stdout even with verbosity=0; the EX26
       script should capture stdout via subprocess or stream redirection if
       clean logs are needed.
+      prog is frozenset[ (head_lit, body_frozenset) ] where each Literal has
+      .predicate (str) and .arguments (tuple of int variable indices). Use
+      popper_program_to_rules() in ex26 script to convert directly to
+      DreamLog Rule objects (don't parse the str() representation).
 
-    key_result: null
-    implications: null
+    key_result: |
+      24 cells: 4 systems x 2 domains x 3 seeds, all completed.
+      Total wall time ~3-4 min, LLM cost ~$0.03 (6 Haiku calls).
+
+      FAMILY DOMAIN (canonical 4-gen tree):
+        system            recall    precision  accuracy  rules
+        no-dream            0%         -          29%      0
+        symbolic            0%         -          29%      1
+        full (Haiku)       80%       100%         86%      7
+        popper             80%       67-80%       57-71%   6
+
+      CRAFTING DOMAIN (15 invented materials, novel vocabulary):
+        system            recall    precision  accuracy  rules
+        no-dream            0%         -          42%      0
+        symbolic           53%        59%         52%      5
+        full (Haiku)       63%        63%         58%      21-24
+        popper             42%        80%         61%      4
+
+      DreamLog conditions match EX25/EX25b results within rounding.
+
+      Popper rules on family (over-general, missing gender constraints):
+        father(X,Y)        :- parent(X,Y).
+        mother(X,Y)        :- parent(X,Y).
+        grandparent(X,Y)   :- parent(X,V), parent(V,Y).        [correct]
+        grandfather(X,Y)   :- parent(X,V), parent(V,Y).        [missing male]
+        grandmother(X,Y)   :- parent(X,V), parent(V,Y).        [missing female]
+        great_grandparent(X,Y) :- parent(X,V2), parent(V2,V3),
+                                  parent(V3,Y).                [correct]
+
+      Hypotheses (set before running):
+        H1 (canonical bracket: Popper family recall in [40%, 85%]):
+            SUPPORTED. 80% recall, identical to DreamLog full.
+        H2 (novel parity: |Popper crafting recall - 50%| <= 15pp):
+            SUPPORTED but tight. 42%, 11pp below DreamLog symbolic.
+        H3 (data efficiency at 50% holdout): not tested this round.
+        Honesty floor: Popper does not outperform DreamLog full on
+            either domain.
+
+    implications: |
+      The most discriminating finding is on crafting (the novel-vocabulary
+      domain): Popper underperforms DreamLog symbolic by 11pp on recall.
+      Both systems are pure symbolic learners; the gap argues that
+      DreamLog's MDL+anti-unification combination has an inductive bias
+      (Plotkin generalization with verification rollback) that random-
+      negative ILP doesn't naturally express. The crafting result is
+      stronger evidence for the paper's thesis than the family result,
+      which is partially attributable to LLM training data familiarity.
+
+      On family, Popper matches DreamLog full's recall (both 80%) but
+      loses 33 precision points because random closed-world negatives
+      don't enforce the gender constraints. The paper should report this
+      as a methodological characterization, NOT as "DreamLog wins":
+      with hand-curated near-miss negatives Popper would close the gap.
+      The finding is "LLM-supplied semantic priors (male/female ->
+      father/mother) substitute for hand-curated negatives, which is
+      the practical advantage of the LLM-augmented approach in domains
+      where labeled data isn't already curated."
+
+      On crafting, both Popper and DreamLog full produce false positives.
+      Popper's 80% precision (4 rules, 2 produce FPs) is HIGHER than
+      DreamLog full's 63% (21+ rules, 7-8 produce FPs). The tradeoff:
+      Popper is conservative (fewer rules, fewer false positives but
+      also fewer true positives), DreamLog full is exploratory (more
+      rules cover more ground but with more FPs). Different points on
+      the precision-recall frontier; characterize honestly in the paper.
+
+      Cross-system observations:
+      - DreamLog symbolic is competitive only on the novel domain
+        (53% vs popper's 42%). On the canonical domain it discovers
+        only entity-specific rules and gets 0% recall. This confirms
+        EX25b's framing: the novel-vocabulary protocol is where the
+        symbolic compression story is most defensible.
+      - Popper consistency across seeds (42%/42%/42% on crafting) is
+        excellent for bootstrap CIs in the paper. DreamLog full has
+        slight rule-count variance (21-24) but stable recall/precision;
+        the LLM is doing the same conceptual work each time.
+      - Excluded `ancestor` target: Popper hangs in clingo C-land past
+        the Python-level Settings(timeout=...). EX25 also doesn't
+        recover ancestor with DreamLog. Both systems get a pass on
+        recursion; neither can claim victory there.
+
+      Removes the only hard pre-submission blocker per the paper
+      metadata. Figures remain the soft-blocker; reorganizing
+      paper/dreamlog_paper.tex to integrate the EX26 baseline is the
+      next paper-side task.
+
+      Followup possibilities (not done this round):
+      - H3 holdout sweep: would Popper degrade faster than DreamLog
+        open-world as fewer positives are available? The script supports
+        --seeds and the converter is holdout-ready.
+      - Hand-curated near-miss negatives variant: would close the family
+        precision gap and isolate "what does the LLM contribute beyond
+        good negatives?" Risks the no-post-hoc-tuning pitfall though.
+      - Ancestor with subprocess-level Popper invocation (not Python
+        API): would let SIGKILL break the C-land hang and complete the
+        recursive case.
