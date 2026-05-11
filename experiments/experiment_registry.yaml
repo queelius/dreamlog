@@ -809,13 +809,28 @@ experiments:
         example before running on our domains.
 
     setup_required: |
-      System dependencies (Ubuntu 24.04):
-        sudo apt install swi-prolog clingo
-      Verify: swipl --version >= 9.2.0; clingo --version >= 5.6.2
-      Pip dependencies (in .venv):
-        pip install janus-swi pysat bitarray
-        pip install git+https://github.com/logic-and-learning-lab/Popper@main
-      Then commit pinned hash to experiments/data/popper/POPPER_COMMIT.txt
+      Done 2026-05-09. State of the install:
+        SWI-Prolog 10.0.2 (system, /usr/bin/swipl)
+        clingo 5.8.0 (pip, self-contained; apt has no clingo on Ubuntu 24.04)
+        janus-swi, pysat, bitarray, popper (all pip)
+        Popper commit pinned: af39e522cb54a55d231a36dd0e4762d347e70f22
+        Pin file: experiments/data/popper/POPPER_COMMIT.txt
+      Note: Popper@main pyproject.toml declares Python>=3.14; we installed with
+        --ignore-requires-python because the actual code runs on 3.12. If a
+        future Popper version uses 3.14 features for real, this will surface.
+      Smoke test: discovered grandparent rule on a 3-fact KB in 0.9s with
+        perfect classification. Stack verified end-to-end.
+
+    api_notes: |
+      Confirmed via smoke test:
+        from popper.loop import popper
+        from popper.util import Settings, format_prog
+        settings = Settings(bk_file=..., ex_file=..., bias_file=...,
+                            timeout=300, verbosity=0)
+        prog, score = popper(settings)   # NOTE: 2 values, not 3
+      Popper still prints progress to stdout even with verbosity=0; the EX26
+      script should capture stdout via subprocess or stream redirection if
+      clean logs are needed.
 
     key_result: null
     implications: null

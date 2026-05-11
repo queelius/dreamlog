@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/logic-and-learning-lab/Popper",
+  "vcs_info": {
+    "commit_id": "af39e522cb54a55d231a36dd0e4762d347e70f22",
+    "requested_revision": "main",
+    "vcs": "git"
+  }
+}
