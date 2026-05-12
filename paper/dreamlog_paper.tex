@@ -23,7 +23,12 @@
 \IEEEauthorblockA{\textit{Southern Illinois University Edwardsville} \\
 Edwardsville, IL, USA \\
 lex@metafunctor.com \\
-ORCID: 0000-0001-6443-9897}}
+ORCID: 0000-0001-6443-9897}
+\and
+\IEEEauthorblockN{Hiroshi Fujinoki}
+\IEEEauthorblockA{\textit{Southern Illinois University Edwardsville} \\
+Edwardsville, IL, USA \\
+hfujino@siue.edu}}
 
 \maketitle
 
@@ -578,7 +583,9 @@ The system exhibits meaningful learning dynamics over extended interactions: an 
 
 Several directions remain open. Direct comparison with ILP systems (ILASP, Metagol) on shared benchmarks would position DreamLog precisely in the landscape of rule learners. Support for recursive rule discovery would address the ancestor predicate gap. Transfer learning experiments (training on one domain, compressing a combined KB with a second) would test whether compression discovers cross-domain abstractions. Scaling beyond 1000 clauses requires sampled verification. Finally, a richer MDL metric incorporating clause complexity (variable count, body length, nesting depth) would bring the system closer to Solomonoff's theoretical ideal.
 
-The code, all experiment scripts, and the experiment registry with full provenance are available at \url{https://github.com/queelius/dreamlog}.
+\section*{Code and Data Availability}
+
+The DreamLog implementation, all experiment scripts (EX23 through EX26), the canonical and crafting domain data, the Popper input files used for the EX26 baseline, and the experiment registry recording the full provenance of each result are available at \url{https://github.com/queelius/dreamlog}. The EX26 Popper baseline was run against pinned commit \texttt{af39e522} of the Popper repository; the pinned hash is recorded in the registry. Anthropic Claude Haiku~4.5 is used for Operation~G; total LLM cost across all reported experiments is under \$0.10.
 
 %%% ===================================================================
 %%% REFERENCES
