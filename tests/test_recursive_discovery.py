@@ -93,3 +93,32 @@ def test_op_i_rejects_near_miss_closure():
 
     ops = dreamer._discover_recursion(kb, suite)
     assert ops == []
+
+
+# ── EX27 domain generator tests ───────────────────────────────────────────────
+
+import importlib.util, pathlib
+
+
+def _load_ex27():
+    path = pathlib.Path(__file__).parent.parent / "experiments" / "ex27_recursion.py"
+    spec = importlib.util.spec_from_file_location("ex27_recursion", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _parse_fact_pair(s: str):
+    """Extract (arg1, arg2) from a fact string like '(flux_links a b)' or 'flux_links a b'."""
+    tokens = s.strip("() ").split()
+    return (tokens[1], tokens[2])
+
+
+def test_flux_domain_reaches_is_closure_of_links():
+    ex27 = _load_ex27()
+    base, derived = ex27.flux_domain(n_nodes=8, seed=42)
+    links = {_parse_fact_pair(s) for s in base}
+    reaches = {_parse_fact_pair(s) for s in derived}
+    from dreamlog.recursive_discovery import transitive_closure
+    assert reaches == transitive_closure(links)
+    assert len(links) >= 3
