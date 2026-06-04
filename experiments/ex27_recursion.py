@@ -75,8 +75,8 @@ def _closure_new_entity_domain(node_pool: List[str], base_pred: str,
     All edges go forward in a shuffled order, so the full graph is acyclic.
     """
     from dreamlog.recursive_discovery import transitive_closure
-    if len(node_pool) < n_train + n_new:
-        raise ValueError("node_pool too small for n_train + n_new")
+    if n_train < 2 or len(node_pool) < n_train + n_new:
+        raise ValueError("need n_train >= 2 and node_pool >= n_train + n_new")
     rng = random.Random(seed)
     train_nodes = node_pool[:n_train]
     new_nodes = node_pool[n_train:n_train + n_new]
@@ -153,24 +153,44 @@ def run_experiment():
                     help="runs per LLM condition (for variance)")
     ap.add_argument("--api-key-env", default="MY_ANTHROPIC_API_KEY")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--no-llm", action="store_true",
+                    help="symbolic-only: skip ALL LLM conditions "
+                         "(no API calls, no cost; reproduces the symbolic rows)")
     args = ap.parse_args()
 
-    llm_client = get_llm_client(args)
-
-    print("=" * 72)
-    print("  EX27: Recursive Rule Discovery (new-entity protocol)")
-    print("=" * 72)
+    # Cost guard: with a key set, the raw_llm baseline fires one live API call
+    # per check (~150 calls across both domains). --no-llm forces symbolic-only.
+    llm_client = None if args.no_llm else get_llm_client(args)
 
     domains = [
         ("family (ancestor, canonical)", family_new_entity_domain),
         ("flux (flux_reaches, invented)", flux_new_entity_domain),
     ]
+
+    print("=" * 72)
+    print("  EX27: Recursive Rule Discovery (new-entity protocol)")
+    print("=" * 72)
+    if llm_client is None:
+        print("  Symbolic-only run (--no-llm or key unset): no API calls.")
+    else:
+        est = sum((len(builder(seed=args.seed)[4]) + 2) * args.runs
+                  for _, builder in domains)
+        print(f"  LLM ENABLED: ~{est} live API calls (raw_llm baseline + "
+              f"Operation G). Re-run with --no-llm for a free symbolic-only pass.")
+
     results = {}
     for name, builder in domains:
         base, derived, negatives, new_base, new_checks = builder(seed=args.seed)
         results[name] = run_domain_test(
             name, base, derived, negatives, new_base, new_checks,
             llm_client, n_runs=args.runs, discover_recursion=True)
+
+    if llm_client is not None:
+        try:
+            print(f"\n  Total LLM cost: ${llm_client.usage.estimated_cost():.4f} "
+                  f"({llm_client.usage.calls} calls)")
+        except Exception:
+            pass
     return results
 
 
