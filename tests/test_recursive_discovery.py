@@ -29,7 +29,7 @@ def test_tc_is_irreflexive_on_a_dag():
 
 # ── Operation I tests ──────────────────────────────────────────────────────
 
-from dreamlog.factories import atom, var, compound
+from dreamlog.factories import atom, compound
 from dreamlog.knowledge import Fact, KnowledgeBase
 from dreamlog.kb_dreamer import KnowledgeBaseDreamer, build_verification_suite
 
@@ -69,6 +69,25 @@ def test_op_i_no_false_discovery_when_not_a_closure():
     # "likes" is unrelated, not a closure of parent
     for x, y in [("a", "c"), ("d", "a")]:
         kb.add_fact(Fact(compound("likes", atom(x), atom(y))))
+    suite = build_verification_suite(kb)
+    dreamer = KnowledgeBaseDreamer(min_base_facts=3)
+
+    ops = dreamer._discover_recursion(kb, suite)
+    assert ops == []
+
+
+def test_op_i_rejects_near_miss_closure():
+    # `step` has 3 facts (>= min_base_facts), so its base is NOT gated out.
+    # `path` equals the transitive closure of `step` MINUS one reachable pair,
+    # a true near-miss. It must be rejected at the math gate (r_ext != TC(b_ext)),
+    # which the `likes` case above never reaches because of the size gate.
+    kb = KnowledgeBase()
+    for x, y in [("a", "b"), ("b", "c"), ("c", "d")]:
+        kb.add_fact(Fact(compound("step", atom(x), atom(y))))
+    full_closure = [("a", "b"), ("a", "c"), ("a", "d"),
+                    ("b", "c"), ("b", "d"), ("c", "d")]
+    for x, y in [p for p in full_closure if p != ("a", "d")]:  # closure minus one
+        kb.add_fact(Fact(compound("path", atom(x), atom(y))))
     suite = build_verification_suite(kb)
     dreamer = KnowledgeBaseDreamer(min_base_facts=3)
 

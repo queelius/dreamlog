@@ -860,7 +860,16 @@ class KnowledgeBaseDreamer:
                 r_facts = facts_by_pred[R]
                 new_clauses: List[Union[Fact, Rule]] = [base_rule, rec_rule]
 
-                # Verify with a bounded evaluator (recursion must terminate).
+                # Verify on a copy with a bounded evaluator. A candidate that
+                # does not terminate or over-runs the budget surfaces as a
+                # verification FAILURE, not an exception: the evaluator catches
+                # RecursionError internally and reports no solution, so the
+                # closure facts stop being derivable and result.passed is False.
+                # The try/except is a defensive backstop should that internal
+                # handling ever change. Note: closure path length is bounded by
+                # the evaluator's recursion-depth limit (~100), so very long
+                # linear closures are rejected rather than compressed; keep
+                # experiment domains well under that depth.
                 if suite is not None:
                     test_kb = kb.copy()
                     test_kb.replace_facts(r_facts, new_clauses)
