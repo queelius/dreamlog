@@ -424,7 +424,8 @@ def run_domain_test(domain_name: str, base: List[str],
                     new_base: List[str],
                     new_checks: list,
                     llm_client: Optional[LLMClient],
-                    n_runs: int = 1):
+                    n_runs: int = 1,
+                    discover_recursion: bool = False):
     """Run generalization test on a domain with optional multi-run."""
     print(f"\n{'─'*72}")
     print(f"  Domain: {domain_name}")
@@ -490,7 +491,8 @@ def run_domain_test(domain_name: str, base: List[str],
                 ratio = 1.0
 
                 if condition != "no_dream":
-                    ratio, rules = dream_kb(kb, llm_client=client)
+                    ratio, rules = dream_kb(kb, llm_client=client,
+                                            discover_recursion=discover_recursion)
 
                 res = evaluate_checks(kb, new_base, new_checks)
                 res["rules"] = len(rules)

@@ -122,3 +122,41 @@ def test_flux_domain_reaches_is_closure_of_links():
     from dreamlog.recursive_discovery import transitive_closure
     assert reaches == transitive_closure(links)
     assert len(links) >= 3
+
+
+def _load_experiment_module(name):
+    spec = importlib.util.spec_from_file_location(
+        name, pathlib.Path(__file__).parent.parent / "experiments" / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_flux_new_entity_domain_shape():
+    # Training derived must be the EXACT closure of training base so Operation
+    # I's exact-match gate fires; checks must contain both positives and negatives.
+    ex27 = _load_ex27()
+    base, derived, neg, new_base, new_checks = ex27.flux_new_entity_domain(seed=42)
+    from dreamlog.recursive_discovery import transitive_closure
+    train_links = {_parse_fact_pair(s) for s in base}
+    train_reaches = {_parse_fact_pair(s) for s in derived["flux_reaches"]}
+    assert train_reaches == transitive_closure(train_links)
+    assert any(exp for _, exp, _ in new_checks)       # has positives
+    assert any(not exp for _, exp, _ in new_checks)   # has negatives
+    assert len(new_base) >= 1
+
+
+def test_ex27_symbolic_discovers_recursion_on_new_entity_split():
+    # End-to-end (no LLM): dream the training KB with Operation I on and confirm
+    # a recursive flux_reaches rule is discovered. Full recovery on unseen
+    # entities is validated by the EX27 smoke run.
+    ex27 = _load_ex27()
+    ex25 = _load_experiment_module("ex25_generalization")
+    base, derived, neg, new_base, new_checks = ex27.flux_new_entity_domain(seed=42)
+    kb = ex25.build_kb(base + derived["flux_reaches"])
+    ex25.dream_kb(kb, llm_client=None, discover_recursion=True)
+    rec_rules = [r for r in kb.rules
+                 if r.head.functor == "flux_reaches" and len(r.body) > 0]
+    assert len(rec_rules) >= 1
+    # the invented closure facts were compressed away into the rule
+    assert not any(f.term.functor == "flux_reaches" for f in kb.facts)

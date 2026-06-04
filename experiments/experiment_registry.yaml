@@ -932,3 +932,60 @@ experiments:
       - Ancestor with subprocess-level Popper invocation (not Python
         API): would let SIGKILL break the C-land hang and complete the
         recursive case.
+
+  # ================================================================
+  # RECURSIVE RULE DISCOVERY (post-submission research spine)
+  # ================================================================
+
+  EX27_recursion:
+    title: "Recursive (transitive-closure) rule discovery, new-entity protocol"
+    date: 2026-06-04
+    script: experiments/ex27_recursion.py
+    status: partial
+    motivation: |
+      DreamLog could not discover recursive rules (e.g. ancestor) -- the single
+      largest untapped compression opportunity, and the gap EX26 had to exclude
+      for both DreamLog and Popper. Operation I detects when a binary predicate
+      R is the EXACT transitive closure of another binary predicate B and
+      synthesizes the right-recursive definition. EX27 tests whether this
+      discovery is genuine (compression-driven) and generalizes to unseen
+      entities, using an invented-vocabulary domain (flux_links / flux_reaches)
+      to isolate discovery from LLM recall.
+    method: |
+      New-entity protocol (like EX25/EX25b), NOT holdout: training derived
+      facts are the EXACT closure of training base, so Operation I's exact-match
+      gate fires; new entities then get base edges only and we check whether the
+      discovered recursive rule derives their closure pairs. Four conditions:
+      no_dream, symbolic (Operation I, no LLM), full (Operation I +
+      recursion-aware Operation G), raw_llm (LLM as inference engine). Canonical
+      domain: parent/ancestor over real names. Invented domain:
+      flux_links/flux_reaches over invented nodes. Right-recursion only;
+      closed-world verification with the bounded evaluator; n_train=8, n_new=4
+      (path length well under the evaluator's recursion-depth ceiling ~100).
+    key_result: |
+      Symbolic Operation I alone recovers recursion on BOTH domains at 100%
+      recall and 100% precision, no LLM required:
+        flux (invented):   no_dream recall 0% -> symbolic 100% (prec 100%),
+                           compression 0.278, 2 rules
+        family (ancestor): no_dream recall 0% -> symbolic 100% (prec 100%),
+                           compression 0.278, 2 rules
+      Discovered (flux): (flux_reaches X Y) :- (flux_links X Y);
+        (flux_reaches X Z) :- (flux_links X Y), (flux_reaches Y Z).
+      This is the strongest form of the thesis (spec Outcome 1): compression
+      ALONE discovers recursion on vocabulary the LLM never saw. The LLM
+      conditions (full vs symbolic, raw_llm) are pending a run with API access
+      (Task 8); raw_llm is expected ~0% on flux (cannot compute closure
+      in-context), which would confirm the protocol isolates compression
+      from recall.
+    implications: |
+      Recursive closure discovery is a clean SYMBOLIC capability, not an LLM
+      one: the invented-vocabulary 100% symbolic result shows MDL-driven
+      compression recovers an unbounded relation from its finite extension with
+      no prior knowledge. This updates the EX26 framing (which recorded that
+      neither DreamLog nor Popper recovers ancestor): DreamLog now does, via
+      Operation I. Op I is off by default (flag-gated, zero drift). Limitation:
+      the exact-match gate (closed-world) means holdout-style partial closures
+      are not detected; a subset-match open-world relaxation (EX27c) would be a
+      follow-on data-density study. Path length is bounded by the evaluator's
+      recursion-depth limit (~100).
+    depends_on: [EX25, EX25b, EX26]

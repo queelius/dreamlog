@@ -325,11 +325,13 @@ def is_derivable(kb: KnowledgeBase, query: str,
 def dream_kb(kb: KnowledgeBase, llm_client: Optional[LLMClient] = None,
              max_prompt_facts: int = 200,
              open_world: bool = False,
+             discover_recursion: bool = False,
              ) -> Tuple[float, List[str]]:
     """Dream on a KB. Returns (compression_ratio, list of new rule strings)."""
     dreamer = KnowledgeBaseDreamer(llm_client=llm_client,
                                    max_prompt_facts=max_prompt_facts,
-                                   open_world=open_world)
+                                   open_world=open_world,
+                                   discover_recursion=discover_recursion)
     session = dreamer.dream(kb, verify=True)
     rules = []
     for op in session.operations:
