@@ -990,3 +990,56 @@ def test_op_g_accepts_a_recursive_proposal():
     anc_rules = [r for r in kb.rules
                  if r.head.functor == "ancestor" and len(r.body) > 0]
     assert len(anc_rules) >= 1
+
+
+def test_full_pipeline_op_i_then_op_g_no_duplicate_rules():
+    """Full condition (Op I + Op G): Op I discovers the recursive rule and
+    removes the closure facts; an LLM re-proposing the SAME rule must not
+    pollute the KB. The KB ends with exactly Op I's 2 ancestor rules and no
+    ancestor facts."""
+    import json
+    from tests.mock_provider import MockLLMProvider
+    kb = _ancestor_closure_kb()
+    same_json = json.dumps([
+        ["rule", ["ancestor", "X", "Y"], [["parent", "X", "Y"]]],
+        ["rule", ["ancestor", "X", "Z"],
+         [["parent", "X", "Y"], ["ancestor", "Y", "Z"]]],
+    ])
+    mock = MockLLMProvider(responses=[same_json])
+    dreamer = KnowledgeBaseDreamer(llm_client=mock, discover_recursion=True,
+                                   min_base_facts=3)
+    dreamer.dream(kb)
+    anc_rules = [r for r in kb.rules
+                 if r.head.functor == "ancestor" and len(r.body) > 0]
+    assert len(anc_rules) == 2
+    assert not any(f.term.functor == "ancestor" for f in kb.facts)
+
+
+def test_full_pipeline_rejects_wrong_llm_rule_for_compressed_predicate():
+    """After Op I compresses ancestor into a recursive rule (removing its
+    facts), a WRONG LLM-proposed ancestor rule must NOT slip through the helper
+    path. Because the predicate is now defined by a rule head, it is classified
+    as a main predicate and rejected by the derivable>=2 gate (no facts remain).
+    Op I's compression survives and no spurious ancestor pair is derivable."""
+    import json
+    from tests.mock_provider import MockLLMProvider
+    from dreamlog.factories import atom, compound
+    from dreamlog.evaluator import PrologEvaluator
+    kb = _ancestor_closure_kb()
+    # Reversed rule: would derive ancestor(b, a) etc. (child as ancestor).
+    wrong_json = json.dumps([
+        ["rule", ["ancestor", "X", "Y"], [["parent", "Y", "X"]]],
+    ])
+    mock = MockLLMProvider(responses=[wrong_json])
+    dreamer = KnowledgeBaseDreamer(llm_client=mock, discover_recursion=True,
+                                   min_base_facts=3)
+    dreamer.dream(kb)
+    # Op I's compression survived (facts gone, recursive rule present)...
+    anc_rules = [r for r in kb.rules
+                 if r.head.functor == "ancestor" and len(r.body) > 0]
+    assert len(anc_rules) >= 1
+    assert not any(f.term.functor == "ancestor" for f in kb.facts)
+    # ...and the wrong reversed rule did not corrupt it: b is a child of a in
+    # the chain a->b->c->d->e, so ancestor(b, a) must stay underivable.
+    ev = PrologEvaluator(kb, max_total_calls=10000)
+    assert ev.has_solution(compound("ancestor", atom("b"), atom("a"))) is False

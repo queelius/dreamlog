@@ -1265,12 +1265,21 @@ class KnowledgeBaseDreamer:
         # Phase 3: Separate helper rules (new predicates) from main rules
         # (derive existing facts). Helpers support main rules (e.g.,
         # has_non_vegan for not(has_non_vegan(X)) in vegan_recipe).
-        fact_functors = {f.term.functor for f in kb.facts
-                         if isinstance(f.term, Compound)}
+        #
+        # An "existing" predicate is one already defined by a fact OR a rule
+        # head. Including rule heads matters after a compression op converts a
+        # predicate's facts into a rule (Operation I's recursive closure, or
+        # Operation C's generalization): that predicate must still count as
+        # main, so an LLM proposal for it faces the false-positive check rather
+        # than slipping through the unconditional helper path.
+        existing_functors = {f.term.functor for f in kb.facts
+                             if isinstance(f.term, Compound)}
+        existing_functors |= {r.head.functor for r in kb.rules
+                              if isinstance(r.head, Compound)}
         helper_rules = [r for r in parsed_rules
-                        if r.head.functor not in fact_functors]
+                        if r.head.functor not in existing_functors]
         main_rules = [r for r in parsed_rules
-                      if r.head.functor in fact_functors]
+                      if r.head.functor in existing_functors]
 
         # Phase 4: Evaluate main rules (with helpers available)
         accepted_rules: List[Rule] = list(helper_rules)
