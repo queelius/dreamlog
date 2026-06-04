@@ -1,0 +1,78 @@
+========================================================================
+  EX27: Recursive Rule Discovery (new-entity protocol)
+========================================================================
+  LLM ENABLED: ~156 live API calls (raw_llm baseline + Operation G). Re-run with --no-llm for a free symbolic-only pass.
+
+────────────────────────────────────────────────────────────────────────
+  Domain: family (ancestor, canonical)
+────────────────────────────────────────────────────────────────────────
+  Base facts: 8
+  Derived facts: 28
+    ancestor: 28
+  New-entity checks: 76 (38 positive, 38 negative)
+
+  [no_dream] TP=0 TN=38 FP=0 FN=38
+    Acc=50.0%  Prec=0.0%  Recall=0.0%
+
+  [symbolic] 2 rules, compression 0.278
+    + (ancestor X Y) :- (parent X Y).
+    + (ancestor X Z) :- (parent X Y), (ancestor Y Z).
+
+  [symbolic] TP=38 TN=38 FP=0 FN=0
+    Acc=100.0%  Prec=100.0%  Recall=100.0%
+
+  [full] 4 rules, compression 0.278
+    + (ancestor X Y) :- (parent X Y).
+    + (ancestor X Z) :- (parent X Y), (ancestor Y Z).
+    + (ancestor X Y) :- (parent X Y).
+    + (ancestor X Z) :- (parent X Y), (ancestor Y Z).
+
+  [full] TP=38 TN=38 FP=0 FN=0
+    Acc=100.0%  Prec=100.0%  Recall=100.0%
+
+  [raw_llm] TP=1 TN=38 FP=0 FN=37
+    Acc=51.3%  Prec=100.0%  Recall=2.6%
+
+  Condition       Rules     Acc    Prec  Recall    Comp
+  --------------- ----- ------- ------- ------- -------
+  no_dream            0  50.0%   0.0%  0.0%          1.000
+  symbolic            2 100.0% 100.0% 100.0%          0.278
+  full                4 100.0% 100.0% 100.0%          0.278
+  raw_llm             0  51.3% 100.0%  2.6%          1.000
+
+────────────────────────────────────────────────────────────────────────
+  Domain: flux (flux_reaches, invented)
+────────────────────────────────────────────────────────────────────────
+  Base facts: 8
+  Derived facts: 28
+    flux_reaches: 28
+  New-entity checks: 76 (38 positive, 38 negative)
+
+  [no_dream] TP=0 TN=38 FP=0 FN=38
+    Acc=50.0%  Prec=0.0%  Recall=0.0%
+
+  [symbolic] 2 rules, compression 0.278
+    + (flux_reaches X Y) :- (flux_links X Y).
+    + (flux_reaches X Z) :- (flux_links X Y), (flux_reaches Y Z).
+
+  [symbolic] TP=38 TN=38 FP=0 FN=0
+    Acc=100.0%  Prec=100.0%  Recall=100.0%
+
+  [full] 2 rules, compression 0.278
+    + (flux_reaches X Y) :- (flux_links X Y).
+    + (flux_reaches X Z) :- (flux_links X Y), (flux_reaches Y Z).
+
+  [full] TP=38 TN=38 FP=0 FN=0
+    Acc=100.0%  Prec=100.0%  Recall=100.0%
+
+  [raw_llm] TP=0 TN=38 FP=0 FN=38
+    Acc=50.0%  Prec=0.0%  Recall=0.0%
+
+  Condition       Rules     Acc    Prec  Recall    Comp
+  --------------- ----- ------- ------- ------- -------
+  no_dream            0  50.0%   0.0%  0.0%          1.000
+  symbolic            2 100.0% 100.0% 100.0%          0.278
+  full                2 100.0% 100.0% 100.0%          0.278
+  raw_llm             0  50.0%   0.0%  0.0%          1.000
+
+  Total LLM cost: $0.2799 (154 calls)
