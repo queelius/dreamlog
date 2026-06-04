@@ -291,7 +291,9 @@ class KnowledgeBaseDreamer:
                  shared_structure_threshold: float = 0.1,
                  llm_client=None,
                  max_prompt_facts: int = 50,
-                 open_world: bool = False):
+                 open_world: bool = False,
+                 discover_recursion: bool = False,
+                 min_base_facts: int = 3):
         self.min_group_size = min_group_size
         self.shared_structure_threshold = shared_structure_threshold
         self.llm_client = llm_client
@@ -302,6 +304,10 @@ class KnowledgeBaseDreamer:
         # precisely to recover absent facts. Default False (closed-world)
         # preserves the safety guarantee for the standard compression setting.
         self.open_world = open_world
+        # Operation I (recursive closure discovery): off by default so the
+        # standard compression pipeline is unchanged (zero drift).
+        self.discover_recursion = discover_recursion
+        self.min_base_facts = min_base_facts
 
     def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
         original_size = len(kb)
@@ -809,6 +815,71 @@ class KnowledgeBaseDreamer:
                 new_clauses=[extracted_rule] + new_rules))
 
         return all_ops
+
+    def _discover_recursion(self, kb: KnowledgeBase,
+                            suite: Optional['VerificationSuite'] = None,
+                            max_calls: int = 5000
+                            ) -> List[CompressionCandidate]:
+        """Operation I: discover transitive-closure recursive rules.
+
+        For each binary predicate R whose ground extension equals the
+        transitive closure of another binary predicate B, synthesize the
+        right-recursive definition (base + recursive case), verify it against
+        the suite with a bounded evaluator, and replace R's facts with the
+        two rules. Returns at most one candidate per call (re-run on the next
+        dream cycle to find further closures).
+        """
+        from .recursive_discovery import transitive_closure
+
+        # Collect binary predicate extensions over Atom-only argument pairs.
+        ext: dict = {}
+        facts_by_pred: dict = {}
+        for fact in kb.facts:
+            t = fact.term
+            if (isinstance(t, Compound) and t.arity == 2
+                    and isinstance(t.args[0], Atom)
+                    and isinstance(t.args[1], Atom)):
+                ext.setdefault(t.functor, set()).add(
+                    (t.args[0].value, t.args[1].value))
+                facts_by_pred.setdefault(t.functor, []).append(fact)
+
+        for R, r_ext in ext.items():
+            if _is_system_predicate(R):
+                continue
+            for B, b_ext in ext.items():
+                if R == B or len(b_ext) < self.min_base_facts:
+                    continue
+                if r_ext != transitive_closure(b_ext):
+                    continue
+
+                X, Y, Z = Variable("X"), Variable("Y"), Variable("Z")
+                base_rule = Rule(Compound(R, [X, Y]), [Compound(B, [X, Y])])
+                rec_rule = Rule(
+                    Compound(R, [X, Z]),
+                    [Compound(B, [X, Y]), Compound(R, [Y, Z])])
+                r_facts = facts_by_pred[R]
+                new_clauses: List[Union[Fact, Rule]] = [base_rule, rec_rule]
+
+                # Verify with a bounded evaluator (recursion must terminate).
+                if suite is not None:
+                    test_kb = kb.copy()
+                    test_kb.replace_facts(r_facts, new_clauses)
+                    try:
+                        result = suite.verify(
+                            test_kb,
+                            lambda k: PrologEvaluator(k, max_total_calls=max_calls))
+                    except RecursionError:
+                        continue
+                    if not result.passed:
+                        continue
+
+                kb.replace_facts(r_facts, new_clauses)
+                return [CompressionCandidate(
+                    operation="recursion",
+                    original_clauses=list(r_facts),
+                    new_clauses=list(new_clauses))]
+
+        return []
 
     def _find_best_body_pattern(self, kb: KnowledgeBase,
                                exclude_keys: set = None):
