@@ -1197,6 +1197,14 @@ class KnowledgeBaseDreamer:
             "Example format:\n"
             '  ["rule", ["father", "X", "Y"], [["parent", "X", "Y"], ["male", "X"]]]\n'
             '  For not/1: ["not", ["predicate", "X"]] as a body goal.\n\n'
+            "If a relation appears to be the transitive closure of another "
+            "relation (its facts are exactly the reachable pairs over a base "
+            "relation), propose BOTH a base rule and a right-recursive rule, "
+            "for example:\n"
+            "  ancestor(X, Y) :- parent(X, Y).\n"
+            "  ancestor(X, Z) :- parent(X, Y), ancestor(Y, Z).\n"
+            "Always include the base case. Never write a left-recursive body "
+            "(do not put the recursive call first).\n\n"
             "Reply with ONLY a JSON array of rules. "
             "No explanation, no markdown.\n\n"
             "Rules:"

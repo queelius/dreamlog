@@ -969,3 +969,24 @@ def test_dream_flag_on_discovers_recursion_and_compresses():
     assert len(anc_rules) == 2
     assert not any(f.term.functor == "ancestor" for f in kb.facts)
     assert len(kb) < n_before
+
+
+def test_op_g_accepts_a_recursive_proposal():
+    """Op G pipeline accepts a base + right-recursive ancestor proposal from LLM."""
+    import json
+    from tests.mock_provider import MockLLMProvider
+
+    kb = _ancestor_closure_kb()
+    # Propose both the base rule and the right-recursive rule in the real schema
+    recursive_json = json.dumps([
+        ["rule", ["ancestor", "X", "Y"], [["parent", "X", "Y"]]],
+        ["rule", ["ancestor", "X", "Z"], [["parent", "X", "Y"], ["ancestor", "Y", "Z"]]],
+    ])
+    mock = MockLLMProvider(responses=[recursive_json])
+    # discover_recursion=False: Operation I is OFF; LLM is the only route to recursion
+    dreamer = KnowledgeBaseDreamer(llm_client=mock, discover_recursion=False)
+    dreamer.dream(kb, verify=False)
+
+    anc_rules = [r for r in kb.rules
+                 if r.head.functor == "ancestor" and len(r.body) > 0]
+    assert len(anc_rules) >= 1
