@@ -935,3 +935,37 @@ class TestOperationG:
         from dreamlog.evaluator import PrologEvaluator
         ev = PrologEvaluator(kb)
         assert not ev.has_solution(compound("a", atom("y")))
+
+
+def _ancestor_closure_kb():
+    kb = KnowledgeBase()
+    for x, y in [("a", "b"), ("b", "c"), ("c", "d"), ("d", "e")]:
+        kb.add_fact(Fact(compound("parent", atom(x), atom(y))))
+    # full ancestor closure of the 4-edge chain
+    nodes = ["a", "b", "c", "d", "e"]
+    for i in range(len(nodes)):
+        for j in range(i + 1, len(nodes)):
+            kb.add_fact(Fact(compound("ancestor", atom(nodes[i]), atom(nodes[j]))))
+    return kb
+
+
+def test_dream_flag_off_does_not_discover_recursion():
+    kb = _ancestor_closure_kb()
+    dreamer = KnowledgeBaseDreamer(discover_recursion=False)
+    dreamer.dream(kb)
+    # No ancestor RULE was created (recursion off)
+    assert not any(len(r.body) > 0 and r.head.functor == "ancestor"
+                   for r in kb.rules)
+
+
+def test_dream_flag_on_discovers_recursion_and_compresses():
+    kb = _ancestor_closure_kb()
+    n_before = len(kb)
+    dreamer = KnowledgeBaseDreamer(discover_recursion=True, min_base_facts=3)
+    session = dreamer.dream(kb)
+    # ancestor is now defined by rules, the closure facts are pruned
+    anc_rules = [r for r in kb.rules
+                 if r.head.functor == "ancestor" and len(r.body) > 0]
+    assert len(anc_rules) == 2
+    assert not any(f.term.functor == "ancestor" for f in kb.facts)
+    assert len(kb) < n_before

@@ -353,6 +353,12 @@ class KnowledgeBaseDreamer:
         ops.extend(self._invent_predicates(kb, suite))
         ops.extend(self._extract_body_patterns(kb, suite))
 
+        # Operation I: recursive closure discovery (flag-gated, off by default).
+        # Runs in the symbolic phase so symbolic-only and full-pipeline differ
+        # only by Operation G.
+        if self.discover_recursion:
+            ops.extend(self._discover_recursion(kb, suite))
+
         # LLM-assisted naming (after symbolic ops, before final verify)
         self._name_invented_predicates(kb)
 
