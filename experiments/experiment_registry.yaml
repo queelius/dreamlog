@@ -941,7 +941,7 @@ experiments:
     title: "Recursive (transitive-closure) rule discovery, new-entity protocol"
     date: 2026-06-04
     script: experiments/ex27_recursion.py
-    status: partial
+    status: complete
     motivation: |
       DreamLog could not discover recursive rules (e.g. ancestor) -- the single
       largest untapped compression opportunity, and the gap EX26 had to exclude
@@ -963,20 +963,22 @@ experiments:
       closed-world verification with the bounded evaluator; n_train=8, n_new=4
       (path length well under the evaluator's recursion-depth ceiling ~100).
     key_result: |
-      Symbolic Operation I alone recovers recursion on BOTH domains at 100%
-      recall and 100% precision, no LLM required:
-        flux (invented):   no_dream recall 0% -> symbolic 100% (prec 100%),
-                           compression 0.278, 2 rules
-        family (ancestor): no_dream recall 0% -> symbolic 100% (prec 100%),
-                           compression 0.278, 2 rules
-      Discovered (flux): (flux_reaches X Y) :- (flux_links X Y);
+      Full four-condition results (new-entity protocol, seed 42, 38 positive
+      and 38 negative checks per domain; run 2026-06-04):
+        flux (invented):   no_dream 0% | symbolic 100% (prec 100%) |
+                           full 100% | raw_llm 0% (TP=0/38)
+        family (ancestor): no_dream 0% | symbolic 100% (prec 100%) |
+                           full 100% | raw_llm 2.6% (TP=1/38)
+      Symbolic compression 0.278 on both; 2 rules discovered. Discovered (flux):
+        (flux_reaches X Y) :- (flux_links X Y);
         (flux_reaches X Z) :- (flux_links X Y), (flux_reaches Y Z).
-      This is the strongest form of the thesis (spec Outcome 1): compression
-      ALONE discovers recursion on vocabulary the LLM never saw. The LLM
-      conditions (full vs symbolic, raw_llm) are pending a run with API access
-      (Task 8); raw_llm is expected ~0% on flux (cannot compute closure
-      in-context), which would confirm the protocol isolates compression
-      from recall.
+      raw_llm (the LLM as inference engine) essentially fails: 0% on the
+      invented vocabulary and 2.6% on real names. So the 100% symbolic result
+      cannot be memorization -- this is spec Outcome 1, the strongest form of
+      the thesis: compression ALONE discovers recursion on vocabulary the LLM
+      never saw. full == symbolic because Operation I fires before Operation G
+      (on family, Op G added 2 redundant rules; recall unchanged). LLM cost
+      $0.28 (154 Haiku calls) across the raw_llm and full conditions.
     implications: |
       Recursive closure discovery is a clean SYMBOLIC capability, not an LLM
       one: the invented-vocabulary 100% symbolic result shows MDL-driven
