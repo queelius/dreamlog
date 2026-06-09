@@ -64,6 +64,11 @@ def _recursive(vocab, base_pred, closure_pred, nodes, new_nodes, n_extra=2, seed
     closure = transitive_closure(edges)
     base = [f"({base_pred} {a} {b})" for a, b in sorted(edges)]
     derived = [f"({closure_pred} {a} {b})" for a, b in sorted(closure)]
+    # target_rule is the recursive STEP only: it is the discriminating rule the
+    # proposal probe matches against (proposing the trivial base case
+    # closure(X,Y):-base(X,Y) is not the signal of interest). It is NOT added to
+    # a KB for recovery. Recovery dreams base+derived, and Operation I (or Op G)
+    # rediscovers the full base+step definition; verified to give recall 1.0.
     target = Rule(compound(closure_pred, X, Z),
                   [compound(base_pred, X, Y), compound(closure_pred, Y, Z)])
     full_order = order + new_nodes
