@@ -996,7 +996,7 @@ experiments:
     title: "Isolating the LLM's contribution by rule type (structure vs semantics)"
     date: 2026-06-09
     script: experiments/ex28_llm_role.py
-    status: planned
+    status: complete
     motivation: >
       Replace the paper's weak "full == symbolic" observation with a measured
       claim: symbolic compression recovers structure on any vocabulary, while
@@ -1007,6 +1007,52 @@ experiments:
       fully-invented), four conditions (symbolic-only, LLM-only, full, raw-LLM).
       Metrics: recovery and the correct-rule-proposal rate (structural
       equivalence). Local qwen2.5:3b, high N, resumable with full metadata.
-    key_result: "TBD after run"
-    implications: "TBD after run"
+    key_result: |
+      Run 2026-06-09, local qwen2.5:3b, n_probe=30, seed 42 (resumable harness,
+      full per-run metadata; 536 model calls, $0 real cost as the model is
+      local). Recovery (recall) by cell x condition:
+                            symbolic  llm_only  full   raw_llm
+        within  / canon        1.00     0.00   1.00     0.00
+        within  / INVENTED     1.00     0.00   1.00     0.00
+        recurse / canon        1.00     0.00   1.00     0.00
+        recurse / INVENTED     1.00     0.00   1.00     0.00
+        cross   / canon        0.00     0.00   0.00     0.00
+        cross   / INVENTED     0.00     0.00   0.00     0.00
+      Correct-rule proposal rate (structural equivalence to the target) was
+      0.00 in EVERY cell, for both llm_only and full. So:
+      (1) Symbolic compression recovers within-predicate AND recursive structure
+          at 100% on BOTH canonical and fully-invented vocabulary. This confirms
+          and extends EX27 (recursion only) to a second rule type, and
+          re-confirms vocabulary-independence: the symbolic route uses structure,
+          not predicate meaning.
+      (2) qwen2.5:3b proposes ZERO structurally-correct rules anywhere, even on
+          canonical vocabulary where it has every lexical advantage. Inspected
+          failure modes: within-predicate, it echoes the derived FACTS back (raw
+          reply for can_fly was [["can_fly","robin"],...], not a rule, so the
+          rules-only parser correctly rejects it); cross-predicate (father), it
+          proposes ground instances (father(tom,ann):-parent(tom,ann)) or the
+          REVERSED direction (parent:-father,male); recursion, it proposes
+          nothing. None match the target.
+      (3) full == symbolic on every cell: Op G verified-acceptance rejects all of
+          qwen's wrong proposals, so the weak LLM adds nothing and causes zero
+          drift.
+      (4) Cross-predicate is recovered by NO route here: symbolic cannot build a
+          cross-functor rule from a fact-only KB, and qwen cannot propose one
+          correctly.
+    implications: |
+      The symbolic half of the division-of-labor thesis is strongly confirmed:
+      MDL-driven compression recovers structure (within-predicate generalization
+      AND recursive closure) at 100% independent of vocabulary, on predicates the
+      model never saw. The LLM half is NOT demonstrable with qwen2.5:3b: the 3B
+      model is too weak to induce a single correct rule in this protocol, even on
+      canonical vocabulary (father:-parent,male is textbook), so it cannot show
+      the recall-of-meaning success on canonical that would contrast with failure
+      on invented. This makes the Haiku anchor (deferred, costs money)
+      well-motivated and precisely scoped: it must show a stronger model
+      proposing cross-predicate rules on CANONICAL vocabulary (where recovery is
+      currently 0 for all routes) and failing on INVENTED, isolating LLM recall
+      of meaning as the cross-predicate route. With the weak local model the
+      ablation cleanly shows the symbolic route carries the entire load and
+      full == symbolic. Caveat: 0% proposal on canonical cross-predicate is a
+      property of qwen2.5:3b, not evidence against an LLM contribution in general.
     depends_on: [EX25, EX25b, EX27]
