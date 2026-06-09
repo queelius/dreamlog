@@ -1045,6 +1045,37 @@ experiments:
       (4) Cross-predicate is recovered by NO route here: symbolic cannot build a
           cross-functor rule from a fact-only KB, and qwen cannot propose one
           correctly.
+      ---
+      SONNET ANCHOR (claude-sonnet-4-6, n_probe=30, seed 42; 537 calls, $1.39;
+      fail-loud hardened, all calls succeeded). A capable LLM changes the
+      picture. Recovery (recall), llm_only / full / raw_llm (symbolic stays
+      vocabulary-independent: 1.00 within+recursive, 0.00 cross):
+                            llm_only  full  raw_llm
+        within  / canon        0.00   1.00   0.00
+        within  / INVENTED     1.00   1.00   0.00
+        recurse / canon        1.00   1.00   1.00
+        recurse / INVENTED     1.00   1.00   0.76
+        cross   / canon        1.00   1.00   1.00
+        cross   / INVENTED     1.00   1.00   0.00
+      Proposal rate (llm_only): within/canon 0.00, within/INVENTED 0.40,
+      recurse/canon 1.00, recurse/INVENTED 1.00, cross/canon 1.00,
+      cross/INVENTED 0.93. Verified proposals:
+      - cross/INVENTED: Sonnet proposed (wibble X Y):-(frob X Y),(quax X)
+        exactly, on fully-invented predicates: genuine STRUCTURAL induction from
+        fact co-occurrence, not lexical recall (misses were the reversed
+        direction).
+      - recurse/INVENTED: proposed the full base+step recursive pair on invented
+        predicates.
+      - within/canon FAILURE (0.00): Sonnet proposed
+        (can_fly X):-(bird X),(not(non_flying_bird X)) plus
+        (non_flying_bird X):-(bird X),(not(can_fly X)). It KNOWS some birds are
+        flightless, so its world knowledge adds an exception predicate that
+        (a) misses the bare can_fly:-bird target and (b) is circular
+        (unstratified), which the verifier rejects. On invented glonk/zorp it has
+        no such knowledge and proposes the clean rule (recovery 1.00).
+      full == 1.00 on ALL SIX cells: the neurosymbolic combination is complete,
+      the LLM supplying exactly the cross-predicate rules symbolic compression
+      provably cannot build from facts.
     implications: |
       The symbolic half of the division-of-labor thesis is strongly confirmed:
       MDL-driven compression recovers structure (within-predicate generalization
@@ -1061,6 +1092,27 @@ experiments:
       ablation cleanly shows the symbolic route carries the entire load and
       full == symbolic. Caveat: 0% proposal on canonical cross-predicate is a
       property of qwen2.5:3b, not evidence against an LLM contribution in general.
+      ---
+      SONNET ANCHOR revises the thesis (this supersedes the deferred-Haiku plan
+      above; we ran Sonnet). The clean "symbolic does structure, LLM does
+      meaning" dichotomy is FALSE for a capable model: Sonnet does structure too,
+      succeeding on invented recursion (1.00) and invented cross-predicate (0.93)
+      by structural induction from fact patterns, not lexical recall. The
+      defensible revised claim is COMPLEMENTARITY, not a structure/meaning split:
+      (i) symbolic compression deterministically, verifiably, and for free
+      recovers the rule types it can build from extensional facts (within
+      generalization, recursive closure) on any vocabulary; (ii) a capable LLM
+      additionally reaches cross-predicate rules symbolic compression provably
+      cannot build from facts (symbolic cross = 0.00 everywhere), so full = 1.00
+      on all six cells; (iii) the invented-vocabulary protocol reveals a double
+      edge to LLM world knowledge: it enables cross-predicate semantics but
+      SABOTAGES within/canonical (Sonnet 0.00) by importing real-world exceptions
+      (flightless birds) the data does not ask for, while invented vocab strips
+      that liability (within/INVENTED 1.00). So meaning-recall both helps and
+      hurts, and the protocol makes the distinction measurable. Paper action:
+      reframe the division-of-labor section from "structure vs meaning" to
+      "complementarity plus the double edge of world knowledge"; the qwen run is
+      the weak-model baseline, the Sonnet run the capable-model result.
       Methodological notes for the paper (from the final holistic review):
       (a) "recovery" is recall; report within-predicate precision (0.67) and the
       unseen-exception mechanism in key_result point (1). (b) The proposal probe
