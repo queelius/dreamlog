@@ -293,7 +293,8 @@ class KnowledgeBaseDreamer:
                  max_prompt_facts: int = 50,
                  open_world: bool = False,
                  discover_recursion: bool = False,
-                 min_base_facts: int = 3):
+                 min_base_facts: int = 3,
+                 disable_op_c: bool = False):
         self.min_group_size = min_group_size
         self.shared_structure_threshold = shared_structure_threshold
         self.llm_client = llm_client
@@ -308,6 +309,9 @@ class KnowledgeBaseDreamer:
         # standard compression pipeline is unchanged (zero drift).
         self.discover_recursion = discover_recursion
         self.min_base_facts = min_base_facts
+        # Skip Operation C (fact generalization). Off by default; used by the
+        # EX28 within-predicate LLM-only ablation condition.
+        self.disable_op_c = disable_op_c
 
     def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
         original_size = len(kb)
@@ -345,7 +349,8 @@ class KnowledgeBaseDreamer:
 
         ops.extend(self._eliminate_subsumed(kb))
         ops.extend(self._prune_redundant_facts(kb))
-        ops.extend(self._generalize_facts(kb, suite))
+        if not self.disable_op_c:
+            ops.extend(self._generalize_facts(kb, suite))
 
         # Extend verification for rule-derived queries before Operation D
         if verify and suite:

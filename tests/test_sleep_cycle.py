@@ -1043,3 +1043,29 @@ def test_full_pipeline_rejects_wrong_llm_rule_for_compressed_predicate():
     # the chain a->b->c->d->e, so ancestor(b, a) must stay underivable.
     ev = PrologEvaluator(kb, max_total_calls=10000)
     assert ev.has_solution(compound("ancestor", atom("b"), atom("a"))) is False
+
+
+# ---------------------------------------------------------------------------
+# Operation C disable flag tests
+# ---------------------------------------------------------------------------
+
+def _artisan_kb():
+    kb = KnowledgeBase()
+    arts = ["a", "b", "c", "d", "e"]
+    for x in arts:
+        kb.add_fact(Fact(compound("artisan", atom(x))))
+    for x in arts[:4]:   # 4 of 5 are masters -> Op C should generalize
+        kb.add_fact(Fact(compound("master", atom(x))))
+    return kb
+
+
+def test_op_c_runs_by_default():
+    kb = _artisan_kb()
+    KnowledgeBaseDreamer().dream(kb)
+    assert any(r.head.functor == "master" and len(r.body) > 0 for r in kb.rules)
+
+
+def test_op_c_disable_flag_skips_generalization():
+    kb = _artisan_kb()
+    KnowledgeBaseDreamer(disable_op_c=True).dream(kb)
+    assert not any(r.head.functor == "master" and len(r.body) > 0 for r in kb.rules)
