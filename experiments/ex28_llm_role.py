@@ -25,6 +25,25 @@ def make_client(provider, model):
                      temperature=0.3, max_tokens=800, timeout=180)
 
 
+class APIFailure(Exception):
+    """Raised when LLM calls fail (e.g. exhausted credit or a persistent API
+    error). The dream/probe/raw-LLM paths swallow call exceptions into empty
+    results, which would otherwise be recorded as 'the LLM proposed nothing'.
+    Aborting loudly keeps swallowed-failure zeros out of the results file."""
+
+
+def _preflight(client):
+    """One cheap call to confirm the LLM is reachable and the account funded.
+    Aborts at launch (before spending on a run that would record garbage) if the
+    key or credit is bad."""
+    try:
+        client.complete("Reply with one word: ok")
+    except Exception as e:
+        raise APIFailure(
+            f"pre-flight LLM call failed ({type(e).__name__}: {str(e)[:200]}); "
+            f"aborting before the run records swallowed-failure zeros")
+
+
 # Which symbolic op each rule type owns (for the symbolic-only / LLM-only split)
 SYMBOLIC_OP = {"within_predicate": "op_c", "recursive": "op_i",
                "cross_predicate": None}
@@ -100,6 +119,7 @@ def main():
 
     doms = {d.name: d for d in all_domains(seed=args.seed)}
     client = make_client(args.provider, args.model)
+    _preflight(client)   # fail loud at launch if the key/credit/host is bad
     conditions = ["symbolic_only", "llm_only", "full", "raw_llm"]
     units = [{"cell": name, "condition": c, "run": 0}
              for name in doms for c in conditions]
@@ -109,20 +129,31 @@ def main():
     store_dir = os.path.dirname(args.store) or "."
     os.makedirs(store_dir, exist_ok=True)
 
+    llm_conditions = {"llm_only", "full", "raw_llm"}
+
     def run_with_guard(u):
         if args.budget_usd is not None and client.estimated_cost() > args.budget_usd:
             raise BudgetExceeded(
                 f"cumulative cost ${client.estimated_cost():.4f} exceeds budget "
                 f"${args.budget_usd:.2f}; completed units saved, rerun to resume")
+        calls_before = client.usage.calls
         res = run_one_unit(u, doms, client, args.n_probe)
+        # Fail-loud sentinel: an LLM condition that made 0 successful calls means
+        # every call failed (exhausted credit or a persistent API error) and was
+        # swallowed into empty results. Abort rather than record that as data.
+        if u["condition"] in llm_conditions and client.usage.calls == calls_before:
+            raise APIFailure(
+                f"unit {u['cell']}/{u['condition']} made 0 successful LLM calls; "
+                f"aborting so swallowed-failure zeros are not recorded as data")
         res["cost_usd"] = round(client.estimated_cost(), 4)
         return res
 
     try:
         run_units(units, run_with_guard, args.store, manifest_dir=store_dir,
                   git_sha=git_sha, fresh=args.fresh)
-    except BudgetExceeded as e:
-        print(f"BUDGET STOP: {e}")
+    except (BudgetExceeded, APIFailure) as e:
+        kind = "BUDGET STOP" if isinstance(e, BudgetExceeded) else "API FAILURE"
+        print(f"{kind}: {e}")
         print(f"Cost so far: ${client.estimated_cost():.4f}, "
               f"{client.usage.calls} calls, model={client.model}")
         raise SystemExit(2)
