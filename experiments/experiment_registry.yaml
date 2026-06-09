@@ -1021,8 +1021,14 @@ experiments:
       Correct-rule proposal rate (structural equivalence to the target) was
       0.00 in EVERY cell, for both llm_only and full. So:
       (1) Symbolic compression recovers within-predicate AND recursive structure
-          at 100% on BOTH canonical and fully-invented vocabulary. This confirms
-          and extends EX27 (recursion only) to a second rule type, and
+          at 100% RECALL on BOTH canonical and fully-invented vocabulary
+          ("recovery" = recall throughout). Precision differs by rule type:
+          recursive is 1.00 (fp=0); within-predicate is 0.67 (fp=1) because Op C
+          emits an exception rule pred(X):-guard(X),not(exception(X)), and the
+          new-entity protocol adds a new exception (kiwi/vusk) as a guard member
+          WITHOUT its exception fact, so the rule over-derives it. That is the
+          cost of predicting an unseen exception, not a recovery failure. This
+          confirms and extends EX27 (recursion only) to a second rule type, and
           re-confirms vocabulary-independence: the symbolic route uses structure,
           not predicate meaning.
       (2) qwen2.5:3b proposes ZERO structurally-correct rules anywhere, even on
@@ -1055,4 +1061,17 @@ experiments:
       ablation cleanly shows the symbolic route carries the entire load and
       full == symbolic. Caveat: 0% proposal on canonical cross-predicate is a
       property of qwen2.5:3b, not evidence against an LLM contribution in general.
+      Methodological notes for the paper (from the final holistic review):
+      (a) "recovery" is recall; report within-predicate precision (0.67) and the
+      unseen-exception mechanism in key_result point (1). (b) The proposal probe
+      scores the LLM on the pre-Op-C KB (full base+derived); in the full
+      condition Op G instead sees the post-Op-C KB, so the probe and full-Op-G
+      are slightly different tests (both 0 here, so the result is unaffected).
+      (c) Two invented predicates use real-ish words (flux, frob); the result is
+      unaffected (symbolic is vocabulary-independent and qwen proposed 0
+      regardless), but switch to fully synthetic names before final submission to
+      make the never-seen-vocabulary claim airtight. (d) qwen's cross-predicate
+      error is itself a finding: it proposes the inverted direction
+      (parent:-father,male), substituting world-knowledge for KB-inductive
+      extraction, a clean illustration of a weak model's failure mode.
     depends_on: [EX25, EX25b, EX27]
