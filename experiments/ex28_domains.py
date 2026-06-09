@@ -94,7 +94,8 @@ def recursive_canonical(seed=42):
 
 
 def recursive_invented(seed=42):
-    return _recursive("invented", "flux_links", "flux_reaches",
+    # fully synthetic predicates: no English substring, no hint of reachability
+    return _recursive("invented", "vorlan", "tessik",
                       ["qux", "vor", "zane", "plix", "drub", "yent", "kosh", "wim"],
                       ["fren", "glor", "snee", "thock"], seed=seed)
 
@@ -130,9 +131,9 @@ def cross_canonical():
 
 
 def cross_invented():
-    # fully invented predicates: wibble(X,Y) :- frob(X,Y), quax(X)
+    # fully synthetic predicates: brulit(X,Y) :- klanth(X,Y), dosq(X)
     return _cross_predicate(
-        "invented", "wibble", "frob", "quax",
+        "invented", "brulit", "klanth", "dosq",
         pairs=[("ond", "ulp"), ("ond", "esk"), ("arn", "ixt"), ("arn", "obo")],
         props=["ond", "arn"],
         new_pairs=[("zib", "ako"), ("zib", "eln")], new_props=["zib"],

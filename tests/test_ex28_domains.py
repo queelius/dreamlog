@@ -30,7 +30,11 @@ def test_each_domain_has_target_and_checks():
 def test_invented_vocab_has_no_real_predicates():
     d = _load("ex28_domains")
     invented = [c for c in d.all_domains(seed=42) if c.vocab == "invented"]
-    real_words = {"parent", "ancestor", "father", "male", "bird", "can_fly"}
+    # Real words AND removed leaky predicates / reachability-graph terms: the
+    # invented cells must give a capable LLM no lexical or semantic foothold.
+    real_words = {"parent", "ancestor", "father", "male", "bird", "can_fly",
+                  "flux", "links", "reaches", "reach", "wibble", "frob", "quax",
+                  "link", "edge", "path", "graph", "node", "child"}
     for c in invented:
         text = " ".join(c.base + c.derived)
         assert not any(w in text for w in real_words), f"{c.name} leaks real vocab"
