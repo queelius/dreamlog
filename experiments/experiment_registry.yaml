@@ -991,3 +991,22 @@ experiments:
       follow-on data-density study. Path length is bounded by the evaluator's
       recursion-depth limit (~100).
     depends_on: [EX25, EX25b, EX26]
+
+  EX28_llm_role_ablation:
+    title: "Isolating the LLM's contribution by rule type (structure vs semantics)"
+    date: 2026-06-09
+    script: experiments/ex28_llm_role.py
+    status: planned
+    motivation: >
+      Replace the paper's weak "full == symbolic" observation with a measured
+      claim: symbolic compression recovers structure on any vocabulary, while
+      the LLM's value is recall of meaning that evaporates on invented
+      predicates. Doubles as the rigorous per-mechanism ablation.
+    method: >
+      Clean 3x2 (within-predicate / recursive / cross-predicate x canonical /
+      fully-invented), four conditions (symbolic-only, LLM-only, full, raw-LLM).
+      Metrics: recovery and the correct-rule-proposal rate (structural
+      equivalence). Local qwen2.5:3b, high N, resumable with full metadata.
+    key_result: "TBD after run"
+    implications: "TBD after run"
+    depends_on: [EX25, EX25b, EX27]
