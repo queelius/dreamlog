@@ -1046,22 +1046,24 @@ experiments:
           cross-functor rule from a fact-only KB, and qwen cannot propose one
           correctly.
       ---
-      SONNET ANCHOR (claude-sonnet-4-6, n_probe=30, seed 42; 537 calls, $1.39;
-      fail-loud hardened, all calls succeeded). A capable LLM changes the
-      picture. Recovery (recall), llm_only / full / raw_llm (symbolic stays
+      SONNET ANCHOR (claude-sonnet-4-6, n_probe=30, seed 42; 537 calls, $1.57;
+      fail-loud hardened, all calls succeeded). Run on FULLY SYNTHETIC invented
+      predicates (vorlan/tessik for recursion, brulit/klanth/dosq for cross: no
+      English substring, no semantic hint). A capable LLM changes the picture.
+      Recovery (recall), llm_only / full / raw_llm (symbolic stays
       vocabulary-independent: 1.00 within+recursive, 0.00 cross):
                             llm_only  full  raw_llm
         within  / canon        0.00   1.00   0.00
         within  / INVENTED     1.00   1.00   0.00
         recurse / canon        1.00   1.00   1.00
-        recurse / INVENTED     1.00   1.00   0.76
+        recurse / INVENTED     1.00   1.00   0.00
         cross   / canon        1.00   1.00   1.00
         cross   / INVENTED     1.00   1.00   0.00
-      Proposal rate (llm_only): within/canon 0.00, within/INVENTED 0.40,
+      Proposal rate (llm_only): within/canon 0.00, within/INVENTED 0.53,
       recurse/canon 1.00, recurse/INVENTED 1.00, cross/canon 1.00,
-      cross/INVENTED 0.93. Verified proposals:
-      - cross/INVENTED: Sonnet proposed (wibble X Y):-(frob X Y),(quax X)
-        exactly, on fully-invented predicates: genuine STRUCTURAL induction from
+      cross/INVENTED 1.00. Verified proposals:
+      - cross/INVENTED: Sonnet proposed (brulit X Y):-(klanth X Y),(dosq X)
+        exactly, on meaningless predicates: genuine STRUCTURAL induction from
         fact co-occurrence, not lexical recall (misses were the reversed
         direction).
       - recurse/INVENTED: proposed the full base+step recursive pair on invented
@@ -1073,6 +1075,11 @@ experiments:
         (a) misses the bare can_fly:-bird target and (b) is circular
         (unstratified), which the verifier rejects. On invented glonk/zorp it has
         no such knowledge and proposes the clean rule (recovery 1.00).
+      The fully-synthetic rename REPRODUCED the rule-induction result (proposal
+      and recovery still 1.00 on synthetic vocab for recursion AND cross) and
+      removed a lexical confound from the raw-LLM baseline: recurse raw_llm fell
+      0.76 -> 0.00 when flux_reaches became tessik, so the "reaches" lexical hint
+      had helped pure inference but NEVER rule induction (still 1.00 either way).
       full == 1.00 on ALL SIX cells: the neurosymbolic combination is complete,
       the LLM supplying exactly the cross-predicate rules symbolic compression
       provably cannot build from facts.
@@ -1096,8 +1103,8 @@ experiments:
       SONNET ANCHOR revises the thesis (this supersedes the deferred-Haiku plan
       above; we ran Sonnet). The clean "symbolic does structure, LLM does
       meaning" dichotomy is FALSE for a capable model: Sonnet does structure too,
-      succeeding on invented recursion (1.00) and invented cross-predicate (0.93)
-      by structural induction from fact patterns, not lexical recall. The
+      succeeding on FULLY SYNTHETIC invented recursion (1.00) and cross-predicate
+      (1.00) by structural induction from fact patterns, not lexical recall. The
       defensible revised claim is COMPLEMENTARITY, not a structure/meaning split:
       (i) symbolic compression deterministically, verifiably, and for free
       recovers the rule types it can build from extensional facts (within
