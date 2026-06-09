@@ -71,10 +71,10 @@ def proposal_rate(domain, llm_client, n_runs=10):
 
 ## Models
 
-- **`qwen2.5:3b`** (local, on the remote Ollama host `192.168.0.204:11434`) for development and the bulk of the runs. This is the model the other Claude Code session has loaded; reusing it avoids reload thrashing on the shared GPU.
-- **Anthropic Haiku 4.5** anchors the headline cells (paper consistency: EX25b/EX27 use Haiku) and supports the strong claim ("even a capable model cannot do structure-on-invented").
-- **Honesty caveat (bake into the writeup)**: a 3B model failing at structure is weaker evidence than a capable model failing. The 3b numbers characterize the bulk; the Haiku anchor is required before the paper asserts "the LLM cannot do structure."
-- Model-scaling sweep (1.5b/7b) is deliberately OUT for now to keep `qwen2.5:3b` warm and avoid GPU eviction. The harness should be model-parameterized so a sweep is a later config change, not a rewrite.
+- **`qwen2.5:3b` only, for now** (local, on the remote Ollama host `192.168.0.204:11434`). It is free and unmetered, so EX28 runs entirely on it, and we lean into that: high run counts (N=30 or more for the proposal-rate, so confidence intervals are tight), all six cells, all four conditions, plus exploratory ablations. It is also the model the other Claude Code session has loaded, so reusing it keeps it warm and avoids reload thrashing on the shared GPU.
+- **No Anthropic Haiku runs yet** (cost). The Haiku anchor is DEFERRED: it is added only once the local results are characterized and we are ready to support the strong claim ("even a capable model cannot do structure-on-invented vocabulary"). The harness is model-parameterized so swapping in Haiku (or a qwen 1.5b/7b scaling sweep) later is a config change, not a rewrite.
+- **Honesty caveat (bake into the writeup)**: a 3B model failing at structure is weaker evidence than a capable model failing. The qwen2.5:3b numbers characterize the bulk and drive iteration; the Haiku anchor is required before the paper asserts "the LLM cannot do structure."
+- **Because the local model is free, lean into the ablation**: sweep domain size, exception rates, fact density, recursion depth, and number of distractor predicates, and report the full curves. This is exactly the thorough ablation an A* paper wants and the API budget previously discouraged. Keep all of it on `qwen2.5:3b` (never request another model, to keep it warm and avoid GPU eviction).
 
 ## GPU and reproducibility discipline
 
@@ -84,6 +84,20 @@ def proposal_rate(domain, llm_client, n_runs=10):
 - **Generous per-call timeouts** so GPU contention from the other session causes slow calls, never spurious timeout-failures that would corrupt the proposal-rate.
 - Timing variance does not affect results: every metric is a correctness measure (recovery, proposal rate), not throughput.
 
+## Metadata and resumability (first-class requirement)
+
+Every EX28 run must be richly documented and resumable, because the local model is slow on a shared GPU and the experiment is large (six cells x four conditions x high N), so runs will be long and may be interrupted.
+
+**Work unit.** The atomic unit is `(cell, condition, run_index)`. The harness enumerates all units up front, checks the results store for already-completed units (keyed by a stable hash of the unit plus the resolved run configuration), and runs only the missing ones. After each unit completes, it appends the record and flushes to disk, so an interruption loses at most the in-flight unit.
+
+**What is recorded per unit** (one JSONL record): the unit key (cell, condition, run_index); the resolved configuration (model, host, quantization, temperature, seed, domain parameters, n_runs); both metrics (recovery, and for the proposal probe the per-run proposed rules plus the structural-equivalence verdict against the target rule); and the **full LLM call log** for the unit (the exact prompt sent, the raw model response, the parsed rules, per-call latency, and token counts if the provider returns them). A wall-clock timestamp and the git commit SHA are recorded so each result is reproducible from a known code state.
+
+**Run manifest.** Each invocation writes a manifest (start time, git SHA, the full argument set, model and host, and the list of planned vs already-complete units) so a run can be audited and resumed.
+
+**Storage.** `experiments/data/ex28/results.jsonl` (the per-unit records, the resumable store, committed for provenance) plus `experiments/data/ex28/manifest-<timestamp>.json`. The JSONL is **append-only and never rewritten**, so a crash mid-write cannot corrupt completed records.
+
+**Resumability contract.** Re-running with the same configuration is idempotent: completed units are skipped, missing units are run, and the final summary is recomputed from the full store. A `--fresh` flag forces a clean re-run. A `--summarize` flag recomputes the tables from `results.jsonl` without running anything.
+
 ## Implementation surface
 
 | Change | Location | Notes |
@@ -92,8 +106,8 @@ def proposal_rate(domain, llm_client, n_runs=10):
 | Op-C disable flag | `dreamlog/kb_dreamer.py` | a flag to skip Operation C, for the within-predicate LLM-only cell; Op I (`discover_recursion`) and Op G (`llm_client`) are already toggleable |
 | Proposal-rate probe | `experiments/ex28_llm_role.py` + reuse `skeleton.py` | run Op G's proposal step in isolation, structural-equivalence check against the target rule |
 | Ollama remote-host wiring | `dreamlog/llm_client.py` | confirm `LLMClient` (provider `ollama`) accepts a non-localhost host (`192.168.0.204:11434`) and a model name; the ollama Python client supports `Client(host=...)` |
-| Multi-run harness | `experiments/ex28_llm_role.py` | N=10 for the proposal probe; N=1 to 3 for the costly raw-LLM baseline |
-| EX28 script + registry | `experiments/ex28_llm_role.py`, `experiment_registry.yaml` | four conditions x six cells; a `--no-llm` cost guard like EX27 |
+| Resumable, metadata-rich harness | `experiments/ex28_llm_role.py` | work-unit enumeration (cell x condition x run), skip-completed, append-only `results.jsonl` with full per-call logs (prompt, response, latency), run manifest, `--fresh` and `--summarize` flags. N=30+ for the proposal probe and the raw-LLM baseline (both free on the local model) |
+| EX28 script + registry | `experiments/ex28_llm_role.py`, `experiment_registry.yaml` | four conditions x six cells; `qwen2.5:3b` only by default |
 
 ## Risks and mitigations
 
@@ -112,7 +126,8 @@ def proposal_rate(domain, llm_client, n_runs=10):
 ## Success criteria
 
 1. The clean 3x2 domains are built and validated (target rule identifiable, invented columns semantically empty).
-2. EX28 runs all four conditions across the six cells on `qwen2.5:3b`, with the headline cells also on Haiku, producing the recovery table and the proposal-rate table.
-3. The structure-vs-semantics pattern is characterized: where symbolic recovers regardless of vocabulary, where the LLM helps, and the cross-predicate-invented cell result.
-4. Reproducible (fixed seeds), GPU-coexistent (single warm model), within the LLM budget (cost guard, raw-LLM at low N).
-5. Existing tests stay green; new tests cover the generators and the equivalence checker.
+2. EX28 runs all four conditions across the six cells on `qwen2.5:3b` (no Haiku yet) at high N, producing the recovery table and the proposal-rate table with confidence intervals.
+3. The structure-vs-semantics pattern is characterized: where symbolic recovers regardless of vocabulary, where the LLM helps, and the cross-predicate-invented cell result. Exploratory ablations (domain size, exception rate, fact density, recursion depth) are run and reported, since the local model is free.
+4. Every run is **resumable** (re-running skips completed units; an interruption loses at most the in-flight unit) and records **full metadata** per unit (config, both metrics, the exact prompt/response/latency, and the git SHA).
+5. Reproducible (fixed seeds), GPU-coexistent (single warm model, sequential calls, generous timeouts).
+6. Existing tests stay green; new tests cover the generators, the equivalence checker, and the resume/skip logic.
