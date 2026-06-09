@@ -104,6 +104,9 @@ All operations use MDL (Minimum Description Length) scoring and are verified aga
 - `shared_structure_threshold` (default 0.1): anti-unification score threshold.
 - `max_prompt_facts` (default 50): round-robin sample size for Op G's LLM prompt. Raise for KBs with many predicates (200+ works well for domains with 7-10 predicates; see `experiments/ex25_generalization.py`).
 - `open_world` (default False): when True, Op G's false-positive check (reject rules that derive ground terms absent from the KB) is disabled. Closed-world default preserves the zero-drift safety guarantee for production compression; open-world is the opt-in for holdout-style evaluation where the goal is precisely to recover absent facts. **Important gotcha**: `open_world=True` only disables the FP enumeration check; the synthetic negative queries in `build_verification_suite` are still enforced, so it is a *partial* relaxation of closed-world.
+- `discover_recursion` (default False): enable Operation I (symbolic recursive transitive-closure discovery). Off by default; flag-gated so the default pipeline has zero drift.
+- `min_base_facts` (default 3): minimum base-relation facts before Operation I synthesizes a recursive rule (guards against spurious closure detection on tiny relations).
+- `disable_op_c` (default False): skip Operation C (fact generalization). Off by default; used by the EX28 within-predicate LLM-only ablation to isolate the LLM's contribution.
 
 **Key modules:**
 - `anti_unification.py`: Plotkin's algorithm (dual of unification). `anti_unify`, `anti_unify_many`, `node_count`, `shared_structure` scoring.
