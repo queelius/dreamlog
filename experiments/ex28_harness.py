@@ -15,7 +15,7 @@ import logging
 import os
 import time
 import hashlib
-from typing import Generator, Any
+from typing import Generator
 
 # Fields written by the harness itself; no run_one result may use these names.
 _RESERVED_FIELDS = {"key", "ts", "git_sha"}
