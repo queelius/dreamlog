@@ -641,15 +641,29 @@ def run_experiment():
 
     print(f"  Time: {elapsed:.1f}s")
 
-    # Save
-    results_path = Path("/tmp/ex25b_results.json")
-    save = {}
+    # Save a committed artifact for provenance (like EX27/EX28); the previous
+    # /tmp path was ephemeral and left the 5-run figures unauditable.
+    import subprocess as _sp
+    _gp = _sp.run(["git", "rev-parse", "--short", "HEAD"],
+                  capture_output=True, text=True)
+    git_sha = (_gp.stdout.strip() if _gp.returncode == 0 else "") or "unknown"
+
+    def _clean(d):
+        return {k: v for k, v in d.items() if k not in ("detail", "rule_list")}
+
+    results_path = Path("experiments/data/ex25b/results.json")
+    results_path.parent.mkdir(parents=True, exist_ok=True)
+    save = {"git_sha": git_sha,
+            "model": (llm_client.model if llm_client else None),
+            "runs_per_condition": args.runs, "ts": time.time(),
+            "domains": {}}
     for domain, results in all_results.items():
-        save[domain] = {
-            cond: {k: v for k, v in r.items()
-                   if k not in ("detail", "rule_list")}
-            for cond, r in results.items()
-        }
+        save["domains"][domain] = {}
+        for cond, r in results.items():
+            cr = _clean(r)
+            if "runs" in cr:
+                cr["runs"] = [_clean(x) for x in cr["runs"]]
+            save["domains"][domain][cond] = cr
     results_path.write_text(json.dumps(save, indent=2))
     print(f"  Results: {results_path}")
 
