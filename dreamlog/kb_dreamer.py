@@ -1136,16 +1136,14 @@ class KnowledgeBaseDreamer:
 
     # ── Operation G: LLM-assisted compression ──
 
-    def _llm_compress(self, kb: KnowledgeBase,
-                      suite: Optional['VerificationSuite'] = None
-                      ) -> List[CompressionCandidate]:
-        """Operation G: Ask LLM to propose cross-functor rules."""
-        if not self.llm_client:
-            return []
+    def _build_op_g_prompt(self, kb: KnowledgeBase) -> Optional[str]:
+        """Build the Operation G prompt string from a knowledge base.
 
-        from .llm_response_parser import parse_llm_response
-        ops = []
-
+        Samples facts round-robin by predicate, computes predicate fact
+        counts, and assembles the full prompt. Returns None when there are
+        no facts to prompt with. Reads ``self.max_prompt_facts`` and ``kb``
+        only; mutates nothing.
+        """
         # Sample facts for the prompt, using Prolog notation
         # Sample facts ensuring every predicate is represented
         max_facts = self.max_prompt_facts
@@ -1171,7 +1169,7 @@ class KnowledgeBaseDreamer:
             else:
                 fact_lines.append(f"{term}.")
         if not fact_lines:
-            return ops
+            return None
 
         # Compute predicate fact counts to guide directionality
         pred_counts: Dict[str, int] = {}
@@ -1214,16 +1212,31 @@ class KnowledgeBaseDreamer:
             "No explanation, no markdown.\n\n"
             "Rules:"
         )
+        return prompt
+
+    def _llm_propose(self, kb: KnowledgeBase) -> List[Rule]:
+        """Operation G, proposal stage: prompt + parse + validate.
+
+        Builds the prompt, calls the LLM, parses the response, then applies
+        Phase 1 structural validation and Phase 2 cyclic filtering. Returns
+        the proposed, validated, cycle-filtered rules. Mutates nothing (reads
+        ``kb`` only).
+        """
+        if not self.llm_client:
+            return []
+
+        from .llm_response_parser import parse_llm_response
+
+        prompt = self._build_op_g_prompt(kb)
+        if prompt is None:
+            return []
 
         raw_rules = self._parse_llm_rules(prompt, parse_llm_response)
         if not raw_rules:
-            return ops
+            return []
 
         # Collect user-defined (non-system) functors once for validation
         kb_functors = _collect_user_functors(kb)
-        # Scale call budget with KB size — small KBs need ~500, but
-        # transitive predicates in large KBs need proportionally more.
-        MAX_CALLS = max(500, len(kb) * 10)
 
         # Phase 1: Parse and structurally validate all proposed rules
         parsed_rules: List[Rule] = []
@@ -1266,6 +1279,25 @@ class KnowledgeBaseDreamer:
         # Phase 2: Filter out rules that create cross-functor cycles
         # (e.g., parent←father + father←parent). Self-recursion is fine.
         parsed_rules = _filter_cyclic_rules(parsed_rules)
+
+        return parsed_rules
+
+    def _llm_compress(self, kb: KnowledgeBase,
+                      suite: Optional['VerificationSuite'] = None
+                      ) -> List[CompressionCandidate]:
+        """Operation G: Ask LLM to propose cross-functor rules."""
+        if not self.llm_client:
+            return []
+
+        ops = []
+
+        parsed_rules = self._llm_propose(kb)
+        if not parsed_rules:
+            return ops
+
+        # Scale call budget with KB size — small KBs need ~500, but
+        # transitive predicates in large KBs need proportionally more.
+        MAX_CALLS = max(500, len(kb) * 10)
 
         # Phase 3: Separate helper rules (new predicates) from main rules
         # (derive existing facts). Helpers support main rules (e.g.,

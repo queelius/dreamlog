@@ -1069,3 +1069,39 @@ def test_op_c_disable_flag_skips_generalization():
     kb = _artisan_kb()
     KnowledgeBaseDreamer(disable_op_c=True).dream(kb)
     assert not any(r.head.functor == "master" and len(r.body) > 0 for r in kb.rules)
+
+
+# ---------------------------------------------------------------------------
+# Operation G proposal-probe extraction (_llm_propose / _build_op_g_prompt)
+# ---------------------------------------------------------------------------
+
+def test_llm_propose_returns_parsed_rules_without_accepting():
+    import json
+    from tests.mock_provider import MockLLMProvider
+    kb = _ancestor_closure_kb()
+    mock = MockLLMProvider(responses=[json.dumps([
+        ["rule", ["ancestor", "X", "Z"],
+         [["parent", "X", "Y"], ["ancestor", "Y", "Z"]]],
+    ])])
+    dreamer = KnowledgeBaseDreamer(llm_client=mock)
+    proposed = dreamer._llm_propose(kb)
+    assert any(r.head.functor == "ancestor" and len(r.body) == 2 for r in proposed)
+    # _llm_propose must NOT mutate the KB (no rules added)
+    assert not any(r.head.functor == "ancestor" for r in kb.rules)
+
+
+def test_llm_propose_preserves_phase1_validation():
+    # Guards the most at-risk invariant of this refactor: Phase 1 structural
+    # validation must survive. A proposed rule whose body references a predicate
+    # absent from the KB (not a builtin, not a helper head) must be dropped.
+    import json
+    from tests.mock_provider import MockLLMProvider
+    kb = _ancestor_closure_kb()
+    mock = MockLLMProvider(responses=[json.dumps([
+        ["rule", ["ancestor", "X", "Z"],
+         [["ghost", "X", "Y"], ["ancestor", "Y", "Z"]]],
+    ])])
+    dreamer = KnowledgeBaseDreamer(llm_client=mock)
+    proposed = dreamer._llm_propose(kb)
+    assert not any("ghost" in str(r) for r in proposed), (
+        "Phase 1 body-functor validation was lost in the refactor")
