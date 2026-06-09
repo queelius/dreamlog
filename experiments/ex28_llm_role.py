@@ -1,5 +1,5 @@
 """EX28: isolating the LLM's contribution by rule type, on qwen2.5:3b."""
-import argparse, sys, pathlib, subprocess
+import argparse, os, sys, pathlib, subprocess
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from ex28_domains import all_domains
 from ex28_probe import proposal_rate
@@ -14,10 +14,18 @@ SYMBOLIC_OP = {"within_predicate": "op_c", "recursive": "op_i",
 
 
 def _dream_flags(rule_type, condition):
-    """Return (discover_recursion, disable_op_c, use_llm) for a condition."""
+    """Return (discover_recursion, disable_op_c, use_llm) for a condition.
+
+    In the llm_only condition we turn OFF the symbolic op that owns the rule
+    type, so the LLM is isolated: Op I for recursive (discover=False), Op C for
+    within_predicate (disable_op_c=True). cross_predicate needs no disable flag:
+    no symbolic op can build a cross-functor rule from a fact-only KB (Op C only
+    generalizes a single functor; Op D/E need pre-existing rules and run before
+    Op G), so the symbolic pipeline is already inert there.
+    """
     use_llm = condition in ("llm_only", "full")
     discover = (rule_type == "recursive") and condition in ("symbolic_only", "full")
-    # LLM-only: turn OFF the rule-type's symbolic op
+    # llm_only: turn OFF the rule-type's owning symbolic op (see docstring)
     disable_c = (rule_type == "within_predicate") and condition == "llm_only"
     return discover, disable_c, use_llm
 
@@ -31,7 +39,6 @@ def run_one_unit(unit, domains_by_name, client, n_probe):
             got = run_raw_llm_check(client, dom.base + dom.derived, dom.new_base, q, "")
             tp += int(exp and got); fn += int(exp and not got)
             tn += int((not exp) and not got); fp += int((not exp) and got)
-        total = tp + tn + fp + fn
         return {"recovery": tp / (tp + fn) if (tp + fn) else 0.0,
                 "precision": tp / (tp + fp) if (tp + fp) else 0.0,
                 "tp": tp, "tn": tn, "fp": fp, "fn": fn,
@@ -72,12 +79,13 @@ def main():
     conditions = ["symbolic_only", "llm_only", "full", "raw_llm"]
     units = [{"cell": name, "condition": c, "run": 0}
              for name in doms for c in conditions]
-    git_sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
-                             capture_output=True, text=True).stdout.strip()
-    import os
-    os.makedirs(os.path.dirname(args.store), exist_ok=True)
+    gp = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                        capture_output=True, text=True)
+    git_sha = (gp.stdout.strip() if gp.returncode == 0 else "") or "unknown"
+    store_dir = os.path.dirname(args.store) or "."
+    os.makedirs(store_dir, exist_ok=True)
     run_units(units, lambda u: run_one_unit(u, doms, client, args.n_probe),
-              args.store, manifest_dir=os.path.dirname(args.store),
+              args.store, manifest_dir=store_dir,
               git_sha=git_sha, fresh=args.fresh)
     print(f"EX28 complete. LLM cost (if any): {client.usage}")
 
