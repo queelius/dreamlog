@@ -49,6 +49,7 @@ MODEL_PRICING = {
     "claude-haiku-4-5-20251001": {"input_per_m": 0.80, "output_per_m": 4.00},
     "claude-sonnet-4-5-20241022": {"input_per_m": 3.00, "output_per_m": 15.00},
     "claude-opus-4-6": {"input_per_m": 15.00, "output_per_m": 75.00},
+    "claude-sonnet-4-6": {"input_per_m": 3.00, "output_per_m": 15.00},
     "gpt-4o-mini": {"input_per_m": 0.15, "output_per_m": 0.60},
     "gpt-4o": {"input_per_m": 2.50, "output_per_m": 10.00},
 }

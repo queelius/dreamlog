@@ -8,6 +8,23 @@ from ollama_helper import make_ollama_client
 from ex25_generalization import build_kb, dream_kb
 from ex25b_novel_generalization import evaluate_checks, run_raw_llm_check
 
+
+class BudgetExceeded(Exception):
+    """Raised to stop the run when cumulative LLM cost crosses the budget."""
+
+
+def make_client(provider, model):
+    """Build the LLM client. ollama (local, free) or anthropic (paid, tracked
+    via estimated_cost). One client accumulates usage across all units, so the
+    budget guard sees the running total."""
+    if provider == "ollama":
+        return make_ollama_client(model=model) if model else make_ollama_client()
+    from dreamlog.llm_client import LLMClient
+    key_env = "MY_ANTHROPIC_API_KEY" if provider == "anthropic" else None
+    return LLMClient(provider=provider, model=model, api_key_env=key_env,
+                     temperature=0.3, max_tokens=800, timeout=180)
+
+
 # Which symbolic op each rule type owns (for the symbolic-only / LLM-only split)
 SYMBOLIC_OP = {"within_predicate": "op_c", "recursive": "op_i",
                "cross_predicate": None}
@@ -61,9 +78,15 @@ def run_one_unit(unit, domains_by_name, client, n_probe):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="EX28 LLM-role ablation (qwen2.5:3b)")
+    ap = argparse.ArgumentParser(description="EX28 LLM-role ablation")
     ap.add_argument("--n-probe", type=int, default=30)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--provider", default="ollama",
+                    help="ollama (local, free) or anthropic (paid)")
+    ap.add_argument("--model", default=None,
+                    help="model id; defaults to the provider default")
+    ap.add_argument("--budget-usd", type=float, default=None,
+                    help="stop before any unit once cumulative cost exceeds this")
     ap.add_argument("--store", default="experiments/data/ex28/results.jsonl")
     ap.add_argument("--fresh", action="store_true")
     ap.add_argument("--summarize", action="store_true")
@@ -71,11 +94,12 @@ def main():
 
     if args.summarize:
         for r in summarize(args.store):
-            print(r["cell"], r["condition"], r.get("recovery"), r.get("proposal_rate"))
+            print(r["cell"], r["condition"], r.get("recovery"),
+                  r.get("proposal_rate"), r.get("cost_usd"))
         return
 
     doms = {d.name: d for d in all_domains(seed=args.seed)}
-    client = make_ollama_client()
+    client = make_client(args.provider, args.model)
     conditions = ["symbolic_only", "llm_only", "full", "raw_llm"]
     units = [{"cell": name, "condition": c, "run": 0}
              for name in doms for c in conditions]
@@ -84,10 +108,26 @@ def main():
     git_sha = (gp.stdout.strip() if gp.returncode == 0 else "") or "unknown"
     store_dir = os.path.dirname(args.store) or "."
     os.makedirs(store_dir, exist_ok=True)
-    run_units(units, lambda u: run_one_unit(u, doms, client, args.n_probe),
-              args.store, manifest_dir=store_dir,
-              git_sha=git_sha, fresh=args.fresh)
-    print(f"EX28 complete. LLM cost (if any): {client.usage}")
+
+    def run_with_guard(u):
+        if args.budget_usd is not None and client.estimated_cost() > args.budget_usd:
+            raise BudgetExceeded(
+                f"cumulative cost ${client.estimated_cost():.4f} exceeds budget "
+                f"${args.budget_usd:.2f}; completed units saved, rerun to resume")
+        res = run_one_unit(u, doms, client, args.n_probe)
+        res["cost_usd"] = round(client.estimated_cost(), 4)
+        return res
+
+    try:
+        run_units(units, run_with_guard, args.store, manifest_dir=store_dir,
+                  git_sha=git_sha, fresh=args.fresh)
+    except BudgetExceeded as e:
+        print(f"BUDGET STOP: {e}")
+        print(f"Cost so far: ${client.estimated_cost():.4f}, "
+              f"{client.usage.calls} calls, model={client.model}")
+        raise SystemExit(2)
+    print(f"EX28 complete ({args.provider}/{client.model}). "
+          f"cost=${client.estimated_cost():.4f}, {client.usage.calls} calls")
 
 
 if __name__ == "__main__":
