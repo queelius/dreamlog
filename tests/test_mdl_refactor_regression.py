@@ -62,12 +62,9 @@ def test_ex28_symbolic_column_reproduces_artifact():
                 rows[r["cell"]] = r
     assert len(rows) == 6, f"expected 6 symbolic cells, got {sorted(rows)}"
 
-    # all_domains lives in ex28_domains, imported by ex28_llm_role at module load
     ex28 = _load("ex28_llm_role")
-    # all_domains is re-exported via the module's namespace after the import at
-    # line 4 of ex28_llm_role.py: "from ex28_domains import all_domains"
-    from ex28_domains import all_domains  # noqa: PLC0415
-    doms = {d.name: d for d in all_domains(seed=42)}
+    # ex28_llm_role re-exports all_domains ("from ex28_domains import all_domains")
+    doms = {d.name: d for d in ex28.all_domains(seed=42)}
     assert set(doms) == set(rows), "domain names drifted from artifact cells"
 
     for cell, want in rows.items():
