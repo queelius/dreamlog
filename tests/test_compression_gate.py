@@ -164,3 +164,25 @@ def test_overlapping_removals_reject_not_crash():
     assert len(accepted) == 1
     assert len(rejected) == 1 and rejected[0].reason == "policy"
     assert "absent" in rejected[0].detail
+
+
+def test_dream_session_records_rejections(monkeypatch):
+    """DreamSession.rejections carries (kind, reason) pairs end to end."""
+    from dreamlog.compression.policies import SuiteVerifyPolicy
+    from dreamlog.kb_dreamer import KnowledgeBaseDreamer
+    calls = {"n": 0}
+    real_verify = SuiteVerifyPolicy.verify
+    def failing_verify(self, trial_kb, p):
+        calls["n"] += 1
+        return "verify_failed"
+    monkeypatch.setattr(SuiteVerifyPolicy, "verify", failing_verify)
+    kb = KnowledgeBase()
+    arts = ["a", "b", "c", "d", "e"]
+    for x in arts:
+        kb.add_fact(Fact(compound("artisan", atom(x))))
+    for x in arts[:4]:
+        kb.add_fact(Fact(compound("master", atom(x))))
+    session = KnowledgeBaseDreamer().dream(kb)
+    assert calls["n"] >= 1, "monkeypatched verify never invoked"
+    assert any(k == "generalization" and r == "verify_failed"
+               for (k, r) in session.rejections)

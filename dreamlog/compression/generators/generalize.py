@@ -46,7 +46,10 @@ def run(kb: KnowledgeBase, suite, gate_apply, policy,
     subgroups within the same functor group see the updated fact list.
     The functor-group snapshot (groups) is taken once at entry and
     deliberately excludes the exception_* predicates introduced here.
+
+    ``suite`` lives in the policy; parameter kept for interface uniformity.
     """
+    # suite lives in the policy; parameter kept for interface uniformity
     ops = []
 
     # Group facts by functor/arity

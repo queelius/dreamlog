@@ -3,10 +3,10 @@ and rewrite users. Two detectors behind one module; both interleaved
 run-form (D allocates invented names from the live KB pre-verification;
 E is round-based over the live KB).
 """
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from ...terms import Term, Atom, Variable, Compound
-from ...knowledge import KnowledgeBase, Fact, Rule
+from ...knowledge import KnowledgeBase, Rule
 from ..util import _is_system_predicate, _next_generated_name
 from ..proposal import Proposal
 from ..gate import Accepted
@@ -194,9 +194,11 @@ def run_invention(kb: KnowledgeBase, suite, gate_apply, policy,
 
     Allocates the invented name from the LIVE KB before verification;
     enforces strict reduction (k + n >= n*k guard) unchanged.
+
+    ``suite`` lives in the policy; parameter kept for interface uniformity.
     """
+    # suite lives in the policy; parameter kept for interface uniformity
     from ...skeleton import extract_skeleton
-    from ...kb_dreamer import CompressionCandidate
 
     ops = []
 
@@ -294,9 +296,10 @@ def run_extraction(kb: KnowledgeBase, suite, gate_apply, policy,
     Delta is always +1 in clause-count terms (one extracted rule added,
     occurrences rewritten 1:1). ExtractionPolicy sets require_negative_delta=False
     to exempt this operation from the strict-delta gate check.
-    """
-    from ...kb_dreamer import CompressionCandidate
 
+    ``suite`` lives in the policy; parameter kept for interface uniformity.
+    """
+    # suite lives in the policy; parameter kept for interface uniformity
     all_ops = []
     failed_keys: set = set()
 

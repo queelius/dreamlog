@@ -3,10 +3,10 @@ the transitive closure of another and swap the extension for the base +
 right-recursive pair. Run-form: at most one candidate per call; on rejection
 the scan continues to the next (R, B) pair.
 """
-from typing import List, Optional
+from typing import List
 
 from ...terms import Atom, Variable, Compound
-from ...knowledge import KnowledgeBase, Fact, Rule
+from ...knowledge import KnowledgeBase, Rule
 from ..util import _is_system_predicate
 from ..proposal import Proposal
 from ..gate import Accepted
@@ -22,7 +22,10 @@ def run(kb: KnowledgeBase, suite, gate_apply, policy,
     the suite with a bounded evaluator, and replace R's facts with the
     two rules. Returns at most one candidate per call (re-run on the next
     dream cycle to find further closures).
+
+    ``suite`` lives in the policy; parameter kept for interface uniformity.
     """
+    # suite lives in the policy; parameter kept for interface uniformity
     from ...recursive_discovery import transitive_closure
 
     # Collect binary predicate extensions over Atom-only argument pairs.

@@ -16,15 +16,17 @@ guided by Minimum Description Length: compress only when the result is
 shorter.
 """
 
-import math
 import re
 from typing import Any, Dict, List, Optional, Union, Set
 from dataclasses import dataclass, field
 from .terms import Term, Atom, Compound
 from .knowledge import KnowledgeBase, Fact, Rule
-from .unification import clause_subsumes, subsumes
 from .evaluator import PrologEvaluator
 
+# Re-exported: tests import _filter_cyclic_rules here; experiments import
+# _collect_user_functors here.  _is_system_predicate and _strip_llm_noise are
+# used directly in this module.  _next_generated_name is no longer needed here
+# (moved to generators) but kept so downstream experiment scripts don't break.
 from .compression.util import (_is_system_predicate, _next_generated_name,
                                _strip_llm_noise, _filter_cyclic_rules,
                                _collect_user_functors)
