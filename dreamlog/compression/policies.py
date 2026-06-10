@@ -76,3 +76,18 @@ class ExtractionPolicy(SuiteVerifyPolicy):
     Its value exists only under a symbol-cost description length (P3), so the
     strict-delta requirement is exempted here. See spec section 5.4."""
     require_negative_delta = False
+
+
+class BoundedSuitePolicy(SuiteVerifyPolicy):
+    """Suite verification with a BOUNDED evaluator (Operation I: max_calls=5000)."""
+    def __init__(self, suite, operation, max_calls):
+        super().__init__(suite, operation)
+        self.max_calls = max_calls
+
+    def verify(self, trial_kb, p):
+        if self.suite is None:
+            return None
+        result = self.suite.verify(
+            trial_kb,
+            lambda k: self._PrologEvaluator(k, max_total_calls=self.max_calls))
+        return None if result.passed else "verify_failed"
