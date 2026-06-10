@@ -50,3 +50,21 @@ class DerivabilityPolicy(Policy):
         ok = all(ev.has_solution(c.term)
                  for p in proposals for c in p.remove)
         return None if ok else "verify_failed"
+
+
+class SuiteVerifyPolicy(Policy):
+    """Verify a trial KB against the dream's suite with an UNBOUNDED evaluator
+    (today's C/D/E behavior). suite=None means accept without verification."""
+    require_negative_delta = True
+
+    def __init__(self, suite, operation):
+        from ..evaluator import PrologEvaluator
+        self._PrologEvaluator = PrologEvaluator
+        self.suite = suite
+        self.operation = operation
+
+    def verify(self, trial_kb, p):
+        if self.suite is None:
+            return None
+        result = self.suite.verify(trial_kb, lambda k: self._PrologEvaluator(k))
+        return None if result.passed else "verify_failed"
