@@ -71,6 +71,49 @@ def apply_proposal(kb, p, policy):
     return Accepted(_candidate(p))
 
 
+def apply_batch_staged_combined(kb, context_proposals, item_proposals, policy):
+    """Operation G Phase 4+5 semantics. Context proposals (helper rules) are
+    present in every item trial and committed only if the combined check
+    passes; items are verified INDEPENDENTLY against kb + context + item
+    (not cumulatively); then the combined set is verified; on combined
+    failure NOTHING commits (context included)."""
+    staged, rejected = [], []
+    for p in item_proposals:
+        reason = policy.pre_check(kb, p)
+        if reason:
+            rejected.append(Rejected(p.kind, reason))
+            continue
+        trial = kb.copy()
+        for cp in context_proposals:
+            _apply(trial, cp)
+        _apply(trial, p)
+        try:
+            reason = policy.verify(trial, p)
+        except RecursionError:
+            reason = "budget"
+        if reason:
+            rejected.append(Rejected(p.kind, reason))
+            continue
+        staged.append(p)
+    to_commit = list(context_proposals) + staged
+    if to_commit:
+        trial = kb.copy()
+        for p in to_commit:
+            _apply(trial, p)
+        try:
+            combined_reason = policy.verify_combined(trial)
+        except RecursionError:
+            combined_reason = "budget"
+        if combined_reason:
+            rejected.extend(Rejected(p.kind, combined_reason) for p in to_commit)
+            return [], rejected
+    accepted = []
+    for p in to_commit:
+        _apply(kb, p)
+        accepted.append(Accepted(_candidate(p)))
+    return accepted, rejected
+
+
 def apply_batch_with_fallback(kb, proposals, policy):
     """Operation B's semantics: try the whole batch; if the batch-level verify
     fails, fall back to applying items one at a time SEQUENTIALLY against the

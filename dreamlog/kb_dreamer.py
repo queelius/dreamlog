@@ -16,12 +16,11 @@ guided by Minimum Description Length: compress only when the result is
 shorter.
 """
 
-import json
 import math
 import re
 from typing import Any, Dict, List, Optional, Union, Set
 from dataclasses import dataclass, field
-from .terms import Term, Atom, Variable, Compound
+from .terms import Term, Atom, Compound
 from .knowledge import KnowledgeBase, Fact, Rule
 from .unification import clause_subsumes, subsumes
 from .evaluator import PrologEvaluator
@@ -457,167 +456,47 @@ class KnowledgeBaseDreamer:
     # ── Operation G: LLM-assisted compression ──
 
     def _build_op_g_prompt(self, kb: KnowledgeBase) -> Optional[str]:
-        """Build the Operation G prompt string from a knowledge base.
+        """Thin delegator to the llm generator's pure prompt builder.
 
-        Samples facts round-robin by predicate, computes predicate fact
-        counts, and assembles the full prompt. Returns None when there are
-        no facts to prompt with. Reads ``self.max_prompt_facts`` and ``kb``
-        only; mutates nothing.
+        Kept for the experiments/tests that reference it by name. Reads
+        ``self.max_prompt_facts`` and ``kb`` only; mutates nothing.
         """
-        # Sample facts for the prompt, using Prolog notation
-        # Sample facts ensuring every predicate is represented
-        max_facts = self.max_prompt_facts
-        facts_by_pred: Dict[str, list] = {}
-        for fact in kb.facts:
-            if isinstance(fact.term, Compound):
-                facts_by_pred.setdefault(fact.term.functor, []).append(fact)
-        sampled: list = []
-        # Round-robin: take up to max_facts / n_preds from each
-        per_pred = max(2, max_facts // max(len(facts_by_pred), 1))
-        for fn in sorted(facts_by_pred):
-            sampled.extend(facts_by_pred[fn][:per_pred])
-        sampled = sampled[:max_facts]
-
-        fact_lines = []
-        for fact in sampled:
-            term = fact.term
-            if isinstance(term, Compound):
-                args = ", ".join(
-                    str(a.value) if isinstance(a, Atom) else str(a)
-                    for a in term.args)
-                fact_lines.append(f"{term.functor}({args}).")
-            else:
-                fact_lines.append(f"{term}.")
-        if not fact_lines:
-            return None
-
-        # Compute predicate fact counts to guide directionality
-        pred_counts: Dict[str, int] = {}
-        for fact in kb.facts:
-            if isinstance(fact.term, Compound):
-                pred_counts[fact.term.functor] = (
-                    pred_counts.get(fact.term.functor, 0) + 1)
-        count_lines = "\n".join(
-            f"  {fn}: {cnt} facts" for fn, cnt in
-            sorted(pred_counts.items(), key=lambda x: -x[1]))
-
-        prompt = (
-            "Given these facts from a knowledge base:\n\n"
-            + "\n".join(fact_lines)
-            + f"\n\nPredicate fact counts:\n{count_lines}\n\n"
-            "Propose rules that derive SPECIFIC predicates from MORE GENERAL ones. "
-            "A rule should EXPLAIN why a fact is true using simpler building blocks.\n\n"
-            "IMPORTANT constraints:\n"
-            "- Rules must go in ONE direction only: specific <- general.\n"
-            "- NEVER propose reverse/inverse rules (if father <- parent+male, "
-            "do NOT also propose parent <- father).\n"
-            "- Body predicates should have MORE facts than the head predicate.\n"
-            "- Each rule must derive at least 2 existing facts.\n"
-            "- For 'all X satisfy P' patterns (e.g., vegan_recipe requires ALL "
-            "ingredients to be vegan), use a helper predicate with not/1:\n"
-            '  ["rule", ["has_non_vegan", "X"], [["uses", "X", "Y"], ["vegan", "Y", "false"]]]\n'
-            '  ["rule", ["vegan_recipe", "X"], [["recipe", "X"], ["not", ["has_non_vegan", "X"]]]]\n\n'
-            "Example format:\n"
-            '  ["rule", ["father", "X", "Y"], [["parent", "X", "Y"], ["male", "X"]]]\n'
-            '  For not/1: ["not", ["predicate", "X"]] as a body goal.\n\n'
-            "If a relation appears to be the transitive closure of another "
-            "relation (its facts are exactly the reachable pairs over a base "
-            "relation), propose BOTH a base rule and a right-recursive rule, "
-            "for example:\n"
-            "  ancestor(X, Y) :- parent(X, Y).\n"
-            "  ancestor(X, Z) :- parent(X, Y), ancestor(Y, Z).\n"
-            "Always include the base case. Never write a left-recursive body "
-            "(do not put the recursive call first).\n\n"
-            "Reply with ONLY a JSON array of rules. "
-            "No explanation, no markdown.\n\n"
-            "Rules:"
-        )
-        return prompt
+        from .compression.generators import llm as llm_gen
+        return llm_gen.build_op_g_prompt(kb, self.max_prompt_facts)
 
     def _llm_propose(self, kb: KnowledgeBase) -> List[Rule]:
-        """Operation G, proposal stage: prompt + parse + validate.
+        """Thin delegator to the llm generator's pure proposal stage.
 
-        Builds the prompt, calls the LLM, parses the response, then applies
-        Phase 1 structural validation and Phase 2 cyclic filtering. Returns
-        the proposed, validated, cycle-filtered rules. Mutates nothing (reads
-        ``kb`` only).
+        Builds the prompt, calls the LLM, parses, then applies Phase 1
+        structural validation and Phase 2 cyclic filtering. Mutates nothing
+        (reads ``kb`` only). Referenced by experiments/ex28_probe and tests.
         """
-        if not self.llm_client:
-            return []
-
-        from .llm_response_parser import parse_llm_response
-
-        prompt = self._build_op_g_prompt(kb)
-        if prompt is None:
-            return []
-
-        raw_rules = self._parse_llm_rules(prompt, parse_llm_response)
-        if not raw_rules:
-            return []
-
-        # Collect user-defined (non-system) functors once for validation
-        kb_functors = _collect_user_functors(kb)
-
-        # Phase 1: Parse and structurally validate all proposed rules
-        parsed_rules: List[Rule] = []
-        for rule_data in raw_rules:
-            try:
-                if isinstance(rule_data, Rule):
-                    rule = rule_data
-                else:
-                    rule = self._build_rule_from_parsed(rule_data)
-                    if rule is None:
-                        continue
-                if not isinstance(rule.head, Compound) or not rule.head.functor:
-                    continue
-                if not rule.body:
-                    continue
-                if any(not isinstance(g, Compound) or not g.functor
-                       for g in rule.body):
-                    continue
-                # Body functors must be in KB or be builtins (not, call).
-                # Also allow functors that appear as heads of OTHER
-                # proposed rules (helper predicates like has_non_vegan).
-                _BUILTIN_FUNCTORS = {"not", "call"}
-                if any(g.functor not in kb_functors
-                       and g.functor not in _BUILTIN_FUNCTORS
-                       for g in rule.body):
-                    continue
-                # Reject unstratified negation: head functor inside not/1
-                # (e.g., pet(X) :- ..., not(pet(X))) creates a fixed-point
-                # paradox where the rule defines pet in terms of not(pet).
-                head_fn = rule.head.functor
-                if any(g.functor == "not" and g.arity == 1
-                       and isinstance(g.args[0], Compound)
-                       and g.args[0].functor == head_fn
-                       for g in rule.body):
-                    continue
-                parsed_rules.append(rule)
-            except Exception:
-                continue
-
-        # Phase 2: Filter out rules that create cross-functor cycles
-        # (e.g., parent←father + father←parent). Self-recursion is fine.
-        parsed_rules = _filter_cyclic_rules(parsed_rules)
-
-        return parsed_rules
+        from .compression.generators import llm as llm_gen
+        return llm_gen.propose_rules(kb, self.llm_client, self.max_prompt_facts)
 
     def _llm_compress(self, kb: KnowledgeBase,
                       suite: Optional['VerificationSuite'] = None
                       ) -> List[CompressionCandidate]:
-        """Operation G: Ask LLM to propose cross-functor rules."""
+        """Operation G: Ask LLM to propose cross-functor rules.
+
+        Thin orchestrator: the pure proposal stage runs in the llm generator;
+        Phase 3 (helper/main split) runs here; Phase 4+5 acceptance runs
+        through the staged-combined gate with LlmPolicy.
+        """
+        from .compression import gate
+        from .compression.generators import llm as llm_gen
+        from .compression.policies import LlmPolicy
+        from .compression.proposal import Proposal
         if not self.llm_client:
             return []
-
-        ops = []
-
-        parsed_rules = self._llm_propose(kb)
+        parsed_rules = llm_gen.propose_rules(kb, self.llm_client,
+                                             self.max_prompt_facts)
         if not parsed_rules:
-            return ops
+            return []
 
-        # Scale call budget with KB size — small KBs need ~500, but
+        # Scale call budget with KB size - small KBs need ~500, but
         # transitive predicates in large KBs need proportionally more.
-        MAX_CALLS = max(500, len(kb) * 10)
+        max_calls = max(500, len(kb) * 10)
 
         # Phase 3: Separate helper rules (new predicates) from main rules
         # (derive existing facts). Helpers support main rules (e.g.,
@@ -638,170 +517,15 @@ class KnowledgeBaseDreamer:
         main_rules = [r for r in parsed_rules
                       if r.head.functor in existing_functors]
 
-        # Phase 4: Evaluate main rules (with helpers available)
-        accepted_rules: List[Rule] = list(helper_rules)
-        for rule in main_rules:
-            try:
-                # Build test KB with helpers + this rule
-                test_kb = kb.copy()
-                for h in helper_rules:
-                    test_kb.add_rule(h)
-                test_kb.add_rule(rule)
-                ev = PrologEvaluator(test_kb, max_total_calls=MAX_CALLS)
-
-                derivable_facts = []
-                try:
-                    for fact in kb.facts:
-                        if (isinstance(fact.term, Compound)
-                                and fact.term.functor == rule.head.functor):
-                            if ev.has_solution(fact.term):
-                                derivable_facts.append(fact)
-                except RecursionError:
-                    continue
-
-                if len(derivable_facts) < 2:
-                    continue
-
-                # Verify: adding rule must not break anything
-                if suite is not None:
-                    def ev_factory(k, _mc=MAX_CALLS):
-                        return PrologEvaluator(k, max_total_calls=_mc)
-                    try:
-                        result = suite.verify(test_kb, ev_factory)
-                    except RecursionError:
-                        continue
-                    if not result.passed:
-                        continue
-
-                # False-positive check: the rule must not derive ground
-                # terms absent from the KB. Enumerate solutions for the
-                # head pattern and reject if any is a novel (spurious) fact.
-                #
-                # Skipped in open-world mode (e.g., during holdout evaluation)
-                # where the goal is precisely to recover absent facts.
-                if not self.open_world:
-                    existing_terms = {f.term for f in kb.facts
-                                      if isinstance(f.term, Compound)
-                                      and f.term.functor == rule.head.functor}
-                    ev_fp = PrologEvaluator(test_kb, max_total_calls=MAX_CALLS)
-                    head_query = rule.head  # has variables
-                    has_false_positive = False
-                    try:
-                        for sol in ev_fp.query([head_query]):
-                            ground = head_query.substitute(sol.bindings)
-                            if (not ground.get_variables()
-                                    and ground not in existing_terms):
-                                has_false_positive = True
-                                break
-                    except RecursionError:
-                        has_false_positive = True
-                    if has_false_positive:
-                        continue
-
-                accepted_rules.append(rule)
-
-            except Exception:
-                continue
-
-        # Add all accepted rules and verify the combined set
-        if accepted_rules and suite is not None:
-            test_kb = kb.copy()
-            for rule in accepted_rules:
-                test_kb.add_rule(rule)
-            def ev_factory(k, _mc=MAX_CALLS):
-                return PrologEvaluator(k, max_total_calls=_mc)
-            try:
-                result = suite.verify(test_kb, ev_factory)
-            except RecursionError:
-                accepted_rules = []  # Combined set explodes — reject all
-            else:
-                if not result.passed:
-                    accepted_rules = []
-
-        for rule in accepted_rules:
-            kb.add_rule(rule)
-            ops.append(CompressionCandidate(
-                operation="llm_compression",
-                original_clauses=[],
-                new_clauses=[rule]))
-
-        return ops
-
-    def _parse_llm_rules(self, prompt: str, parse_llm_response) -> list:
-        """Send prompt to LLM and parse the response into raw rule data."""
-        try:
-            response = _strip_llm_noise(self.llm_client.complete(prompt))
-            try:
-                parsed_json = json.loads(response)
-                if isinstance(parsed_json, list):
-                    return parsed_json
-            except (json.JSONDecodeError, ValueError):
-                pass
-            # Try line-by-line extraction for partially valid JSON
-            raw_rules = []
-            for line in response.split("\n"):
-                line = line.strip().rstrip(",")
-                if line.startswith("[") and "rule" in line:
-                    try:
-                        raw_rules.append(json.loads(line))
-                    except (json.JSONDecodeError, ValueError):
-                        continue
-            if raw_rules:
-                return raw_rules
-            # Fall back to the structured parser
-            try:
-                parsed_resp, _ = parse_llm_response(response)
-                return parsed_resp.rules if parsed_resp else []
-            except Exception:
-                return []
-        except Exception:
-            return []
-
-    def _build_rule_from_parsed(self, rule_data):
-        """Build a Rule from parsed LLM output (raw list format)."""
-        try:
-            if not isinstance(rule_data, (list, tuple)) or len(rule_data) < 3:
-                return None
-            head_data = rule_data[1] if isinstance(rule_data[1], list) else rule_data
-            body_data = rule_data[2] if len(rule_data) > 2 else []
-
-            def make_term(data):
-                if not isinstance(data, list) or len(data) == 0:
-                    return None
-                functor = data[0]
-                if not isinstance(functor, str) or len(functor) == 0:
-                    return None
-                args = []
-                for a in data[1:]:
-                    if isinstance(a, str) and len(a) > 0:
-                        if a[0].isupper():
-                            args.append(Variable(a))
-                        else:
-                            args.append(Atom(a))
-                    elif isinstance(a, list):
-                        # Nested term (e.g., not(inner_goal))
-                        inner = make_term(a)
-                        if inner is None:
-                            return None
-                        args.append(inner)
-                    else:
-                        return None
-                return Compound(functor, args)
-
-            head = make_term(head_data)
-            if head is None:
-                return None
-            body = []
-            for b in body_data:
-                bt = make_term(b)
-                if bt is None:
-                    return None
-                body.append(bt)
-            if not body:
-                return None
-            return Rule(head, body)
-        except Exception:
-            return None
+        context = [Proposal(kind="llm_compression", add=(r,))
+                   for r in helper_rules]
+        items = [Proposal(kind="llm_compression", add=(r,))
+                 for r in main_rules]
+        policy = LlmPolicy(suite, max_calls, self.open_world, kb)
+        accepted, rejected = gate.apply_batch_staged_combined(
+            kb, context, items, policy)
+        self._rejections.extend((r.kind, r.reason) for r in rejected)
+        return [a.candidate for a in accepted]
 
     # ── Operation F: Dead clause pruning ──
 

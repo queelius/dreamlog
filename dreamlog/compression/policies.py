@@ -22,6 +22,12 @@ class Policy:
         apply_batch_with_fallback with a policy that overrides this."""
         return None
 
+    def verify_combined(self, trial_kb) -> Optional[str]:
+        """Combined (whole-staged-set) verification for the staged-combined
+        gate. Return None to approve. Defaults to no check; LlmPolicy
+        overrides this with Operation G's Phase 5 verify."""
+        return None
+
 
 class SubsumptionPolicy(Policy):
     operation = "subsumption"
@@ -90,4 +96,100 @@ class BoundedSuitePolicy(SuiteVerifyPolicy):
         result = self.suite.verify(
             trial_kb,
             lambda k: self._PrologEvaluator(k, max_total_calls=self.max_calls))
+        return None if result.passed else "verify_failed"
+
+
+class LlmPolicy(Policy):
+    """Operation G's acceptance battery, lifted verbatim from _llm_compress
+    Phase 4 (per-item) and Phase 5 (combined). Items are verified against
+    kb + helpers + item; the kb fact snapshot for the derivability count and
+    the false-positive check is taken at construction."""
+    operation = "llm_compression"
+    require_negative_delta = False   # add-only proposals; see spec 5.4
+
+    def __init__(self, suite, max_calls, open_world, kb):
+        from ..evaluator import PrologEvaluator
+        self._PrologEvaluator = PrologEvaluator
+        self.suite = suite
+        self.max_calls = max_calls
+        self.open_world = open_world
+        self._kb_facts = list(kb.facts)   # snapshot, matches today's `for fact in kb.facts` against test_kb
+
+    def verify(self, trial_kb, p):
+        """Phase 4 acceptance battery for one main rule (lifted verbatim).
+
+        ``trial_kb`` is kb + all helper rules + this rule. ``p.add[0]`` is the
+        single main rule. Each failure mode rejects the item (scanning
+        continues at the gate); the broad ``except Exception`` mirrors the
+        original per-rule ``except Exception: continue``.
+        """
+        from ..terms import Compound
+        try:
+            rule = p.add[0]
+            ev = self._PrologEvaluator(trial_kb, max_total_calls=self.max_calls)
+
+            derivable_facts = []
+            try:
+                for fact in self._kb_facts:
+                    if (isinstance(fact.term, Compound)
+                            and fact.term.functor == rule.head.functor):
+                        if ev.has_solution(fact.term):
+                            derivable_facts.append(fact)
+            except RecursionError:
+                return "budget"
+
+            if len(derivable_facts) < 2:
+                return "policy"
+
+            # Verify: adding rule must not break anything
+            if self.suite is not None:
+                def ev_factory(k, _mc=self.max_calls):
+                    return self._PrologEvaluator(k, max_total_calls=_mc)
+                try:
+                    result = self.suite.verify(trial_kb, ev_factory)
+                except RecursionError:
+                    return "budget"
+                if not result.passed:
+                    return "verify_failed"
+
+            # False-positive check: the rule must not derive ground
+            # terms absent from the KB. Enumerate solutions for the
+            # head pattern and reject if any is a novel (spurious) fact.
+            #
+            # Skipped in open-world mode (e.g., during holdout evaluation)
+            # where the goal is precisely to recover absent facts.
+            if not self.open_world:
+                existing_terms = {f.term for f in self._kb_facts
+                                  if isinstance(f.term, Compound)
+                                  and f.term.functor == rule.head.functor}
+                ev_fp = self._PrologEvaluator(trial_kb,
+                                              max_total_calls=self.max_calls)
+                head_query = rule.head  # has variables
+                has_false_positive = False
+                try:
+                    for sol in ev_fp.query([head_query]):
+                        ground = head_query.substitute(sol.bindings)
+                        if (not ground.get_variables()
+                                and ground not in existing_terms):
+                            has_false_positive = True
+                            break
+                except RecursionError:
+                    has_false_positive = True
+                if has_false_positive:
+                    return "fp_check"
+
+            return None
+        except Exception:
+            return "policy"
+
+    def verify_combined(self, trial_kb):
+        """Phase 5 combined verify. suite=None means no combined check ran
+        today (the commit still happened), so return None. A RecursionError
+        propagates to the gate's except clause -> 'budget' -> wipe, matching
+        today's `except RecursionError: accepted_rules = []`."""
+        if self.suite is None:
+            return None
+        def ev_factory(k, _mc=self.max_calls):
+            return self._PrologEvaluator(k, max_total_calls=_mc)
+        result = self.suite.verify(trial_kb, ev_factory)
         return None if result.passed else "verify_failed"
