@@ -68,3 +68,11 @@ class SuiteVerifyPolicy(Policy):
             return None
         result = self.suite.verify(trial_kb, lambda k: self._PrologEvaluator(k))
         return None if result.passed else "verify_failed"
+
+
+class ExtractionPolicy(SuiteVerifyPolicy):
+    """Operation E: body-pattern extraction has delta = +1 BY DESIGN in
+    clause-count terms (one extracted rule added, occurrences rewritten 1:1).
+    Its value exists only under a symbol-cost description length (P3), so the
+    strict-delta requirement is exempted here. See spec section 5.4."""
+    require_negative_delta = False
