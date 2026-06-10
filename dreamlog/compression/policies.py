@@ -21,3 +21,32 @@ class Policy:
         proposal commits WITHOUT per-item verify(); only use
         apply_batch_with_fallback with a policy that overrides this."""
         return None
+
+
+class SubsumptionPolicy(Policy):
+    operation = "subsumption"
+    require_negative_delta = True   # removal-only; the witness was the detection
+
+
+class DerivabilityPolicy(Policy):
+    """Operation B's acceptance: removed facts must remain derivable."""
+    operation = "pruning"
+    require_negative_delta = True
+
+    def __init__(self, max_calls: int = 0):
+        self.max_calls = max_calls
+
+    def _ev(self, kb):
+        from ..evaluator import PrologEvaluator
+        return PrologEvaluator(kb, max_total_calls=self.max_calls)
+
+    def verify(self, trial_kb, p):
+        ev = self._ev(trial_kb)
+        ok = all(ev.has_solution(c.term) for c in p.remove)
+        return None if ok else "verify_failed"
+
+    def verify_batch(self, trial_kb, proposals):
+        ev = self._ev(trial_kb)
+        ok = all(ev.has_solution(c.term)
+                 for p in proposals for c in p.remove)
+        return None if ok else "verify_failed"

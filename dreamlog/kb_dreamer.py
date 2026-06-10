@@ -221,12 +221,14 @@ class KnowledgeBaseDreamer:
         # Skip Operation C (fact generalization). Off by default; used by the
         # EX28 within-predicate LLM-only ablation condition.
         self.disable_op_c = disable_op_c
+        self._rejections: list = []
 
     def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
         original_size = len(kb)
         if original_size == 0:
             return DreamSession(compressed=False, operations=[],
                                 compression_ratio=1.0, verification=None)
+        self._rejections = []
 
         snapshot = kb.copy()
         # Save wake-phase tracking data before dream operations inflate it
@@ -290,7 +292,8 @@ class KnowledgeBaseDreamer:
                 kb.restore_from(snapshot)
                 return DreamSession(compressed=False, operations=[],
                                     compression_ratio=1.0,
-                                    verification=result)
+                                    verification=result,
+                                    rejections=list(self._rejections))
 
         # Restore wake-phase usage data (discard usage from verification queries)
         kb._usage_counts = wake_usage
@@ -301,103 +304,40 @@ class KnowledgeBaseDreamer:
         return DreamSession(
             compressed=new_size < original_size, operations=ops,
             compression_ratio=new_size / original_size if original_size > 0 else 1.0,
-            verification=result)
+            verification=result,
+            rejections=list(self._rejections))
 
     def _eliminate_subsumed(self, kb: KnowledgeBase) -> List[CompressionCandidate]:
         """Operation A: Remove clauses subsumed by more general clauses."""
-        ops = []
-
-        # A1: Rule-vs-rule subsumption (same body length)
-        rules_to_remove = set()
-        rules = kb.rules
-        for i, rule_a in enumerate(rules):
-            for j, rule_b in enumerate(rules):
-                if i == j or j in rules_to_remove:
-                    continue
-                if clause_subsumes(rule_a, rule_b) and rule_a != rule_b:
-                    rules_to_remove.add(j)
-
-        for idx in sorted(rules_to_remove, reverse=True):
-            removed = rules[idx]
-            kb.remove_rule_by_value(removed)
-            ops.append(CompressionCandidate(
-                operation="subsumption", original_clauses=[removed]))
-
-        # A2: Bodyless-rule-vs-fact subsumption
-        facts_to_remove = []
-        bodyless_rules = [r for r in kb.rules if len(r.body) == 0]
-        for fact in kb.facts:
-            for rule in bodyless_rules:
-                if subsumes(rule.head, fact.term):
-                    facts_to_remove.append(fact)
-                    break
-
-        for fact in facts_to_remove:
-            kb.remove_fact_by_value(fact)
-            ops.append(CompressionCandidate(
-                operation="subsumption", original_clauses=[fact]))
-
+        from .compression import gate
+        from .compression.generators import reduce as reduce_gen
+        from .compression.policies import SubsumptionPolicy
+        ops, policy = [], SubsumptionPolicy()
+        for p in reduce_gen.propose_subsumed_rules(kb):
+            res = gate.apply_proposal(kb, p, policy)
+            if isinstance(res, gate.Accepted):
+                ops.append(res.candidate)
+            else:
+                self._rejections.append((p.kind, res.reason))
+        for p in reduce_gen.propose_subsumed_facts(kb):   # after A1 commits
+            res = gate.apply_proposal(kb, p, policy)
+            if isinstance(res, gate.Accepted):
+                ops.append(res.candidate)
+            else:
+                self._rejections.append((p.kind, res.reason))
         return ops
 
     def _prune_redundant_facts(self, kb: KnowledgeBase,
                                max_calls: int = 0) -> List[CompressionCandidate]:
         """Operation B: Remove facts derivable from remaining KB."""
-        ops = []
-        facts = kb.facts
-
-        def _make_ev(k):
-            return PrologEvaluator(k, max_total_calls=max_calls)
-
-        # Phase 1: Find independently redundant facts
-        redundant = []
-        for fact in facts:
-            kb.remove_fact_by_value(fact)
-            ev = _make_ev(kb)
-            try:
-                is_derivable = ev.has_solution(fact.term)
-            except RecursionError:
-                is_derivable = False
-            if is_derivable:
-                redundant.append(fact)
-            kb.add_fact(fact)
-
-        if not redundant:
-            return ops
-
-        # Phase 2: Batch remove
-        for fact in redundant:
-            kb.remove_fact_by_value(fact)
-
-        # Phase 3: Verify all still derivable
-        ev = _make_ev(kb)
-        try:
-            still_ok = all(ev.has_solution(f.term) for f in redundant)
-        except RecursionError:
-            still_ok = False
-
-        if still_ok:
-            for fact in redundant:
-                ops.append(CompressionCandidate(
-                    operation="pruning", original_clauses=[fact]))
-            return ops
-
-        # Phase 4: Fallback to one-at-a-time
-        for fact in redundant:
-            kb.add_fact(fact)
-        for fact in redundant:
-            kb.remove_fact_by_value(fact)
-            ev = _make_ev(kb)
-            try:
-                is_derivable = ev.has_solution(fact.term)
-            except RecursionError:
-                is_derivable = False
-            if is_derivable:
-                ops.append(CompressionCandidate(
-                    operation="pruning", original_clauses=[fact]))
-            else:
-                kb.add_fact(fact)
-
-        return ops
+        from .compression import gate
+        from .compression.generators import reduce as reduce_gen
+        from .compression.policies import DerivabilityPolicy
+        proposals = reduce_gen.propose_redundant_facts(kb, max_calls=max_calls)
+        accepted, rejected = gate.apply_batch_with_fallback(
+            kb, proposals, DerivabilityPolicy(max_calls=max_calls))
+        self._rejections.extend((r.kind, r.reason) for r in rejected)
+        return [a.candidate for a in accepted]
 
     def _generalize_facts(self, kb: KnowledgeBase,
                           suite: Optional['VerificationSuite'] = None
