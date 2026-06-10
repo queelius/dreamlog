@@ -52,13 +52,21 @@ def apply_proposal(kb, p, policy):
     if reason:
         return Rejected(p.kind, reason)
     trial = kb.copy()
-    _apply(trial, p)
+    try:
+        _apply(trial, p)
+    except ValueError:
+        # A clause in p.remove is absent from the KB. Cannot happen with the
+        # P1/P2 generators (one proposal per distinct clause), but overlapping
+        # proposals from a future generator must reject, not crash.
+        return Rejected(p.kind, "policy",
+                        detail="remove-clause absent (overlapping proposals?)")
     try:
         reason = policy.verify(trial, p)
     except RecursionError:
         return Rejected(p.kind, "budget")
     if reason:
-        return Rejected(p.kind, reason)
+        detail = "remove=[" + "; ".join(str(c) for c in p.remove) + "]"
+        return Rejected(p.kind, reason, detail=detail)
     _apply(kb, p)
     return Accepted(_candidate(p))
 
@@ -72,12 +80,18 @@ def apply_batch_with_fallback(kb, proposals, policy):
     if not proposals:
         return accepted, rejected
     trial = kb.copy()
-    for p in proposals:
-        _apply(trial, p)
     try:
-        batch_reason = policy.verify_batch(trial, proposals)
-    except RecursionError:
-        batch_reason = "budget"
+        for p in proposals:
+            _apply(trial, p)
+    except ValueError:
+        # Overlapping removals inside one batch: fall back to per-item, where
+        # apply_proposal handles the absence gracefully.
+        batch_reason = "policy"
+    else:
+        try:
+            batch_reason = policy.verify_batch(trial, proposals)
+        except RecursionError:
+            batch_reason = "budget"
     if batch_reason is None:
         for p in proposals:
             _apply(kb, p)

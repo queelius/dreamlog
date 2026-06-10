@@ -97,3 +97,70 @@ def test_recursionerror_maps_to_budget():
     kb = _kb(_fact("p", "a"))
     res = apply_proposal(kb, Proposal(kind="pruning", remove=(_fact("p", "a"),)), Boom())
     assert isinstance(res, Rejected) and res.reason == "budget"
+
+
+# -- hardening coverage (quality-review gaps) --
+
+class AcceptAllBatch(AcceptAll):
+    def verify_batch(self, trial, props): return None
+
+
+def test_batch_fast_path_commits_all():
+    f_a, f_b = _fact("p", "a"), _fact("p", "b")
+    kb = _kb(f_a, f_b)
+    props = [Proposal(kind="pruning", remove=(f_a,)),
+             Proposal(kind="pruning", remove=(f_b,))]
+    accepted, rejected = apply_batch_with_fallback(kb, props, AcceptAllBatch())
+    assert len(accepted) == 2 and not rejected
+    assert _state(kb)[0] == []
+
+
+def test_batch_empty_list_is_noop():
+    kb = _kb(_fact("p", "a"))
+    before = _state(kb)
+    accepted, rejected = apply_batch_with_fallback(kb, [], AcceptAll())
+    assert accepted == [] and rejected == [] and _state(kb) == before
+
+
+def test_pure_add_proposal_commits():
+    kb = _kb(_fact("q", "c"))
+    rule = Rule(compound("p", atom("X")), [compound("q", atom("X"))])
+    res = apply_proposal(kb, Proposal(kind="llm_compression", add=(rule,)), AcceptAll())
+    assert isinstance(res, Accepted)
+    assert _state(kb)[1] == [str(rule)]
+
+
+def test_pre_check_rejection_path():
+    class PreReject(AcceptAll):
+        def pre_check(self, kb, p): return "policy"
+    kb = _kb(_fact("p", "a"))
+    before = _state(kb)
+    res = apply_proposal(kb, Proposal(kind="pruning", remove=(_fact("p", "a"),)),
+                         PreReject())
+    assert isinstance(res, Rejected) and res.reason == "policy"
+    assert _state(kb) == before
+
+
+def test_recursionerror_in_verify_batch_falls_back():
+    class BoomBatch(AcceptAll):
+        def verify_batch(self, trial, props): raise RecursionError
+    f_a, f_b = _fact("p", "a"), _fact("p", "b")
+    kb = _kb(f_a, f_b)
+    props = [Proposal(kind="pruning", remove=(f_a,)),
+             Proposal(kind="pruning", remove=(f_b,))]
+    accepted, rejected = apply_batch_with_fallback(kb, props, BoomBatch())
+    # batch budget failure -> per-item fallback, where AcceptAll verify passes
+    assert len(accepted) == 2 and not rejected
+
+
+def test_overlapping_removals_reject_not_crash():
+    f_a = _fact("p", "a")
+    kb = _kb(f_a, _fact("p", "b"))
+    dup = [Proposal(kind="pruning", remove=(f_a,)),
+           Proposal(kind="pruning", remove=(f_a,))]   # same clause twice
+    class BatchFails(AcceptAll):
+        def verify_batch(self, trial, props): return "verify_failed"
+    accepted, rejected = apply_batch_with_fallback(kb, dup, BatchFails())
+    assert len(accepted) == 1
+    assert len(rejected) == 1 and rejected[0].reason == "policy"
+    assert "absent" in rejected[0].detail
