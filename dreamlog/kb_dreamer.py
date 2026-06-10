@@ -225,11 +225,11 @@ class KnowledgeBaseDreamer:
         self._rejections: list = []
 
     def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
+        self._rejections = []
         original_size = len(kb)
         if original_size == 0:
             return DreamSession(compressed=False, operations=[],
                                 compression_ratio=1.0, verification=None)
-        self._rejections = []
 
         snapshot = kb.copy()
         # Save wake-phase tracking data before dream operations inflate it

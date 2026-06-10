@@ -171,7 +171,6 @@ def test_dream_session_records_rejections(monkeypatch):
     from dreamlog.compression.policies import SuiteVerifyPolicy
     from dreamlog.kb_dreamer import KnowledgeBaseDreamer
     calls = {"n": 0}
-    real_verify = SuiteVerifyPolicy.verify
     def failing_verify(self, trial_kb, p):
         calls["n"] += 1
         return "verify_failed"

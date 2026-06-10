@@ -17,14 +17,13 @@
 \citation{dumancic2021knowledge}
 \citation{cropper2020forgetting}
 \citation{evans2021making}
-\citation{ellis2021dreamcoder}
-\citation{ellis2023dreamcoder}
 \@writefile{toc}{\contentsline {section}{\numberline {II}Background and Related Work}{2}{section.2}\protected@file@percent }
 \newlabel{sec:related}{{II}{2}{Background and Related Work}{section.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Compression and Induction}{2}{subsection.2.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}MDL-Driven Compression of Logic Programs}{2}{subsection.2.2}\protected@file@percent }
 \newlabel{sec:mdl-logic}{{\mbox  {II-B}}{2}{MDL-Driven Compression of Logic Programs}{subsection.2.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}DreamCoder and Library Learning}{2}{subsection.2.3}\protected@file@percent }
+\citation{ellis2021dreamcoder}
+\citation{ellis2023dreamcoder}
 \citation{bowers2023stitch}
 \citation{grand2024lilo}
 \citation{muggleton1994inductive}
@@ -51,15 +50,16 @@
 \citation{sun2019rotate}
 \citation{pan2023logiclm}
 \citation{olausson2023linc}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}DreamCoder and Library Learning}{3}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-D}}Inductive Logic Programming}{3}{subsection.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-E}}Anti-Unification}{3}{subsection.2.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-F}}Predicate Invention}{3}{subsection.2.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-G}}Neural-Symbolic Integration}{3}{subsection.2.7}\protected@file@percent }
 \citation{wang2024hypothesis}
 \citation{qiu2024phenomenal}
 \citation{zhu2024large}
 \citation{desouza2025inductive}
 \citation{he2025reasoning}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-D}}Inductive Logic Programming}{3}{subsection.2.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-E}}Anti-Unification}{3}{subsection.2.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-F}}Predicate Invention}{3}{subsection.2.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-G}}Neural-Symbolic Integration}{3}{subsection.2.7}\protected@file@percent }
 \citation{mitchell2018never}
 \citation{lloyd1987foundations}
 \citation{clark1978negation}
@@ -67,11 +67,11 @@
 \@writefile{toc}{\contentsline {section}{\numberline {III}System Design}{4}{section.3}\protected@file@percent }
 \newlabel{sec:system}{{III}{4}{System Design}{section.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Wake Phase}{4}{subsection.3.1}\protected@file@percent }
-\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Dream Cycle}}{4}{algorithm.1}\protected@file@percent }
-\newlabel{alg:dream}{{1}{4}{Sleep Phase: The Dream Cycle}{algorithm.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Sleep Phase: The Dream Cycle}{4}{subsection.3.2}\protected@file@percent }
 \newlabel{def:suite}{{1}{4}{Verification Suite}{theorem.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Operation A: Subsumption Elimination}{4}{subsection.3.3}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Dream Cycle}}{5}{algorithm.1}\protected@file@percent }
+\newlabel{alg:dream}{{1}{5}{Sleep Phase: The Dream Cycle}{algorithm.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Operation B: Redundant Fact Pruning}{5}{subsection.3.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-E}}Operation C: Fact Generalization with Exceptions}{5}{subsection.3.5}\protected@file@percent }
 \newlabel{sec:opC}{{\mbox  {III-E}}{5}{Operation C: Fact Generalization with Exceptions}{subsection.3.5}{}}
@@ -80,96 +80,105 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-H}}Operation F: Dead Clause Pruning}{5}{subsection.3.8}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-I}}Operation G: LLM-Assisted Compression}{5}{subsection.3.9}\protected@file@percent }
 \newlabel{sec:opG}{{\mbox  {III-I}}{5}{Operation G: LLM-Assisted Compression}{subsection.3.9}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-J}}Operation H: Lemma Caching}{5}{subsection.3.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-J}}Operation H: Lemma Caching}{6}{subsection.3.10}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-K}}Operation I: Recursive Closure Discovery}{6}{subsection.3.11}\protected@file@percent }
 \newlabel{sec:opI}{{\mbox  {III-K}}{6}{Operation I: Recursive Closure Discovery}{subsection.3.11}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-L}}Behavioral Preservation}{6}{subsection.3.12}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {IV}Experiments}{6}{section.4}\protected@file@percent }
 \newlabel{sec:experiments}{{IV}{6}{Experiments}{section.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Experimental Setup}{6}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}EX25b: Generalization on a Novel Domain}{6}{subsection.4.2}\protected@file@percent }
-\newlabel{sec:ex25b}{{\mbox  {IV-B}}{6}{EX25b: Generalization on a Novel Domain}{subsection.4.2}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-B}1}Motivation}{6}{subsubsection.4.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-B}2}Domain}{6}{subsubsection.4.2.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Generalization on the novel crafting domain (EX25b). 33 checks (19 positive, 14 negative) on unseen entities. LLM conditions: mean $\pm $ std over 5 runs.}}{7}{table.1}\protected@file@percent }
-\newlabel{tab:novel_generalization}{{I}{7}{Generalization on the novel crafting domain (EX25b). 33 checks (19 positive, 14 negative) on unseen entities. LLM conditions: mean $\pm $ std over 5 runs}{table.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Generalization on the novel crafting domain (EX25b). 33 checks (19 positive, 14 negative) on unseen entities. The five LLM-condition runs returned identical results under Haiku~4.5; the committed run artifact records them.}}{7}{table.1}\protected@file@percent }
+\newlabel{tab:novel_generalization}{{I}{7}{Generalization on the novel crafting domain (EX25b). 33 checks (19 positive, 14 negative) on unseen entities. The five LLM-condition runs returned identical results under Haiku~4.5; the committed run artifact records them}{table.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}EX25b: Generalization on a Novel Domain}{7}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:ex25b}{{\mbox  {IV-B}}{7}{EX25b: Generalization on a Novel Domain}{subsection.4.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-B}1}Motivation}{7}{subsubsection.4.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-B}2}Domain}{7}{subsubsection.4.2.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-B}3}Protocol}{7}{subsubsection.4.2.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-B}4}Results}{7}{subsubsection.4.2.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}EX27: Recursive Closure Discovery}{7}{subsection.4.3}\protected@file@percent }
 \newlabel{sec:ex27}{{\mbox  {IV-C}}{7}{EX27: Recursive Closure Discovery}{subsection.4.3}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}1}Motivation}{7}{subsubsection.4.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}2}Domains}{7}{subsubsection.4.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}3}Protocol}{7}{subsubsection.4.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}4}Results}{7}{subsubsection.4.3.4}\protected@file@percent }
-\citation{cropper2021learning}
 \@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Recursive closure discovery (EX27). New-entity protocol, seed 42, 76 checks per domain (38 positive, 38 negative). Symbolic Operation~I alone reaches 100\% recall and 100\% precision on both domains, including the invented one where the raw LLM recovers nothing.}}{8}{table.2}\protected@file@percent }
 \newlabel{tab:recursion}{{II}{8}{Recursive closure discovery (EX27). New-entity protocol, seed 42, 76 checks per domain (38 positive, 38 negative). Symbolic Operation~I alone reaches 100\% recall and 100\% precision on both domains, including the invented one where the raw LLM recovers nothing}{table.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}3}Protocol}{8}{subsubsection.4.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}4}Results}{8}{subsubsection.4.3.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-C}5}Interpretation}{8}{subsubsection.4.3.5}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Generalization on the canonical family tree (EX25). The full pipeline achieves 80\% recall with 100\% precision.}}{8}{table.3}\protected@file@percent }
-\newlabel{tab:family_generalization}{{III}{8}{Generalization on the canonical family tree (EX25). The full pipeline achieves 80\% recall with 100\% precision}{table.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}EX25: Generalization on a Canonical Domain}{8}{subsection.4.4}\protected@file@percent }
-\newlabel{sec:ex25}{{\mbox  {IV-D}}{8}{EX25: Generalization on a Canonical Domain}{subsection.4.4}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-D}1}Domain}{8}{subsubsection.4.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-D}2}Protocol}{8}{subsubsection.4.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-D}3}Results}{8}{subsubsection.4.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-E}}EX26: Popper ILP Baseline}{8}{subsection.4.5}\protected@file@percent }
-\newlabel{sec:ex26}{{\mbox  {IV-E}}{8}{EX26: Popper ILP Baseline}{subsection.4.5}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}1}Motivation}{8}{subsubsection.4.5.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}2}Protocol}{9}{subsubsection.4.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}3}Results}{9}{subsubsection.4.5.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces EX26 Popper baseline. Apples-to-apples comparison on the same EX25 family and EX25b crafting domains, three seeds per cell. DreamLog conditions match EX25/EX25b numbers within rounding; Popper is the new data point.}}{9}{table.4}\protected@file@percent }
-\newlabel{tab:popper_baseline}{{IV}{9}{EX26 Popper baseline. Apples-to-apples comparison on the same EX25 family and EX25b crafting domains, three seeds per cell. DreamLog conditions match EX25/EX25b numbers within rounding; Popper is the new data point}{table.4}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}4}Interpretation}{9}{subsubsection.4.5.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-F}}EX25c: Holdout Sweep and the Open-World Mode}{9}{subsection.4.6}\protected@file@percent }
-\newlabel{sec:ex25c}{{\mbox  {IV-F}}{9}{EX25c: Holdout Sweep and the Open-World Mode}{subsection.4.6}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-F}1}Motivation}{9}{subsubsection.4.6.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-F}2}Closed-World versus Open-World Verification}{9}{subsubsection.4.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}EX28: The Division of Labor Across Model Capability}{8}{subsection.4.4}\protected@file@percent }
+\newlabel{sec:ex28}{{\mbox  {IV-D}}{8}{EX28: The Division of Labor Across Model Capability}{subsection.4.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-D}1}Design}{8}{subsubsection.4.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-D}2}Results}{9}{subsubsection.4.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-D}2a}Symbolic compression is vocabulary-independent; the weak LLM adds nothing.}{9}{paragraph.4.4.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-D}2b}A capable LLM contributes cross-predicate rules by structural induction, not semantic recall.}{9}{paragraph.4.4.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-D}2c}World knowledge is a double edge.}{9}{paragraph.4.4.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-D}3}Interpretation}{9}{subsubsection.4.4.3}\protected@file@percent }
+\citation{cropper2021learning}
+\citation{desouza2025inductive}
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces The division of labor across model capability (EX28). Recovery (recall) by rule type $\times $ vocabulary, for symbolic-only (vocabulary-independent, identical for both models), and for the LLM-only and full conditions under a weak model (\texttt  {qwen2.5:3b}) and a capable model (Sonnet~4.6). Symbolic compression recovers within-predicate and recursive structure on any vocabulary but cannot build cross-predicate rules; the weak LLM adds nothing (full $=$ symbolic); the capable LLM recovers cross-predicate on both vocabularies and makes the full pipeline complete (1.00 on all six cells).}}{10}{table.3}\protected@file@percent }
+\newlabel{tab:ex28}{{III}{10}{The division of labor across model capability (EX28). Recovery (recall) by rule type $\times $ vocabulary, for symbolic-only (vocabulary-independent, identical for both models), and for the LLM-only and full conditions under a weak model (\texttt {qwen2.5:3b}) and a capable model (Sonnet~4.6). Symbolic compression recovers within-predicate and recursive structure on any vocabulary but cannot build cross-predicate rules; the weak LLM adds nothing (full $=$ symbolic); the capable LLM recovers cross-predicate on both vocabularies and makes the full pipeline complete (1.00 on all six cells)}{table.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Generalization on the canonical family tree (EX25). The full pipeline achieves 80\% recall with 100\% precision.}}{10}{table.4}\protected@file@percent }
+\newlabel{tab:family_generalization}{{IV}{10}{Generalization on the canonical family tree (EX25). The full pipeline achieves 80\% recall with 100\% precision}{table.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-E}}EX25: Generalization on a Canonical Domain}{10}{subsection.4.5}\protected@file@percent }
+\newlabel{sec:ex25}{{\mbox  {IV-E}}{10}{EX25: Generalization on a Canonical Domain}{subsection.4.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}1}Domain}{10}{subsubsection.4.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}2}Protocol}{10}{subsubsection.4.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-E}3}Results}{10}{subsubsection.4.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-F}}EX26: Popper ILP Baseline}{10}{subsection.4.6}\protected@file@percent }
+\newlabel{sec:ex26}{{\mbox  {IV-F}}{10}{EX26: Popper ILP Baseline}{subsection.4.6}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-F}1}Motivation}{10}{subsubsection.4.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-F}2}Protocol}{10}{subsubsection.4.6.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces EX26 Popper baseline. Apples-to-apples comparison on the same EX25 family and EX25b crafting domains, three seeds per cell. DreamLog conditions match EX25/EX25b numbers within rounding; Popper is the new data point.}}{11}{table.5}\protected@file@percent }
+\newlabel{tab:popper_baseline}{{V}{11}{EX26 Popper baseline. Apples-to-apples comparison on the same EX25 family and EX25b crafting domains, three seeds per cell. DreamLog conditions match EX25/EX25b numbers within rounding; Popper is the new data point}{table.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-F}3}Results}{11}{subsubsection.4.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-F}4}Interpretation}{11}{subsubsection.4.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-G}}EX25c: Holdout Sweep and the Open-World Mode}{11}{subsection.4.7}\protected@file@percent }
+\newlabel{sec:ex25c}{{\mbox  {IV-G}}{11}{EX25c: Holdout Sweep and the Open-World Mode}{subsection.4.7}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-G}1}Motivation}{11}{subsubsection.4.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-G}2}Closed-World versus Open-World Verification}{11}{subsubsection.4.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-G}3}Protocol}{11}{subsubsection.4.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-G}4}Results}{11}{subsubsection.4.7.4}\protected@file@percent }
 \citation{ellis2021dreamcoder}
-\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Holdout sweep on family tree (EX25c). 3 seeds per ratio. Closed-world recovery is 0\% at every ratio (the FP check rejects rules that derive any held-out fact). Open-world recovery follows a clear curve.}}{10}{table.5}\protected@file@percent }
-\newlabel{tab:holdout_sweep}{{V}{10}{Holdout sweep on family tree (EX25c). 3 seeds per ratio. Closed-world recovery is 0\% at every ratio (the FP check rejects rules that derive any held-out fact). Open-world recovery follows a clear curve}{table.5}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-F}3}Protocol}{10}{subsubsection.4.6.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-F}4}Results}{10}{subsubsection.4.6.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {VI}{\ignorespaces Dream cycle progression in the 25-session research lab (EX24).}}{10}{table.6}\protected@file@percent }
-\newlabel{tab:ex24_timeline}{{VI}{10}{Dream cycle progression in the 25-session research lab (EX24)}{table.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-G}}EX24: Long-Lived Knowledge Accumulation}{10}{subsection.4.7}\protected@file@percent }
-\newlabel{sec:ex24}{{\mbox  {IV-G}}{10}{EX24: Long-Lived Knowledge Accumulation}{subsection.4.7}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-G}1}Motivation}{10}{subsubsection.4.7.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-G}2}Protocol}{10}{subsubsection.4.7.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-G}3}Results}{10}{subsubsection.4.7.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-H}}Ablation Analysis}{10}{subsection.4.8}\protected@file@percent }
-\newlabel{sec:ablation}{{\mbox  {IV-H}}{10}{Ablation Analysis}{subsection.4.8}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {VII}{\ignorespaces Leave-one-out ablation on a 119-clause KB (EX08). Percentages are not additive: each row shows the compression lost when that operation alone is disabled.}}{11}{table.7}\protected@file@percent }
-\newlabel{tab:ablation_ops}{{VII}{11}{Leave-one-out ablation on a 119-clause KB (EX08). Percentages are not additive: each row shows the compression lost when that operation alone is disabled}{table.7}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-I}}Additional Results}{11}{subsection.4.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-I}1}Convergence (EX01)}{11}{subsubsection.4.9.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-I}2}Semantic Drift (EX02)}{11}{subsubsection.4.9.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-I}3}DreamCoder Benchmark (EX03)}{11}{subsubsection.4.9.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-I}4}Scaling (EX09)}{11}{subsubsection.4.9.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-I}5}Noise Tolerance (EX11)}{11}{subsubsection.4.9.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-I}6}Query Speedup (EX10)}{11}{subsubsection.4.9.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {V}Discussion}{11}{section.5}\protected@file@percent }
-\newlabel{sec:discussion}{{V}{11}{Discussion}{section.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}What Symbolic vs. LLM Operations Contribute}{11}{subsection.5.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}The Novel Domain Isolates Compression from LLM Memorization}{11}{subsection.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Limitations}{11}{subsection.5.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}1}Multi-hop rules}{11}{subsubsection.5.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}2}Recursion scope}{11}{subsubsection.5.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}3}Minimum data threshold}{11}{subsubsection.5.3.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {VI}{\ignorespaces Holdout sweep on family tree (EX25c). 3 seeds per ratio. Closed-world recovery is 0\% at every ratio (the FP check rejects rules that derive any held-out fact). Open-world recovery follows a clear curve.}}{12}{table.6}\protected@file@percent }
+\newlabel{tab:holdout_sweep}{{VI}{12}{Holdout sweep on family tree (EX25c). 3 seeds per ratio. Closed-world recovery is 0\% at every ratio (the FP check rejects rules that derive any held-out fact). Open-world recovery follows a clear curve}{table.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-H}}EX24: Long-Lived Knowledge Accumulation}{12}{subsection.4.8}\protected@file@percent }
+\newlabel{sec:ex24}{{\mbox  {IV-H}}{12}{EX24: Long-Lived Knowledge Accumulation}{subsection.4.8}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-H}1}Motivation}{12}{subsubsection.4.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-H}2}Protocol}{12}{subsubsection.4.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-H}3}Results}{12}{subsubsection.4.8.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {VII}{\ignorespaces Dream cycle progression in the 25-session research lab (EX24).}}{12}{table.7}\protected@file@percent }
+\newlabel{tab:ex24_timeline}{{VII}{12}{Dream cycle progression in the 25-session research lab (EX24)}{table.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {VIII}{\ignorespaces Leave-one-out ablation on a 119-clause KB (EX08). Percentages are not additive: each row shows the compression lost when that operation alone is disabled.}}{12}{table.8}\protected@file@percent }
+\newlabel{tab:ablation_ops}{{VIII}{12}{Leave-one-out ablation on a 119-clause KB (EX08). Percentages are not additive: each row shows the compression lost when that operation alone is disabled}{table.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-I}}Ablation Analysis}{12}{subsection.4.9}\protected@file@percent }
+\newlabel{sec:ablation}{{\mbox  {IV-I}}{12}{Ablation Analysis}{subsection.4.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-J}}Additional Results}{13}{subsection.4.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-J}1}Convergence (EX01)}{13}{subsubsection.4.10.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-J}2}Semantic Drift (EX02)}{13}{subsubsection.4.10.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-J}3}DreamCoder Benchmark (EX03)}{13}{subsubsection.4.10.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-J}4}Scaling (EX09)}{13}{subsubsection.4.10.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-J}5}Noise Tolerance (EX11)}{13}{subsubsection.4.10.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-J}6}Query Speedup (EX10)}{13}{subsubsection.4.10.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Discussion}{13}{section.5}\protected@file@percent }
+\newlabel{sec:discussion}{{V}{13}{Discussion}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}What Symbolic vs. LLM Operations Contribute}{13}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}The Novel Domain Isolates Compression from LLM Memorization}{13}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Limitations}{13}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}1}Multi-hop rules}{13}{subsubsection.5.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}2}Recursion scope}{13}{subsubsection.5.3.2}\protected@file@percent }
 \citation{cropper2021learning}
 \citation{muggleton2014meta}
 \citation{olausson2023linc}
 \citation{muggleton1994inductive}
 \citation{mitchell2018never}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}4}Scaling}{12}{subsubsection.5.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}5}LLM dependence for cross-predicate semantic rules}{12}{subsubsection.5.3.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Relation to Inductive Logic Programming}{12}{subsection.5.4}\protected@file@percent }
-\newlabel{sec:ilp_discussion}{{\mbox  {V-D}}{12}{Relation to Inductive Logic Programming}{subsection.5.4}{}}
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0a}Popper~\cite  {cropper2021learning}}{12}{paragraph.5.4.0.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0b}Metagol~\cite  {muggleton2014meta}}{12}{paragraph.5.4.0.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0c}LINC~\cite  {olausson2023linc}}{12}{paragraph.5.4.0.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-E}}Relation to Solomonoff Induction}{12}{subsection.5.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{12}{section.6}\protected@file@percent }
-\newlabel{sec:conclusion}{{VI}{12}{Conclusion}{section.6}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}3}Minimum data threshold}{14}{subsubsection.5.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}4}Scaling}{14}{subsubsection.5.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}5}LLM dependence for cross-predicate rules}{14}{subsubsection.5.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Relation to Inductive Logic Programming}{14}{subsection.5.4}\protected@file@percent }
+\newlabel{sec:ilp_discussion}{{\mbox  {V-D}}{14}{Relation to Inductive Logic Programming}{subsection.5.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0a}Popper~\cite  {cropper2021learning}}{14}{paragraph.5.4.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0b}Metagol~\cite  {muggleton2014meta}}{14}{paragraph.5.4.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0c}LINC~\cite  {olausson2023linc}}{14}{paragraph.5.4.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-E}}Relation to Solomonoff Induction}{14}{subsection.5.5}\protected@file@percent }
 \bibstyle{IEEEtran}
 \bibdata{references}
 \bibcite{solomonoff1964formal}{1}
@@ -191,6 +200,9 @@
 \bibcite{muggleton2014meta}{17}
 \bibcite{law2014ilasp}{18}
 \bibcite{evans2018learning}{19}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{15}{section.6}\protected@file@percent }
+\newlabel{sec:conclusion}{{VI}{15}{Conclusion}{section.6}{}}
+\@writefile{toc}{\contentsline {section}{References}{15}{section*.2}\protected@file@percent }
 \bibcite{rocktaschel2017end}{20}
 \bibcite{olausson2023linc}{21}
 \bibcite{plotkin1970note}{22}
@@ -204,7 +216,6 @@
 \bibcite{yang2017differentiable}{30}
 \bibcite{battaglia2018relational}{31}
 \bibcite{bordes2013translating}{32}
-\@writefile{toc}{\contentsline {section}{References}{13}{section*.2}\protected@file@percent }
 \bibcite{sun2019rotate}{33}
 \bibcite{pan2023logiclm}{34}
 \bibcite{wang2024hypothesis}{35}
@@ -215,4 +226,4 @@
 \bibcite{mitchell2018never}{40}
 \bibcite{lloyd1987foundations}{41}
 \bibcite{clark1978negation}{42}
-\gdef \@abspage@last{14}
+\gdef \@abspage@last{16}

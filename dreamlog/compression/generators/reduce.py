@@ -2,7 +2,12 @@
 Operations A (_eliminate_subsumed) and B (_prune_redundant_facts).
 Detector order is part of the behavioral contract: A1 (rule-vs-rule
 subsumption), then A2 (bodyless-rule-vs-fact), then B (derivability).
-A2 must run against the KB AFTER A1's removals are committed."""
+A2 must run against the KB AFTER A1's removals are committed.
+
+Unlike the other generators (run-form), reduce exposes pure propose_* forms:
+its detection is stateless given a KB snapshot, and B's probe runs on a
+scratch copy so detection is safe to call before any commit (spec 5.4,
+"Two generator forms")."""
 from typing import List
 
 from ...evaluator import PrologEvaluator

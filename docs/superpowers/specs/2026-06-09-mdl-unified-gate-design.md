@@ -102,7 +102,7 @@ Generators MUST NOT mutate the KB. A gate property test enforces it (the KB's fa
 
 ### 5.3 gate.py
 
-- `apply_proposal(kb, proposal, suite, policy) -> Accepted(candidate) | Rejected(reason)`. Mechanics: `policy.pre_check(kb, proposal)` (cheap; includes the delta check where the policy demands it) -> trial = `kb.copy()` -> apply remove/add to trial -> `policy.verify(trial, suite, proposal)` -> on pass, apply to the real KB and return `Accepted(CompressionCandidate(...))`; otherwise `Rejected(reason)` with the real KB untouched.
+- `apply_proposal(kb, proposal, policy) -> Accepted(candidate) | Rejected(reason)` (as-built: the suite lives IN the policy, set at construction, not passed per call). Mechanics: delta check (when the policy demands it) -> `policy.pre_check(kb, proposal)` -> trial = `kb.copy()` -> apply remove/add to trial -> `policy.verify(trial, proposal)` -> on pass, apply to the real KB and return `Accepted(CompressionCandidate(...))`; otherwise `Rejected(reason)` with the real KB untouched.
 - `apply_batch(kb, proposals, suite, policy) -> (accepted, rejected)` with two modes covering today's two batch semantics: `fallback` (try all at once; on failure retry one-at-a-time: B's behavior) and `all_or_nothing_finalize` (accept individually, then verify the combined result; on failure undo all: G Phase 5's behavior).
 - `RecursionError` inside any verify maps to `Rejected("budget")`, matching today's catch-and-skip semantics in G and the closure/redundancy paths.
 - Rejection reasons are an enum: `delta | verify_failed | fp_check | budget | policy`. `DreamSession` gains an ADDITIVE `rejections` list (default empty) recording `(kind, reason, summary)`; no existing consumer changes.
@@ -181,7 +181,7 @@ The order is a single literal in one place, identical to today's verified order.
 | `dreamlog/compression/generators/closure.py` | I detection/construction | from `_discover_recursion` |
 | `dreamlog/compression/generators/llm.py` | G proposal stage | from `_build_op_g_prompt`, `_llm_propose` |
 | `dreamlog/compression/maintenance.py` | F + H + F's suite pruning | from `_prune_dead_clauses`, `_cache_lemmas`, dream() inline |
-| `dreamlog/kb_dreamer.py` | facade, schedule, verification suite, naming | shrinks to ~450 lines |
+| `dreamlog/kb_dreamer.py` | facade, schedule, verification suite, naming | shrank to 555 lines (as-built) |
 | `tests/test_mdl_refactor_regression.py` | AC3 symbolic regression vs committed artifacts | new |
 | `tests/test_compression_gate.py` | AC4 property tests | new |
 
