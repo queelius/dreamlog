@@ -186,6 +186,7 @@ class DreamSession:
     operations: List[CompressionCandidate]
     compression_ratio: float
     verification: Optional[VerificationResult]
+    rejections: List[tuple] = field(default_factory=list)   # (kind, reason) pairs
 
     @property
     def clauses_removed(self) -> int:

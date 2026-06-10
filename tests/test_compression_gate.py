@@ -1,0 +1,99 @@
+from dreamlog.compression.gate import (Accepted, Rejected, apply_proposal,
+                                       apply_batch_with_fallback)
+from dreamlog.compression.proposal import Proposal
+from dreamlog.factories import atom, compound
+from dreamlog.knowledge import Fact, KnowledgeBase, Rule
+
+
+def _fact(name, *args):
+    return Fact(compound(name, *[atom(a) for a in args]))
+
+
+def _kb(*facts):
+    kb = KnowledgeBase()
+    for f in facts:
+        kb.add_fact(f)
+    return kb
+
+
+class AcceptAll:
+    operation = "pruning"
+    require_negative_delta = False
+    def pre_check(self, kb, p): return None
+    def verify(self, trial, p): return None
+
+
+class RejectVerify(AcceptAll):
+    def verify(self, trial, p): return "verify_failed"
+
+
+def _state(kb):
+    return (sorted(str(f) for f in kb.facts), sorted(str(r) for r in kb.rules))
+
+
+def test_accept_commits_and_returns_candidate():
+    f1, f2 = _fact("p", "a"), _fact("p", "b")
+    kb = _kb(f1, f2)
+    p = Proposal(kind="pruning", remove=(f1,))
+    res = apply_proposal(kb, p, AcceptAll())
+    assert isinstance(res, Accepted)
+    assert res.candidate.operation == "pruning"
+    assert res.candidate.original_clauses == [f1]
+    assert _state(kb)[0] == [str(f2)]
+
+
+def test_reject_leaves_kb_structurally_identical():
+    f1, f2 = _fact("p", "a"), _fact("p", "b")
+    kb = _kb(f1, f2)
+    before = _state(kb)
+    res = apply_proposal(kb, Proposal(kind="pruning", remove=(f1,)), RejectVerify())
+    assert isinstance(res, Rejected) and res.reason == "verify_failed"
+    assert _state(kb) == before
+
+
+def test_negative_delta_enforced_when_required():
+    class Strict(AcceptAll):
+        require_negative_delta = True
+    kb = _kb(_fact("p", "a"))
+    add_only = Proposal(kind="pruning",
+                        add=(Rule(compound("q", atom("x")),
+                                  [compound("p", atom("x"))]),))
+    res = apply_proposal(kb, add_only, Strict())
+    assert isinstance(res, Rejected) and res.reason == "delta"
+
+
+def test_mixed_apply_matches_replace_facts_end_state():
+    f1, f2, f3 = _fact("p", "a"), _fact("p", "b"), _fact("q", "c")
+    rule = Rule(compound("p", atom("X")), [compound("q", atom("X"))])
+    kb1 = _kb(f1, f2, f3)
+    kb2 = kb1.copy()
+    res = apply_proposal(kb1, Proposal(kind="generalization",
+                                       remove=(f1, f2), add=(rule,)), AcceptAll())
+    assert isinstance(res, Accepted)
+    kb2.replace_facts([f1, f2], [rule])
+    assert _state(kb1) == _state(kb2)
+
+
+def test_batch_fallback_keeps_independent_items():
+    # f_a removable alone, f_b not; batch fails, fallback keeps f_a removed.
+    class ItemPolicy(AcceptAll):
+        def __init__(self, bad): self.bad = bad
+        def verify(self, trial, p):
+            return "verify_failed" if p.remove and p.remove[0] == self.bad else None
+        def verify_batch(self, trial, props):
+            return "verify_failed"
+    f_a, f_b = _fact("p", "a"), _fact("p", "b")
+    kb = _kb(f_a, f_b)
+    props = [Proposal(kind="pruning", remove=(f_a,)),
+             Proposal(kind="pruning", remove=(f_b,))]
+    accepted, rejected = apply_batch_with_fallback(kb, props, ItemPolicy(bad=f_b))
+    assert len(accepted) == 1 and len(rejected) == 1
+    assert _state(kb)[0] == [str(f_b)]
+
+
+def test_recursionerror_maps_to_budget():
+    class Boom(AcceptAll):
+        def verify(self, trial, p): raise RecursionError
+    kb = _kb(_fact("p", "a"))
+    res = apply_proposal(kb, Proposal(kind="pruning", remove=(_fact("p", "a"),)), Boom())
+    assert isinstance(res, Rejected) and res.reason == "budget"
