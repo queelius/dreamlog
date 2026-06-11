@@ -541,11 +541,6 @@ class KnowledgeBaseDreamer:
             kb, min_query_threshold=min_query_threshold,
             seed_terms=seed_terms, seed_rules=seed_rules)
 
-    def _frequency_score(self, kb: KnowledgeBase,
-                         clauses: List[Union[Fact, Rule]]) -> float:
-        from .compression import maintenance
-        return maintenance.frequency_score(kb, clauses)
-
     # -- Operation H: Lemma caching --
 
     def _cache_lemmas(self, kb: KnowledgeBase,

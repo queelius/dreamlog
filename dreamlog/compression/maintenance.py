@@ -6,7 +6,6 @@ query speed. F largely evicts what H added in earlier cycles. Neither routes
 through the compression gate: F is lossy by design and H increases clause
 count by design.
 """
-import math
 from typing import List, Optional, Set, Union
 
 from ..knowledge import KnowledgeBase, Fact, Rule
@@ -89,13 +88,6 @@ def prune_suite_for_dead(suite, dead_ops) -> None:
                 dead_terms.add(clause.term)
     suite.positive_queries = [
         q for q in suite.positive_queries if q not in dead_terms]
-
-
-def frequency_score(kb: KnowledgeBase,
-                    clauses: List[Union[Fact, Rule]]) -> float:
-    """Compute frequency-weighted score for a set of clauses."""
-    total = sum(kb.get_usage(c) for c in clauses)
-    return 1.0 + math.log2(total + 1)
 
 
 def cache_lemmas(kb: KnowledgeBase,
