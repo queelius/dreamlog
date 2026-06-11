@@ -14,7 +14,7 @@
       "op_summary": {},
       "correctness_passed": 3,
       "correctness_total": 3,
-      "elapsed_ms": 40.67323822528124
+      "elapsed_ms": 23.044888977892697
     },
     {
       "name": "family_with_guards",
@@ -35,7 +35,7 @@
       },
       "correctness_passed": 4,
       "correctness_total": 4,
-      "elapsed_ms": 230.2666949108243
+      "elapsed_ms": 133.68156098295003
     },
     {
       "name": "transitive_closures",
@@ -53,7 +53,7 @@
       },
       "correctness_passed": 5,
       "correctness_total": 5,
-      "elapsed_ms": 102.14309673756361
+      "elapsed_ms": 50.802845013095066
     },
     {
       "name": "body_patterns",
@@ -71,25 +71,25 @@
       },
       "correctness_passed": 5,
       "correctness_total": 5,
-      "elapsed_ms": 78.08696338906884
+      "elapsed_ms": 37.327866011764854
     },
     {
       "name": "dead_clauses",
       "clauses_before": 16,
-      "clauses_after": 7,
+      "clauses_after": 15,
       "facts_before": 13,
-      "facts_after": 5,
+      "facts_after": 11,
       "rules_before": 3,
-      "rules_after": 2,
+      "rules_after": 4,
       "body_goals_before": 4,
-      "body_goals_after": 3,
-      "compression_ratio": 0.4375,
+      "body_goals_after": 6,
+      "compression_ratio": 0.9375,
       "op_summary": {
-        "dead_clause": 9
+        "generalization": 1
       },
       "correctness_passed": 3,
       "correctness_total": 3,
-      "elapsed_ms": 29.358858708292246
+      "elapsed_ms": 20.33187702181749
     },
     {
       "name": "cascading",
@@ -110,7 +110,7 @@
       },
       "correctness_passed": 6,
       "correctness_total": 6,
-      "elapsed_ms": 147.74025604128838
+      "elapsed_ms": 78.56723299482837
     },
     {
       "name": "stress",
@@ -130,7 +130,7 @@
       },
       "correctness_passed": 5,
       "correctness_total": 5,
-      "elapsed_ms": 6857.945744879544
+      "elapsed_ms": 3347.64971898403
     },
     {
       "name": "subsumption_edge",
@@ -148,14 +148,14 @@
       },
       "correctness_passed": 4,
       "correctness_total": 4,
-      "elapsed_ms": 12.295825872570276
+      "elapsed_ms": 7.526194007368758
     }
   ],
   "totals": {
     "clauses_before": 324,
-    "clauses_after": 276,
+    "clauses_after": 284,
     "body_goals_before": 92,
-    "body_goals_after": 74,
+    "body_goals_after": 77,
     "all_correct": true
   }
 }
