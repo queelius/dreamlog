@@ -135,3 +135,73 @@ def test_extraction_sign_flips_with_sharing():
                     add=(e_def, rewritten[0]))
     assert dl.proposal_delta(solo, kb=kb1, mode="bits") > 0, \
         "single-occurrence extraction is pure overhead in bits"
+
+
+def test_gate_uses_policy_dl_mode():
+    from dreamlog.compression.gate import Accepted, Rejected, apply_proposal
+
+    class BitsStrict:
+        operation = "extraction"
+        require_negative_delta = True
+        dl_mode = "bits"
+        recorder = None
+        def pre_check(self, kb, p): return None
+        def verify(self, trial, p): return None
+
+    X = var("X")
+    body = [compound("s", X), compound("t", X), compound("u", X)]
+    r1 = Rule(compound("h1", X), list(body))
+    e_def = Rule(compound("e1", X), list(body))
+    r1x = Rule(compound("h1", X), [compound("e1", X)])
+    kb = _kb(_fact("s", "a"), _fact("t", "a"), _fact("u", "a"), r1)
+    solo = Proposal(kind="extraction", remove=(r1,), add=(e_def, r1x))
+    res = apply_proposal(kb, solo, BitsStrict())
+    assert isinstance(res, Rejected) and res.reason == "delta"
+
+    class ClausesLenient(BitsStrict):
+        dl_mode = "clauses"
+        require_negative_delta = False
+    kb2 = _kb(_fact("s", "a"), _fact("t", "a"), _fact("u", "a"), r1)
+    res2 = apply_proposal(kb2, solo, ClausesLenient())
+    assert isinstance(res2, Accepted)
+
+
+def test_recorder_receives_both_deltas():
+    from dreamlog.compression.gate import apply_proposal
+
+    records = []
+
+    class Recording:
+        operation = "pruning"
+        require_negative_delta = False
+        dl_mode = "clauses"
+        recorder = staticmethod(records.append)
+        def pre_check(self, kb, p): return None
+        def verify(self, trial, p): return None
+
+    kb = _kb(_fact("p", "a"), _fact("p", "b"))
+    p = Proposal(kind="pruning", remove=(_fact("p", "a"),))
+    apply_proposal(kb, p, Recording())
+    assert len(records) == 1
+    rec = records[0]
+    assert rec["kind"] == "pruning"
+    assert rec["decision"] == "accepted"
+    assert rec["delta_clauses"] == -1
+    assert rec["delta_bits"] < 0          # bits computed because recorder set
+
+
+def test_no_recorder_no_bits_cost_in_clauses_mode():
+    # With recorder None and clauses mode, the gate must not require bits
+    # context at all (guard: passing a policy without dl_mode attr works).
+    from dreamlog.compression.gate import Accepted, apply_proposal
+
+    class Bare:
+        operation = "pruning"
+        require_negative_delta = True
+        def pre_check(self, kb, p): return None
+        def verify(self, trial, p): return None
+
+    kb = _kb(_fact("p", "a"), _fact("p", "b"))
+    res = apply_proposal(kb, Proposal(kind="pruning",
+                                      remove=(_fact("p", "a"),)), Bare())
+    assert isinstance(res, Accepted)
