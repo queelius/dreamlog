@@ -8,6 +8,8 @@ from .proposal import Proposal
 class Policy:
     operation = "generic"
     require_negative_delta = False
+    dl_mode = "clauses"      # set per-dream by KnowledgeBaseDreamer
+    recorder = None          # optional decision recorder (see gate._record)
 
     def pre_check(self, kb: KnowledgeBase, p: Proposal) -> Optional[str]:
         return None
@@ -78,10 +80,14 @@ class SuiteVerifyPolicy(Policy):
 
 class ExtractionPolicy(SuiteVerifyPolicy):
     """Operation E: body-pattern extraction has delta = +1 BY DESIGN in
-    clause-count terms (one extracted rule added, occurrences rewritten 1:1).
-    Its value exists only under a symbol-cost description length (P3), so the
-    strict-delta requirement is exempted here. See spec section 5.4."""
-    require_negative_delta = False
+    clause-count terms (one extracted rule added, occurrences rewritten 1:1),
+    so the strict-delta requirement is exempted in clauses mode. In bits mode
+    the exemption ENDS: extraction must earn its definition overhead from the
+    shared structure it removes (spec 2026-06-10 Section 4)."""
+
+    @property
+    def require_negative_delta(self):
+        return self.dl_mode == "bits"
 
 
 class BoundedSuitePolicy(SuiteVerifyPolicy):

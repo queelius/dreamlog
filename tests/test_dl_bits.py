@@ -205,3 +205,31 @@ def test_no_recorder_no_bits_cost_in_clauses_mode():
     res = apply_proposal(kb, Proposal(kind="pruning",
                                       remove=(_fact("p", "a"),)), Bare())
     assert isinstance(res, Accepted)
+
+
+def test_extraction_policy_exemption_is_mode_conditional():
+    from dreamlog.compression.policies import ExtractionPolicy
+    pol = ExtractionPolicy(None, "extraction")
+    assert pol.require_negative_delta is False          # clauses default
+    pol.dl_mode = "bits"
+    assert pol.require_negative_delta is True
+
+
+def test_dreamer_threads_mode_and_recorder_to_policies():
+    from dreamlog.kb_dreamer import KnowledgeBaseDreamer
+    records = []
+    d = KnowledgeBaseDreamer(dl_mode="bits", decision_recorder=records.append)
+    kb = _kb(_fact("artisan", "a"), _fact("artisan", "b"),
+             _fact("artisan", "c"), _fact("artisan", "d"),
+             _fact("artisan", "e"),
+             _fact("master", "a"), _fact("master", "b"),
+             _fact("master", "c"), _fact("master", "d"))
+    d.dream(kb)
+    assert records, "recorder never invoked during a dream"
+    assert all("delta_bits" in r for r in records)
+
+
+def test_default_dreamer_has_no_recorder_overhead():
+    from dreamlog.kb_dreamer import KnowledgeBaseDreamer
+    d = KnowledgeBaseDreamer()
+    assert d.dl_mode == "clauses" and d.decision_recorder is None

@@ -204,7 +204,9 @@ class KnowledgeBaseDreamer:
                  open_world: bool = False,
                  discover_recursion: bool = False,
                  min_base_facts: int = 3,
-                 disable_op_c: bool = False):
+                 disable_op_c: bool = False,
+                 dl_mode: str = "clauses",
+                 decision_recorder=None):
         self.min_group_size = min_group_size
         self.shared_structure_threshold = shared_structure_threshold
         self.llm_client = llm_client
@@ -222,6 +224,12 @@ class KnowledgeBaseDreamer:
         # Skip Operation C (fact generalization). Off by default; used by the
         # EX28 within-predicate LLM-only ablation condition.
         self.disable_op_c = disable_op_c
+        # P3: description-length mode ("clauses" = P1 behavior, default;
+        # "bits" = the prefix code in compression/dl.py) and an optional
+        # decision recorder for the dl_decision_diff tool. Both default to
+        # no-ops: zero drift.
+        self.dl_mode = dl_mode
+        self.decision_recorder = decision_recorder
         self._rejections: list = []
 
     def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
@@ -308,12 +316,17 @@ class KnowledgeBaseDreamer:
             verification=result,
             rejections=list(self._rejections))
 
+    def _configure_policy(self, policy):
+        policy.dl_mode = self.dl_mode
+        policy.recorder = self.decision_recorder
+        return policy
+
     def _eliminate_subsumed(self, kb: KnowledgeBase) -> List[CompressionCandidate]:
         """Operation A: Remove clauses subsumed by more general clauses."""
         from .compression import gate
         from .compression.generators import reduce as reduce_gen
         from .compression.policies import SubsumptionPolicy
-        ops, policy = [], SubsumptionPolicy()
+        ops, policy = [], self._configure_policy(SubsumptionPolicy())
         for p in reduce_gen.propose_subsumed_rules(kb):
             res = gate.apply_proposal(kb, p, policy)
             if isinstance(res, gate.Accepted):
@@ -336,7 +349,7 @@ class KnowledgeBaseDreamer:
         from .compression.policies import DerivabilityPolicy
         proposals = reduce_gen.propose_redundant_facts(kb, max_calls=max_calls)
         accepted, rejected = gate.apply_batch_with_fallback(
-            kb, proposals, DerivabilityPolicy(max_calls=max_calls))
+            kb, proposals, self._configure_policy(DerivabilityPolicy(max_calls=max_calls)))
         self._rejections.extend((r.kind, r.reason) for r in rejected)
         return [a.candidate for a in accepted]
 
@@ -348,7 +361,7 @@ class KnowledgeBaseDreamer:
         from .compression.generators import generalize
         from .compression.policies import SuiteVerifyPolicy
         return generalize.run(kb, suite, gate.apply_proposal,
-                              SuiteVerifyPolicy(suite, "generalization"),
+                              self._configure_policy(SuiteVerifyPolicy(suite, "generalization")),
                               self.min_group_size, self._rejections)
 
     def _invent_predicates(self, kb: KnowledgeBase,
@@ -359,7 +372,7 @@ class KnowledgeBaseDreamer:
         from .compression.generators import factor
         from .compression.policies import SuiteVerifyPolicy
         return factor.run_invention(kb, suite, gate.apply_proposal,
-                                    SuiteVerifyPolicy(suite, "invention"),
+                                    self._configure_policy(SuiteVerifyPolicy(suite, "invention")),
                                     self._rejections)
 
     def _extract_body_patterns(self, kb: KnowledgeBase,
@@ -371,7 +384,7 @@ class KnowledgeBaseDreamer:
         from .compression.generators import factor
         from .compression.policies import ExtractionPolicy
         return factor.run_extraction(kb, suite, gate.apply_proposal,
-                                     ExtractionPolicy(suite, "extraction"),
+                                     self._configure_policy(ExtractionPolicy(suite, "extraction")),
                                      self._rejections, max_rounds=max_rounds)
 
     def _discover_recursion(self, kb: KnowledgeBase,
@@ -383,7 +396,7 @@ class KnowledgeBaseDreamer:
         from .compression.generators import closure
         from .compression.policies import BoundedSuitePolicy
         return closure.run(kb, suite, gate.apply_proposal,
-                           BoundedSuitePolicy(suite, "recursion", max_calls),
+                           self._configure_policy(BoundedSuitePolicy(suite, "recursion", max_calls)),
                            self.min_base_facts, self._rejections)
 
     # ── LLM-assisted naming ──
@@ -523,7 +536,7 @@ class KnowledgeBaseDreamer:
                    for r in helper_rules]
         items = [Proposal(kind="llm_compression", add=(r,))
                  for r in main_rules]
-        policy = LlmPolicy(suite, max_calls, self.open_world, kb)
+        policy = self._configure_policy(LlmPolicy(suite, max_calls, self.open_world, kb))
         accepted, rejected = gate.apply_batch_staged_combined(
             kb, context, items, policy)
         self._rejections.extend((r.kind, r.reason) for r in rejected)
