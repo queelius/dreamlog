@@ -119,6 +119,7 @@ class LlmPolicy(Policy):
         self.suite = suite
         self.max_calls = max_calls
         self.open_world = open_world
+        self._kb = kb                     # full KB context for bits-mode pricing
         self._kb_facts = list(kb.facts)   # snapshot, matches today's `for fact in kb.facts` against test_kb
 
     def verify(self, trial_kb, p):
@@ -144,8 +145,35 @@ class LlmPolicy(Policy):
             except RecursionError:
                 return "budget"
 
-            if len(derivable_facts) < 2:
-                return "policy"
+            if self.dl_mode == "bits":
+                # Priced criterion (spec Section 4): the rule + its
+                # corrections must cost fewer bits than the facts it makes
+                # removable by the post-llm reduce pass. Replaces the
+                # ">= 2 derivable facts" proxy. The closed-world FP check
+                # below is unchanged (an over-derivation rejects outright,
+                # an infinite price); in OPEN world the same enumeration
+                # runs in collecting mode and the over-derivations are
+                # priced as corrections.
+                from . import dl as _dl
+                from .proposal import Proposal as _P
+                savings = sum(
+                    _dl.clause_cost(f, kb=self._kb, mode="bits")
+                    for f in derivable_facts)
+                rule_delta = _dl.proposal_delta(
+                    _P(kind="llm_compression", add=(rule,)),
+                    kb=self._kb, mode="bits")
+                corrections = 0.0
+                if self.open_world:
+                    over = self._enumerate_over_derivations(trial_kb, rule)
+                    if over is None:
+                        return "budget"
+                    corrections = _dl.correction_cost(
+                        rule.head.functor, len(over), self._kb)
+                if rule_delta + corrections >= savings:
+                    return "delta"
+            else:
+                if len(derivable_facts) < 2:
+                    return "policy"
 
             # Verify: adding rule must not break anything
             if self.suite is not None:
@@ -163,30 +191,42 @@ class LlmPolicy(Policy):
             # head pattern and reject if any is a novel (spurious) fact.
             #
             # Skipped in open-world mode (e.g., during holdout evaluation)
-            # where the goal is precisely to recover absent facts.
+            # where the goal is precisely to recover absent facts. (Open-world
+            # bits mode prices each over-derivation above instead.)
             if not self.open_world:
-                existing_terms = {f.term for f in self._kb_facts
-                                  if isinstance(f.term, Compound)
-                                  and f.term.functor == rule.head.functor}
-                ev_fp = self._PrologEvaluator(trial_kb,
-                                              max_total_calls=self.max_calls)
-                head_query = rule.head  # has variables
-                has_false_positive = False
-                try:
-                    for sol in ev_fp.query([head_query]):
-                        ground = head_query.substitute(sol.bindings)
-                        if (not ground.get_variables()
-                                and ground not in existing_terms):
-                            has_false_positive = True
-                            break
-                except RecursionError:
-                    has_false_positive = True
-                if has_false_positive:
+                over = self._enumerate_over_derivations(trial_kb, rule)
+                # None == RecursionError during enumeration (today set
+                # has_false_positive=True); a non-empty list == at least one
+                # spurious ground term (today broke at the first one). Both
+                # reject identically.
+                if over is None or over:
                     return "fp_check"
 
             return None
         except Exception:
             return "policy"
+
+    def _enumerate_over_derivations(self, trial_kb, rule):
+        """Ground head solutions not among the snapshot's facts for this
+        functor. Returns the list, or None on RecursionError (budget).
+        Lifted from the Phase-4 FP block; the closed-world path keeps its
+        original semantics by rejecting when this list is non-empty."""
+        from ..terms import Compound
+        existing_terms = {f.term for f in self._kb_facts
+                          if isinstance(f.term, Compound)
+                          and f.term.functor == rule.head.functor}
+        ev_fp = self._PrologEvaluator(trial_kb,
+                                      max_total_calls=self.max_calls)
+        over = []
+        try:
+            for sol in ev_fp.query([rule.head]):
+                ground = rule.head.substitute(sol.bindings)
+                if (not ground.get_variables()
+                        and ground not in existing_terms):
+                    over.append(ground)
+        except RecursionError:
+            return None
+        return over
 
     def verify_combined(self, trial_kb):
         """Phase 5 combined verify. suite=None means no combined check ran

@@ -233,3 +233,112 @@ def test_default_dreamer_has_no_recorder_overhead():
     from dreamlog.kb_dreamer import KnowledgeBaseDreamer
     d = KnowledgeBaseDreamer()
     assert d.dl_mode == "clauses" and d.decision_recorder is None
+
+
+# ---------------------------------------------------------------------------
+# Task 4: correction_cost helper + G's priced acceptance criterion (bits mode)
+# ---------------------------------------------------------------------------
+
+def test_correction_cost_hand_arithmetic():
+    # kb: (p a),(p b). Before: F={(p,1)} C={a,b}.
+    # correction_cost("p", 1, kb):
+    #   exc = "exception_p" (len 11) -> name_charge = 8*11 + 8 = 96
+    #   AFTER tables add (exception_p,1) and (not,1) to F:
+    #     |F| = 3 (p, exception_p, not); |C| = 2 (a, b)
+    #   body_literal = (2 + log2 3)*2 + (2 + log2 1) = (2 + log2 3)*2 + 2
+    #   per_fact     = 4 + (2 + log2 3) + (2 + log2 2) = 9 + log2 3
+    #   total = 96 + body_literal + 1 * per_fact
+    kb = _kb(_fact("p", "a"), _fact("p", "b"))
+    name_charge = 8 * len("exception_p") + 8        # 96
+    body_literal = (2 + math.log2(3)) * 2 + (2 + math.log2(1))
+    per_fact = 4 + (2 + math.log2(3)) + (2 + math.log2(2))
+    want = name_charge + body_literal + 1 * per_fact
+    # numeric pin: 96 + 9.169925 + 10.5849625 = 115.7548875
+    assert want == pytest.approx(115.7548875)
+    assert dl.correction_cost("p", 1, kb) == pytest.approx(want)
+    # zero corrections -> free
+    assert dl.correction_cost("p", 0, kb) == 0.0
+    assert dl.correction_cost("p", -3, kb) == 0.0
+
+
+def _g_dream(kb, response_rules, dl_mode, open_world):
+    import json
+    from dreamlog.kb_dreamer import KnowledgeBaseDreamer
+    from tests.mock_provider import MockLLMProvider
+    mock = MockLLMProvider(responses=[json.dumps(response_rules)] * 3)
+    d = KnowledgeBaseDreamer(llm_client=mock, dl_mode=dl_mode,
+                             open_world=open_world)
+    return d.dream(kb), kb
+
+
+def test_g_bits_accepts_rule_that_pays():
+    # father facts fully explained by parent+male: savings large, no
+    # over-derivations -> accepted in bits mode (closed world).
+    resp = [["rule", ["father", "X", "Y"],
+             [["parent", "X", "Y"], ["male", "X"]]]]
+    kb = _kb(_fact("parent", "tom", "ann"), _fact("parent", "tom", "ben"),
+             _fact("parent", "jim", "cat"), _fact("parent", "jim", "dan"),
+             _fact("male", "tom"), _fact("male", "jim"),
+             _fact("father", "tom", "ann"), _fact("father", "tom", "ben"),
+             _fact("father", "jim", "cat"), _fact("father", "jim", "dan"))
+    session, kb_out = _g_dream(kb, resp, dl_mode="bits", open_world=False)
+    assert any(r.head.functor == "father" and len(r.body) == 2
+               for r in kb_out.rules)
+
+
+def test_g_bits_rejects_rule_that_cannot_pay():
+    # Only ONE father fact derivable: savings is a single fact's bits,
+    # far below the rule's cost -> rejected with reason "delta".
+    resp = [["rule", ["father", "X", "Y"],
+             [["parent", "X", "Y"], ["male", "X"]]]]
+    kb = _kb(_fact("parent", "tom", "ann"), _fact("male", "tom"),
+             _fact("father", "tom", "ann"))
+    session, kb_out = _g_dream(kb, resp, dl_mode="bits", open_world=False)
+    assert not any(r.head.functor == "father" for r in kb_out.rules)
+    assert any(k == "llm_compression" and reason == "delta"
+               for (k, reason) in session.rejections)
+
+
+def test_g_clauses_mode_unchanged_by_task4():
+    # Same one-fact KB under clauses mode: today's >= 2 rule also rejects,
+    # but with reason "policy" (the proxy), proving the modes diverge only
+    # where intended.
+    resp = [["rule", ["father", "X", "Y"],
+             [["parent", "X", "Y"], ["male", "X"]]]]
+    kb = _kb(_fact("parent", "tom", "ann"), _fact("male", "tom"),
+             _fact("father", "tom", "ann"))
+    session, kb_out = _g_dream(kb, resp, dl_mode="clauses", open_world=False)
+    assert not any(r.head.functor == "father" for r in kb_out.rules)
+    assert any(k == "llm_compression" and reason == "policy"
+               for (k, reason) in session.rejections)
+
+
+def test_g_open_world_bits_prices_over_derivations():
+    # Open world: the rule derives father(tom,ann) [in KB] AND over-derives
+    # father(tom,ben) [absent]. The FP reject is disabled in open world;
+    # instead the single over-derivation is priced as a correction. The
+    # rule is accepted iff rule_delta + corrections < savings. With only one
+    # derivable father fact, savings is tiny and the hand inequality fails,
+    # so the rule is rejected with reason "delta".
+    resp = [["rule", ["father", "X", "Y"],
+             [["parent", "X", "Y"], ["male", "X"]]]]
+    kb = _kb(_fact("parent", "tom", "ann"), _fact("parent", "tom", "ben"),
+             _fact("male", "tom"),
+             _fact("father", "tom", "ann"))
+
+    # Hand inequality, computed against the construction-time snapshot kb.
+    from dreamlog.compression.proposal import Proposal as _P
+    rule = Rule(compound("father", var("X"), var("Y")),
+                [compound("parent", var("X"), var("Y")),
+                 compound("male", var("X"))])
+    derivable = [_fact("father", "tom", "ann")]
+    savings = sum(dl.clause_cost(f, kb=kb, mode="bits") for f in derivable)
+    rule_delta = dl.proposal_delta(
+        _P(kind="llm_compression", add=(rule,)), kb=kb, mode="bits")
+    corrections = dl.correction_cost("father", 1, kb)   # one over-derivation
+    assert rule_delta + corrections >= savings          # cannot pay
+
+    session, kb_out = _g_dream(kb, resp, dl_mode="bits", open_world=True)
+    assert not any(r.head.functor == "father" for r in kb_out.rules)
+    assert any(k == "llm_compression" and reason == "delta"
+               for (k, reason) in session.rejections)

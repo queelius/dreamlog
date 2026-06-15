@@ -157,3 +157,26 @@ def proposal_delta(p: Proposal, kb: Optional[KnowledgeBase] = None,
         after.remove(r)          # first equal occurrence; ValueError if absent
     after.extend(p.add)
     return _dl_bits(after) - _dl_bits(before)
+
+
+def correction_cost(head_functor: str, n_corrections: int,
+                    kb: KnowledgeBase) -> float:
+    """Bits to exclude n over-derivations from a rule via a fresh exception
+    predicate: dictionary charge for the exception functor's name, one
+    not/1 + exception goal added to the rule body, and one exception fact
+    per over-derivation (spec Section 4). Priced with the AFTER tables
+    (exception functor and `not` added to F)."""
+    if n_corrections <= 0:
+        return 0.0
+    exc = "exception_" + head_functor
+    tables = _SymbolTables.from_clauses(_kb_clauses(kb))
+    tables.functors[(exc, 1)] += 1
+    tables.functors[("not", 1)] += 1
+    n_f = max(1, len(tables.functors))
+    n_c = max(1, len(tables.constants))
+    name_charge = 8 * len(exc) + 8
+    # the added body literal not(exc(X)): two functor occurrences + one var
+    body_literal = (2 + math.log2(n_f)) * 2 + (2 + math.log2(max(1, 1)))
+    # each exception fact: 4 + functor occurrence + one constant occurrence
+    per_fact = 4 + (2 + math.log2(n_f)) + (2 + math.log2(n_c))
+    return name_charge + body_literal + n_corrections * per_fact
