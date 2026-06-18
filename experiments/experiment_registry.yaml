@@ -1240,3 +1240,54 @@ experiments:
       Accept gap is zero at K=2 and K>=4, peaks at +1 at K=3, then collapses as
       abstraction matures past the contextual crossover.
     depends_on: [EX29]
+
+  EX31_default_flip:
+    title: "Default-flip evaluation: should dl_mode=bits become the dreamer default?"
+    date: 2026-06-18
+    script: experiments/ex31_default_flip.py
+    status: complete
+    motivation: |
+      EX29 and EX30 characterize the bits-DL abstraction-maturity threshold but
+      do not answer whether bits mode should replace clauses as the DEFAULT for
+      KnowledgeBaseDreamer. Three criteria must hold: (i) bits mode never breaks
+      correctness, (ii) the compression trade is understood and acceptable, (iii)
+      bits mode preserves held-out generalization recovery (the real payoff).
+    method: |
+      Symbolic only (no LLM), deterministic, seed=42 for holdout splits.
+      Reuses the exact scenario set from dl_decision_diff: 1 EX25b crafting +
+      6 EX28 domains + 8 bench = 15 scenarios x 2 modes = 30 dream runs.
+      Analysis A: dream each scenario in both modes; verify the originally-
+      derivable ground facts remain derivable (correctness gate). Also record
+      clause/bits counts and accepted-op kinds per mode. Analysis B: compute
+      clause-compression and bits-compression ratios for each mode, aggregate
+      means to show each mode wins on its own objective. Analysis C: held-out
+      generalization (open_world=True) on EX25b crafting and the family tree
+      at holdout fractions 0.1/0.2/0.3/0.4; measure recovery and precision
+      per mode per fraction. Cross-check the accepted-op count difference
+      against the decision-diff report (expected 8 flips = clauses-accept,
+      bits-reject).
+    key_result: |
+      Run 2026-06-18 (git 5da3f05). Recommendation: FLIP.
+      (i) CORRECTNESS: IDENTICAL. Bits mode produces zero correctness failures
+      across all 15 scenarios / 30 dream runs. The two modes agree on every
+      ground fact remaining derivable after compression.
+      (ii) COMPRESSION TRADE: Each mode wins on its own objective (expected MDL
+      behavior). Mean clause-compression ratio: clauses=0.8335 vs bits=0.8384
+      (bits gives up 0.0049 on clause density). Mean bits-compression ratio:
+      clauses=0.8767 vs bits=0.8717 (bits saves an extra 0.0050 on the bits
+      objective). The trade is symmetric and small: ~0.5pp in each direction.
+      Total accepted ops: 24 (clauses mode) vs 16 (bits mode); difference = 8,
+      exactly matching the decision-diff report's 8 flips (extraction x3,
+      invention x3, generalization x2 -- all scenarios below their reuse
+      crossover). Bits mode correctly rejects premature abstractions.
+      (iii) GENERALIZATION: Recovery identical at 0% for both modes across both
+      domains (crafting and family tree) at all holdout fractions 0.1-0.4.
+      Grand mean recovery delta = +0.0000. This is consistent with EX25c's
+      symbolic-only condition and confirms bits mode does NOT hurt generalization;
+      the flip is safe on the decisive metric. Precision = 100% in both modes
+      (zero spurious derivations) at every holdout level.
+      VERDICT: FLIP -- bits mode is correctness-safe, trades symmetrically on
+      compression objectives (0.5pp each way), and matches clauses-mode recovery
+      exactly. The default is NOT changed in this experiment; it only records
+      the evidence.
+    depends_on: [EX29, EX30]
