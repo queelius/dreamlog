@@ -10,12 +10,14 @@ Three finer-grained analyses extending EX29's abstraction-maturity finding:
    fix M=4, sweep chain length C. At each point run both dl_modes with
    a decision_recorder and capture the first "invention"-kind proposal.
 
-3. REALISTIC SCALED-KB SWEEP (dreamer): a family KB growing with N
-   parent facts (grandparent + great-grandparent rules as Op-E target,
-   ancestor closure as Op-I target). Sweep N in {4,6,8,12,16,24,32}.
-   Run a full dream in both modes (bits and clauses, discover_recursion=True),
-   record per-kind accept counts, report the accept gap (clauses - bits)
-   as a function of N.
+3. REALISTIC SCALED-KB SWEEP (dreamer): a mixed KB with K rules sharing
+   a 2-goal body (Op E extraction target) PLUS a transitive closure relation
+   (Op I recursion target). Sweep K in {2,3,4,5,6,7,8,12}. Run a full dream
+   in both modes (bits and clauses, discover_recursion=True), record per-kind
+   accept counts, report the accept gap (clauses - bits) as a function of K.
+   Key finding: clause-count always rejects extraction (delta=+1 always) while
+   bits mode accepts it past the contextual crossover K*~4; the gap (clauses-
+   bits) peaks at +1 at K=3 then collapses to 0 as abstraction matures.
 
 No LLM is used anywhere. Deterministic, symbolic only.
 
@@ -31,7 +33,7 @@ from _harness import experiment_run  # noqa: E402
 from dreamlog.compression import dl
 from dreamlog.compression.proposal import Proposal
 from dreamlog.factories import atom, compound, var
-from dreamlog.knowledge import Fact, KnowledgeBase, Rule
+from dreamlog.knowledge import KnowledgeBase, Rule
 from dreamlog.kb_dreamer import KnowledgeBaseDreamer
 
 
