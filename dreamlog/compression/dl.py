@@ -7,16 +7,28 @@ Two modes behind stable signatures:
   payload costs are log2 of the KB's symbol-table sizes and dictionary
   membership decides the one-time signature charge.
 
+RENAME INVARIANCE (P3b, spec recalibration): the dictionary cost charges per
+unique symbol by ARITY only, never by name spelling. The decision-diff under
+the original 8*len(name)+8 charge showed it was rename-variant: a verbose
+auto-generated name like exception_likes_chocolate_person cost 272 bits and
+swamped the structural savings, so abstraction never paid. What an MDL code
+should count is how many distinct symbols and clauses exist, not how their
+labels are spelled. The fix: a symbol of arity a costs the Elias gamma code of
+(a+1) bits to declare (the minimal info a two-part code needs: its arity; its
+index is implicit by first-occurrence order). This is parameter-free and
+invariant under any consistent renaming.
+
 Formulas (pinned; do not simplify):
-  L(D)        = sum over entries of (8*len(name) + 8)   [F keyed by (name, arity)]
+  decl(symbol) = elias_gamma_len(arity + 1)   [arity 0 -> 1b, 1,2 -> 3b, 3,4 -> 5b]
+  L(D)        = sum over entries of decl(symbol)   [F keyed by (name, arity)]
   L(clause|D) = 4 + sum over occurrences of (2 + payload)
     functor: log2(max(1,|F|)); constant: log2(max(1,|C|));
     variable: log2(max(1,|V_clause|))
   DL(kb)      = L(D) + sum clause costs
   delta(p)    = DL(kb after p) - DL(kb before p), computed exactly: changing
   a table size re-prices every occurrence in the KB (log2(n+1) vs log2(n)),
-  and adding/removing a symbol's last occurrence moves its name in/out of
-  the dictionary.
+  and adding/removing a symbol's last occurrence moves its declaration in/out
+  of the dictionary.
 """
 import math
 from collections import Counter
@@ -34,6 +46,19 @@ def _clause_count_cost(clause: Clause) -> int:
 
 
 # -- bits mode --
+
+def _elias_gamma_len(n: int) -> int:
+    """Bit length of the Elias gamma code for an integer n >= 1."""
+    return 2 * int(math.floor(math.log2(n))) + 1
+
+
+def _symbol_decl_bits(arity: int) -> int:
+    """Rename-invariant declaration cost of one dictionary symbol: the Elias
+    gamma length of (arity + 1). Depends ONLY on arity, never on the symbol's
+    spelling, so the description length is invariant under renaming (P3b).
+    arity 0 (constants) -> 1 bit; arity 1, 2 -> 3 bits; arity 3, 4 -> 5 bits."""
+    return _elias_gamma_len(arity + 1)
+
 
 def _walk(term) -> Iterable[Tuple[str, object]]:
     """Yield ('f', (name, arity)) / ('c', value) / ('v', name) occurrences."""
@@ -92,10 +117,10 @@ class _SymbolTables:
 
     def dictionary_cost(self) -> float:
         cost = 0.0
-        for (name, _arity) in self.functors:
-            cost += 8 * len(str(name)) + 8
-        for value in self.constants:
-            cost += 8 * len(str(value)) + 8
+        for (_name, arity) in self.functors:
+            cost += _symbol_decl_bits(arity)
+        for _value in self.constants:
+            cost += _symbol_decl_bits(0)   # constants are arity-0 leaves
         return cost
 
     def clause_cost(self, clause: Clause) -> float:
@@ -162,10 +187,10 @@ def proposal_delta(p: Proposal, kb: Optional[KnowledgeBase] = None,
 def correction_cost(head_functor: str, n_corrections: int,
                     kb: KnowledgeBase) -> float:
     """Bits to exclude n over-derivations from a rule via a fresh exception
-    predicate: dictionary charge for the exception functor's name, one
-    not/1 + exception goal added to the rule body, and one exception fact
-    per over-derivation (spec Section 4). Priced with the AFTER tables
-    (exception functor and `not` added to F)."""
+    predicate: the rename-invariant declaration charge for the exception
+    functor (arity 1), one not/1 + exception goal added to the rule body, and
+    one exception fact per over-derivation (spec Section 4). Priced with the
+    AFTER tables (exception functor and `not` added to F)."""
     if n_corrections <= 0:
         return 0.0
     exc = "exception_" + head_functor
@@ -174,7 +199,7 @@ def correction_cost(head_functor: str, n_corrections: int,
     tables.functors[("not", 1)] += 1
     n_f = max(1, len(tables.functors))
     n_c = max(1, len(tables.constants))
-    name_charge = 8 * len(exc) + 8
+    name_charge = _symbol_decl_bits(1)   # fresh exception functor, arity 1
     # the added body literal not(exc(X)): two functor occurrences + one var
     body_literal = (2 + math.log2(n_f)) * 2 + (2 + math.log2(max(1, 1)))
     # each exception fact: 4 + functor occurrence + one constant occurrence
