@@ -1,0 +1,79 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Rigorous three-part evaluation of bits vs clauses DL mode: (A) correctness preservation on 15 scenarios, (B) the compression trade each mode makes, (C) held-out generalization recovery+precision in the crafting domain. No LLM; fully deterministic; single seed for holdout splits.",
+    "id": "ex31",
+    "name": "Default-flip evaluation: should dl_mode=bits become the dreamer default?",
+    "script": {
+      "path": "experiments/ex31_default_flip.py",
+      "sha256": "4213650c9691012eb1ae8a4595cfdf5897442f44e219f1205642c1e5f3b33309"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "18e0eb9d433f0da930daabf234a12ee499b1e529",
+    "commit_short": "18e0eb9",
+    "describe": "v0.13.0-37-g18e0eb9-dirty",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 23140,
+      "sha256": "c89952d81eff3ee59f2a3dd6692b0a8e1e6d3f1c170bf21ba8ffad2836b2c7ca"
+    },
+    "summary.txt": {
+      "bytes": 1989,
+      "sha256": "fafa0550eb713e2d841fd9bd43084b4da8aa912e644beb75ac0046a87b22c99e"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "analysis_a": "correctness + clause/bits counts on ALL 15 scenarios",
+    "analysis_b": "compression ratios (clause + bits) per mode per scenario",
+    "analysis_c_domain": "EX25b crafting (invented materials)",
+    "analysis_c_holdout_fractions": [
+      0.1,
+      0.2,
+      0.3,
+      0.4
+    ],
+    "analysis_c_open_world": true,
+    "llm": false,
+    "modes": [
+      "clauses",
+      "bits"
+    ],
+    "scenarios": "ex25b_crafting + 6 ex28 domains + 8 bench (15 total)"
+  },
+  "run": {
+    "duration_s": 9.8634,
+    "finished_utc": "2026-06-18T12:43:07.301396+00:00",
+    "run_id": "20260618T124257Z-18e0eb9",
+    "started_utc": "2026-06-18T12:42:57.438022+00:00"
+  },
+  "seeds": {
+    "holdout": 42
+  }
+}

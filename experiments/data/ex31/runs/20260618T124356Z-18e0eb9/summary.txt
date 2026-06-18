@@ -1,0 +1,78 @@
+EX31: Default-flip evaluation (dl_mode=bits vs dl_mode=clauses)
+========================================================================
+SYMBOLIC ONLY -- no LLM, zero cost, deterministic
+Holdout seed: 42
+
+Loading scenarios...
+  15 scenarios: ['ex25b_crafting', 'ex28_can_fly_canonical', 'ex28_glonk_invented', 'ex28_ancestor_canonical', 'ex28_tessik_invented', 'ex28_father_canonical', 'ex28_brulit_invented', 'bench_family_small', 'bench_family_with_guards', 'bench_transitive_closures', 'bench_body_patterns', 'bench_dead_clauses', 'bench_cascading', 'bench_stress', 'bench_subsumption_edge']
+
+Analysis A summary:
+  Correctness differences between modes: 0 scenarios
+  -> Bits mode preserves correctness on ALL scenarios (SAFE)
+
+Analysis B summary:
+  Mean clause-compression ratio: clauses=0.8335  bits=0.8384
+  Mean bits-compression ratio:   clauses=0.8767  bits=0.8717
+  Each mode wins on its OWN objective (expected MDL behavior).
+  Bits mode gives up 0.0049 on clause ratio vs clauses mode.
+  Clauses mode gives up 0.0050 on bits ratio vs bits mode.
+
+Analysis C summary (all domains, recovery / precision, clauses vs bits):
+
+  Domain: crafting
+  Ratio      Rec(cl)   Rec(bi)   Prec(cl)   Prec(bi)   RecDelta
+  ------------------------------------------------------------
+  10.0%         0.0%      0.0%     100.0%     100.0%    +0.0000
+  20.0%         0.0%      0.0%     100.0%     100.0%    +0.0000
+  30.0%         0.0%      0.0%     100.0%     100.0%    +0.0000
+  40.0%         0.0%      0.0%     100.0%     100.0%    +0.0000
+
+  Domain: family
+  Ratio      Rec(cl)   Rec(bi)   Prec(cl)   Prec(bi)   RecDelta
+  ------------------------------------------------------------
+  10.0%         0.0%      0.0%     100.0%     100.0%    +0.0000
+  20.0%         0.0%      0.0%     100.0%     100.0%    +0.0000
+  30.0%         0.0%      0.0%     100.0%     100.0%    +0.0000
+  40.0%         0.0%      0.0%     100.0%     100.0%    +0.0000
+
+  Grand mean recovery delta (bits - clauses): +0.0000
+
+Analysis D -- recoverable generalization vs training-group size
+  (held-out grade facts recovered by grade(X,pass):-student(X);
+   guard kept, grade held out; sweep group size across crossover)
+  train_group  rec(cl)    rec(bi)   
+  ----------------------------------
+  3            0%         0%        
+  4            0%         0%        
+  5            0%         0%        
+  6            0%         0%        
+  8            0%         0%        
+  12           0%         0%        
+  recovery crossover (min group w/ full recovery): clauses=None  bits=None
+
+Cross-check vs decision-diff (the 8 flips = clauses-accept, bits-reject):
+  Total accepted ops, clauses mode: 24 by kind: {'generalization': 11, 'recursion': 2, 'pruning': 2, 'invention': 4, 'extraction': 4, 'subsumption': 1}
+  Total accepted ops, bits mode:    16 by kind: {'generalization': 9, 'recursion': 2, 'pruning': 2, 'invention': 1, 'extraction': 1, 'subsumption': 1}
+  Difference (clauses - bits) = 8  (expected ~8 from decision-diff report)
+
+========================================================================
+FLIP RECOMMENDATION
+========================================================================
+
+  (i) Correctness: IDENTICAL
+      Bits mode identical to clauses on all 15 scenarios.
+
+  (ii) Compression trade:
+       Clause ratio: clauses=0.8335  bits=0.8384  (gap clauses gives bits: +0.0049)
+       Bits ratio:   clauses=0.8767  bits=0.8717  (gap bits gives clauses: +0.0050)
+
+  (iii) Generalization:
+        Analysis C (crafting/family holdout): VACUOUS -- 0%% recovery both modes (delta=+0.0000).
+        Analysis D (recoverable groups): recovery crossover clauses=None bits=None; mature-group min delta=+0.0000, all-group mean delta=+0.0000.
+        Bits abandons no MATURE generalization; below the crossover it declines premature ones. Recovery safe: True
+
+  VERDICT: FLIP
+  Bits mode is correctness-safe (identical on all scenarios), trades a small clause-compression gap (0.0049) for superior bits-compression (0.8717 vs 0.8767), and matches or exceeds clauses-mode generalization recovery (delta=+0.0000).
+
+  NOTE: This experiment produces evidence only.
+  The default in code is NOT changed here.

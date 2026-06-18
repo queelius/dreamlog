@@ -1,7 +1,7 @@
 {
-  "finished_utc": "2026-06-18T12:36:32.094060+00:00",
-  "git_commit_short": "5da3f05",
-  "results_sha256": "5c1e49230cb4622449703e932c7707abfa737c066ddfb02c5837f5ad991d7daf",
-  "run_dir": "experiments/data/ex31/runs/20260618T123621Z-5da3f05",
-  "run_id": "20260618T123621Z-5da3f05"
+  "finished_utc": "2026-06-18T12:48:24.039092+00:00",
+  "git_commit_short": "18e0eb9",
+  "results_sha256": "12480994dcbd5c9bcb81d8b53b021da85c04f16b362ec670ecb8340ecbbf5d13",
+  "run_dir": "experiments/data/ex31/runs/20260618T124813Z-18e0eb9",
+  "run_id": "20260618T124813Z-18e0eb9"
 }

@@ -1,0 +1,922 @@
+{
+  "compression_trade": {
+    "aggregates": {
+      "mean_bits_compression_bits_mode": 0.8717,
+      "mean_bits_compression_clauses_mode": 0.8767,
+      "mean_clause_compression_bits_mode": 0.8384,
+      "mean_clause_compression_clauses_mode": 0.8335
+    },
+    "per_scenario": [
+      {
+        "bits_after_bits_mode": 3896.71,
+        "bits_after_clauses_mode": 3910.74,
+        "bits_before": 4058.36,
+        "bits_compression_ratio_bits_mode": 0.9602,
+        "bits_compression_ratio_clauses_mode": 0.9636,
+        "clause_compression_ratio_bits_mode": 0.9249,
+        "clause_compression_ratio_clauses_mode": 0.9191,
+        "clauses_after_bits_mode": 160,
+        "clauses_after_clauses_mode": 159,
+        "clauses_before": 173,
+        "name": "ex25b_crafting"
+      },
+      {
+        "bits_after_bits_mode": 176.0,
+        "bits_after_clauses_mode": 176.0,
+        "bits_before": 182.0,
+        "bits_compression_ratio_bits_mode": 0.967,
+        "bits_compression_ratio_clauses_mode": 0.967,
+        "clause_compression_ratio_bits_mode": 0.7857,
+        "clause_compression_ratio_clauses_mode": 0.7857,
+        "clauses_after_bits_mode": 11,
+        "clauses_after_clauses_mode": 11,
+        "clauses_before": 14,
+        "name": "ex28_can_fly_canonical"
+      },
+      {
+        "bits_after_bits_mode": 176.0,
+        "bits_after_clauses_mode": 176.0,
+        "bits_before": 182.0,
+        "bits_compression_ratio_bits_mode": 0.967,
+        "bits_compression_ratio_clauses_mode": 0.967,
+        "clause_compression_ratio_bits_mode": 0.7857,
+        "clause_compression_ratio_clauses_mode": 0.7857,
+        "clauses_after_bits_mode": 11,
+        "clauses_after_clauses_mode": 11,
+        "clauses_before": 14,
+        "name": "ex28_glonk_invented"
+      },
+      {
+        "bits_after_bits_mode": 206.51,
+        "bits_after_clauses_mode": 206.51,
+        "bits_before": 626.0,
+        "bits_compression_ratio_bits_mode": 0.3299,
+        "bits_compression_ratio_clauses_mode": 0.3299,
+        "clause_compression_ratio_bits_mode": 0.2778,
+        "clause_compression_ratio_clauses_mode": 0.2778,
+        "clauses_after_bits_mode": 10,
+        "clauses_after_clauses_mode": 10,
+        "clauses_before": 36,
+        "name": "ex28_ancestor_canonical"
+      },
+      {
+        "bits_after_bits_mode": 206.51,
+        "bits_after_clauses_mode": 206.51,
+        "bits_before": 626.0,
+        "bits_compression_ratio_bits_mode": 0.3299,
+        "bits_compression_ratio_clauses_mode": 0.3299,
+        "clause_compression_ratio_bits_mode": 0.2778,
+        "clause_compression_ratio_clauses_mode": 0.2778,
+        "clauses_after_bits_mode": 10,
+        "clauses_after_clauses_mode": 10,
+        "clauses_before": 36,
+        "name": "ex28_tessik_invented"
+      },
+      {
+        "bits_after_bits_mode": 218.02,
+        "bits_after_clauses_mode": 218.02,
+        "bits_before": 218.02,
+        "bits_compression_ratio_bits_mode": 1.0,
+        "bits_compression_ratio_clauses_mode": 1.0,
+        "clause_compression_ratio_bits_mode": 1.0,
+        "clause_compression_ratio_clauses_mode": 1.0,
+        "clauses_after_bits_mode": 12,
+        "clauses_after_clauses_mode": 12,
+        "clauses_before": 12,
+        "name": "ex28_father_canonical"
+      },
+      {
+        "bits_after_bits_mode": 218.02,
+        "bits_after_clauses_mode": 218.02,
+        "bits_before": 218.02,
+        "bits_compression_ratio_bits_mode": 1.0,
+        "bits_compression_ratio_clauses_mode": 1.0,
+        "clause_compression_ratio_bits_mode": 1.0,
+        "clause_compression_ratio_clauses_mode": 1.0,
+        "clauses_after_bits_mode": 12,
+        "clauses_after_clauses_mode": 12,
+        "clauses_before": 12,
+        "name": "ex28_brulit_invented"
+      },
+      {
+        "bits_after_bits_mode": 248.62,
+        "bits_after_clauses_mode": 248.62,
+        "bits_before": 248.62,
+        "bits_compression_ratio_bits_mode": 1.0,
+        "bits_compression_ratio_clauses_mode": 1.0,
+        "clause_compression_ratio_bits_mode": 1.0,
+        "clause_compression_ratio_clauses_mode": 1.0,
+        "clauses_after_bits_mode": 12,
+        "clauses_after_clauses_mode": 12,
+        "clauses_before": 12,
+        "name": "bench_family_small"
+      },
+      {
+        "bits_after_bits_mode": 972.42,
+        "bits_after_clauses_mode": 996.88,
+        "bits_before": 1026.6,
+        "bits_compression_ratio_bits_mode": 0.9472,
+        "bits_compression_ratio_clauses_mode": 0.9711,
+        "clause_compression_ratio_bits_mode": 0.907,
+        "clause_compression_ratio_clauses_mode": 0.907,
+        "clauses_after_bits_mode": 39,
+        "clauses_after_clauses_mode": 39,
+        "clauses_before": 43,
+        "name": "bench_family_with_guards"
+      },
+      {
+        "bits_after_bits_mode": 591.9,
+        "bits_after_clauses_mode": 591.9,
+        "bits_before": 606.8,
+        "bits_compression_ratio_bits_mode": 0.9754,
+        "bits_compression_ratio_clauses_mode": 0.9754,
+        "clause_compression_ratio_bits_mode": 0.9091,
+        "clause_compression_ratio_clauses_mode": 0.9091,
+        "clauses_after_bits_mode": 20,
+        "clauses_after_clauses_mode": 20,
+        "clauses_before": 22,
+        "name": "bench_transitive_closures"
+      },
+      {
+        "bits_after_bits_mode": 353.04,
+        "bits_after_clauses_mode": 353.04,
+        "bits_before": 366.27,
+        "bits_compression_ratio_bits_mode": 0.9639,
+        "bits_compression_ratio_clauses_mode": 0.9639,
+        "clause_compression_ratio_bits_mode": 1.0909,
+        "clause_compression_ratio_clauses_mode": 1.0909,
+        "clauses_after_bits_mode": 12,
+        "clauses_after_clauses_mode": 12,
+        "clauses_before": 11,
+        "name": "bench_body_patterns"
+      },
+      {
+        "bits_after_bits_mode": 321.66,
+        "bits_after_clauses_mode": 327.25,
+        "bits_before": 321.66,
+        "bits_compression_ratio_bits_mode": 1.0,
+        "bits_compression_ratio_clauses_mode": 1.0174,
+        "clause_compression_ratio_bits_mode": 1.0,
+        "clause_compression_ratio_clauses_mode": 0.9375,
+        "clauses_after_bits_mode": 16,
+        "clauses_after_clauses_mode": 15,
+        "clauses_before": 16,
+        "name": "bench_dead_clauses"
+      },
+      {
+        "bits_after_bits_mode": 670.44,
+        "bits_after_clauses_mode": 687.12,
+        "bits_before": 696.76,
+        "bits_compression_ratio_bits_mode": 0.9622,
+        "bits_compression_ratio_clauses_mode": 0.9862,
+        "clause_compression_ratio_bits_mode": 0.8846,
+        "clause_compression_ratio_clauses_mode": 0.8846,
+        "clauses_after_bits_mode": 23,
+        "clauses_after_clauses_mode": 23,
+        "clauses_before": 26,
+        "name": "bench_cascading"
+      },
+      {
+        "bits_after_bits_mode": 3724.33,
+        "bits_after_clauses_mode": 3752.93,
+        "bits_before": 4458.46,
+        "bits_compression_ratio_bits_mode": 0.8353,
+        "bits_compression_ratio_clauses_mode": 0.8418,
+        "clause_compression_ratio_bits_mode": 0.8432,
+        "clause_compression_ratio_clauses_mode": 0.8378,
+        "clauses_after_bits_mode": 156,
+        "clauses_after_clauses_mode": 155,
+        "clauses_before": 185,
+        "name": "bench_stress"
+      },
+      {
+        "bits_after_bits_mode": 235.44,
+        "bits_after_clauses_mode": 235.44,
+        "bits_before": 281.21,
+        "bits_compression_ratio_bits_mode": 0.8372,
+        "bits_compression_ratio_clauses_mode": 0.8372,
+        "clause_compression_ratio_bits_mode": 0.8889,
+        "clause_compression_ratio_clauses_mode": 0.8889,
+        "clauses_after_bits_mode": 8,
+        "clauses_after_clauses_mode": 8,
+        "clauses_before": 9,
+        "name": "bench_subsumption_edge"
+      }
+    ]
+  },
+  "correctness": {
+    "per_scenario": [
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "generalization": 4
+          },
+          "failures": [],
+          "passed": 173,
+          "total": 173
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "generalization": 5
+          },
+          "failures": [],
+          "passed": 173,
+          "total": 173
+        },
+        "name": "ex25b_crafting"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "generalization": 1
+          },
+          "failures": [],
+          "passed": 6,
+          "total": 6
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "generalization": 1
+          },
+          "failures": [],
+          "passed": 6,
+          "total": 6
+        },
+        "name": "ex28_can_fly_canonical"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "generalization": 1
+          },
+          "failures": [],
+          "passed": 6,
+          "total": 6
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "generalization": 1
+          },
+          "failures": [],
+          "passed": 6,
+          "total": 6
+        },
+        "name": "ex28_glonk_invented"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "recursion": 1
+          },
+          "failures": [],
+          "passed": 28,
+          "total": 28
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "recursion": 1
+          },
+          "failures": [],
+          "passed": 28,
+          "total": 28
+        },
+        "name": "ex28_ancestor_canonical"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "recursion": 1
+          },
+          "failures": [],
+          "passed": 28,
+          "total": 28
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "recursion": 1
+          },
+          "failures": [],
+          "passed": 28,
+          "total": 28
+        },
+        "name": "ex28_tessik_invented"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {},
+          "failures": [],
+          "passed": 4,
+          "total": 4
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {},
+          "failures": [],
+          "passed": 4,
+          "total": 4
+        },
+        "name": "ex28_father_canonical"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {},
+          "failures": [],
+          "passed": 4,
+          "total": 4
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {},
+          "failures": [],
+          "passed": 4,
+          "total": 4
+        },
+        "name": "ex28_brulit_invented"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {},
+          "failures": [],
+          "passed": 3,
+          "total": 3
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {},
+          "failures": [],
+          "passed": 3,
+          "total": 3
+        },
+        "name": "bench_family_small"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "generalization": 1,
+            "pruning": 1
+          },
+          "failures": [],
+          "passed": 4,
+          "total": 4
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "extraction": 1,
+            "generalization": 1,
+            "invention": 1,
+            "pruning": 1
+          },
+          "failures": [],
+          "passed": 4,
+          "total": 4
+        },
+        "name": "bench_family_with_guards"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "invention": 1
+          },
+          "failures": [],
+          "passed": 5,
+          "total": 5
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "invention": 1
+          },
+          "failures": [],
+          "passed": 5,
+          "total": 5
+        },
+        "name": "bench_transitive_closures"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "extraction": 1
+          },
+          "failures": [],
+          "passed": 5,
+          "total": 5
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "extraction": 1
+          },
+          "failures": [],
+          "passed": 5,
+          "total": 5
+        },
+        "name": "bench_body_patterns"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {},
+          "failures": [],
+          "passed": 3,
+          "total": 3
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "generalization": 1
+          },
+          "failures": [],
+          "passed": 3,
+          "total": 3
+        },
+        "name": "bench_dead_clauses"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "generalization": 1,
+            "pruning": 1
+          },
+          "failures": [],
+          "passed": 6,
+          "total": 6
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "extraction": 1,
+            "generalization": 1,
+            "invention": 1,
+            "pruning": 1
+          },
+          "failures": [],
+          "passed": 6,
+          "total": 6
+        },
+        "name": "bench_cascading"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "generalization": 1
+          },
+          "failures": [],
+          "passed": 5,
+          "total": 5
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "extraction": 1,
+            "generalization": 1,
+            "invention": 1
+          },
+          "failures": [],
+          "passed": 5,
+          "total": 5
+        },
+        "name": "bench_stress"
+      },
+      {
+        "bits_mode": {
+          "accepted_by_kind": {
+            "subsumption": 1
+          },
+          "failures": [],
+          "passed": 4,
+          "total": 4
+        },
+        "clauses_mode": {
+          "accepted_by_kind": {
+            "subsumption": 1
+          },
+          "failures": [],
+          "passed": 4,
+          "total": 4
+        },
+        "name": "bench_subsumption_edge"
+      }
+    ],
+    "scenarios_with_differences": [],
+    "verdict": "IDENTICAL"
+  },
+  "crosscheck_vs_decision_diff": {
+    "bits_accepted_by_kind": {
+      "extraction": 1,
+      "generalization": 9,
+      "invention": 1,
+      "pruning": 2,
+      "recursion": 2,
+      "subsumption": 1
+    },
+    "clauses_accepted_by_kind": {
+      "extraction": 4,
+      "generalization": 11,
+      "invention": 4,
+      "pruning": 2,
+      "recursion": 2,
+      "subsumption": 1
+    },
+    "consistent": true,
+    "difference": 8,
+    "expected_diff_from_decision_diff_report": 8,
+    "total_accepted_bits_mode": 16,
+    "total_accepted_clauses_mode": 24
+  },
+  "flip_recommendation": {
+    "compression_trade": {
+      "bits_gap_clauses_gives_up": 0.005,
+      "clause_gap_bits_gives_up": 0.0049,
+      "mean_bits_ratio_bits_mode": 0.8717,
+      "mean_bits_ratio_clauses_mode": 0.8767,
+      "mean_clause_ratio_bits_mode": 0.8384,
+      "mean_clause_ratio_clauses_mode": 0.8335
+    },
+    "correctness": "IDENTICAL",
+    "generalization": {
+      "analysis_c_vacuous": {
+        "mean_recovery_bits": 0.0,
+        "mean_recovery_clauses": 0.0,
+        "mean_recovery_delta": 0.0,
+        "note": "0% recovery both modes (holdout drops groups below min_group_size); vacuous, see Analysis D"
+      },
+      "analysis_d_conservatism": {
+        "finding": "symbolic Op C excepts held-out items (they look like counterexamples), so recovery is 0 in BOTH modes; the DL mode affects only whether the conservative rule forms",
+        "reading": "recovery is 0 in both modes (Op C excepts held-out items); the flip is recovery-neutral",
+        "recovery_delta_bits_minus_clauses": 0.0
+      },
+      "safe": true
+    },
+    "justification": "Bits mode is correctness-safe (identical on all scenarios), trades a small clause-compression gap (0.0049) for superior bits-compression (0.8717 vs 0.8767), and matches or exceeds clauses-mode generalization recovery (delta=+0.0000).",
+    "recommendation": "FLIP"
+  },
+  "generalization": {
+    "domains": {
+      "crafting": {
+        "comparison": [
+          {
+            "precision_bits": 1.0,
+            "precision_clauses": 1.0,
+            "ratio": 0.1,
+            "recovery_bits": 0.0,
+            "recovery_clauses": 0.0,
+            "recovery_delta": 0.0
+          },
+          {
+            "precision_bits": 1.0,
+            "precision_clauses": 1.0,
+            "ratio": 0.2,
+            "recovery_bits": 0.0,
+            "recovery_clauses": 0.0,
+            "recovery_delta": 0.0
+          },
+          {
+            "precision_bits": 1.0,
+            "precision_clauses": 1.0,
+            "ratio": 0.3,
+            "recovery_bits": 0.0,
+            "recovery_clauses": 0.0,
+            "recovery_delta": 0.0
+          },
+          {
+            "precision_bits": 1.0,
+            "precision_clauses": 1.0,
+            "ratio": 0.4,
+            "recovery_bits": 0.0,
+            "recovery_clauses": 0.0,
+            "recovery_delta": 0.0
+          }
+        ],
+        "rows": [
+          {
+            "false_positives": 0,
+            "final_clause_count": 159,
+            "holdout_ratio": 0.1,
+            "in_ground_truth": 54,
+            "mode": "clauses",
+            "original_clause_count": 166,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 7,
+            "total_derivable_in_space": 54,
+            "train_size": 54
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 157,
+            "holdout_ratio": 0.2,
+            "in_ground_truth": 50,
+            "mode": "clauses",
+            "original_clause_count": 162,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 11,
+            "total_derivable_in_space": 50,
+            "train_size": 50
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 155,
+            "holdout_ratio": 0.3,
+            "in_ground_truth": 45,
+            "mode": "clauses",
+            "original_clause_count": 157,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 16,
+            "total_derivable_in_space": 45,
+            "train_size": 45
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 148,
+            "holdout_ratio": 0.4,
+            "in_ground_truth": 39,
+            "mode": "clauses",
+            "original_clause_count": 151,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 22,
+            "total_derivable_in_space": 39,
+            "train_size": 39
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 159,
+            "holdout_ratio": 0.1,
+            "in_ground_truth": 54,
+            "mode": "bits",
+            "original_clause_count": 166,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 7,
+            "total_derivable_in_space": 54,
+            "train_size": 54
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 158,
+            "holdout_ratio": 0.2,
+            "in_ground_truth": 50,
+            "mode": "bits",
+            "original_clause_count": 162,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 11,
+            "total_derivable_in_space": 50,
+            "train_size": 50
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 155,
+            "holdout_ratio": 0.3,
+            "in_ground_truth": 45,
+            "mode": "bits",
+            "original_clause_count": 157,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 16,
+            "total_derivable_in_space": 45,
+            "train_size": 45
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 148,
+            "holdout_ratio": 0.4,
+            "in_ground_truth": 39,
+            "mode": "bits",
+            "original_clause_count": 151,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 22,
+            "total_derivable_in_space": 39,
+            "train_size": 39
+          }
+        ]
+      },
+      "family": {
+        "comparison": [
+          {
+            "precision_bits": 1.0,
+            "precision_clauses": 1.0,
+            "ratio": 0.1,
+            "recovery_bits": 0.0,
+            "recovery_clauses": 0.0,
+            "recovery_delta": 0.0
+          },
+          {
+            "precision_bits": 1.0,
+            "precision_clauses": 1.0,
+            "ratio": 0.2,
+            "recovery_bits": 0.0,
+            "recovery_clauses": 0.0,
+            "recovery_delta": 0.0
+          },
+          {
+            "precision_bits": 1.0,
+            "precision_clauses": 1.0,
+            "ratio": 0.3,
+            "recovery_bits": 0.0,
+            "recovery_clauses": 0.0,
+            "recovery_delta": 0.0
+          },
+          {
+            "precision_bits": 1.0,
+            "precision_clauses": 1.0,
+            "ratio": 0.4,
+            "recovery_bits": 0.0,
+            "recovery_clauses": 0.0,
+            "recovery_delta": 0.0
+          }
+        ],
+        "rows": [
+          {
+            "false_positives": 0,
+            "final_clause_count": 282,
+            "holdout_ratio": 0.1,
+            "in_ground_truth": 188,
+            "mode": "clauses",
+            "original_clause_count": 284,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 16,
+            "total_derivable_in_space": 188,
+            "train_size": 188
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 262,
+            "holdout_ratio": 0.2,
+            "in_ground_truth": 166,
+            "mode": "clauses",
+            "original_clause_count": 262,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 38,
+            "total_derivable_in_space": 166,
+            "train_size": 166
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 244,
+            "holdout_ratio": 0.3,
+            "in_ground_truth": 148,
+            "mode": "clauses",
+            "original_clause_count": 244,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 56,
+            "total_derivable_in_space": 148,
+            "train_size": 148
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 222,
+            "holdout_ratio": 0.4,
+            "in_ground_truth": 126,
+            "mode": "clauses",
+            "original_clause_count": 222,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 78,
+            "total_derivable_in_space": 126,
+            "train_size": 126
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 282,
+            "holdout_ratio": 0.1,
+            "in_ground_truth": 188,
+            "mode": "bits",
+            "original_clause_count": 284,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 16,
+            "total_derivable_in_space": 188,
+            "train_size": 188
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 262,
+            "holdout_ratio": 0.2,
+            "in_ground_truth": 166,
+            "mode": "bits",
+            "original_clause_count": 262,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 38,
+            "total_derivable_in_space": 166,
+            "train_size": 166
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 244,
+            "holdout_ratio": 0.3,
+            "in_ground_truth": 148,
+            "mode": "bits",
+            "original_clause_count": 244,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 56,
+            "total_derivable_in_space": 148,
+            "train_size": 148
+          },
+          {
+            "false_positives": 0,
+            "final_clause_count": 222,
+            "holdout_ratio": 0.4,
+            "in_ground_truth": 126,
+            "mode": "bits",
+            "original_clause_count": 222,
+            "precision": 1.0,
+            "recovered": 0,
+            "recovery": 0.0,
+            "test_size": 78,
+            "total_derivable_in_space": 126,
+            "train_size": 126
+          }
+        ]
+      }
+    },
+    "grand_mean_recovery_delta": 0.0,
+    "holdout_fractions": [
+      0.1,
+      0.2,
+      0.3,
+      0.4
+    ],
+    "seed": 42
+  },
+  "generalization_recoverable": {
+    "finding": "symbolic Op C excepts held-out items (they look like counterexamples), so recovery is 0 in BOTH modes; the DL mode affects only whether the conservative rule forms",
+    "held_out": 2,
+    "rows": [
+      {
+        "exception_facts": 0,
+        "generalized": false,
+        "held_out": 2,
+        "mode": "clauses",
+        "recovered": 0,
+        "recovery": 0.0,
+        "rule": null,
+        "train_group": 3
+      },
+      {
+        "exception_facts": 0,
+        "generalized": false,
+        "held_out": 2,
+        "mode": "bits",
+        "recovered": 0,
+        "recovery": 0.0,
+        "rule": null,
+        "train_group": 3
+      },
+      {
+        "exception_facts": 2,
+        "generalized": true,
+        "held_out": 2,
+        "mode": "clauses",
+        "recovered": 0,
+        "recovery": 0.0,
+        "rule": "(grade X pass) :- (student X), (not (exception_grade_pass_student X)).",
+        "train_group": 5
+      },
+      {
+        "exception_facts": 2,
+        "generalized": true,
+        "held_out": 2,
+        "mode": "bits",
+        "recovered": 0,
+        "recovery": 0.0,
+        "rule": "(grade X pass) :- (student X), (not (exception_grade_pass_student X)).",
+        "train_group": 5
+      },
+      {
+        "exception_facts": 2,
+        "generalized": true,
+        "held_out": 2,
+        "mode": "clauses",
+        "recovered": 0,
+        "recovery": 0.0,
+        "rule": "(grade X pass) :- (student X), (not (exception_grade_pass_student X)).",
+        "train_group": 8
+      },
+      {
+        "exception_facts": 2,
+        "generalized": true,
+        "held_out": 2,
+        "mode": "bits",
+        "recovered": 0,
+        "recovery": 0.0,
+        "rule": "(grade X pass) :- (student X), (not (exception_grade_pass_student X)).",
+        "train_group": 8
+      }
+    ]
+  }
+}

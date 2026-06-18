@@ -1263,9 +1263,11 @@ experiments:
       means to show each mode wins on its own objective. Analysis C: held-out
       generalization (open_world=True) on EX25b crafting and the family tree
       at holdout fractions 0.1/0.2/0.3/0.4; measure recovery and precision
-      per mode per fraction. Cross-check the accepted-op count difference
-      against the decision-diff report (expected 8 flips = clauses-accept,
-      bits-reject).
+      per mode per fraction. Analysis D: a conservatism probe (guard kept,
+      grade held out, group size swept across the crossover) that explains the
+      0% recovery -- Op C excepts the held-out items -- and shows recovery is
+      mode-independent. Cross-check the accepted-op count difference against
+      the decision-diff report (expected 8 flips = clauses-accept, bits-reject).
     key_result: |
       Run 2026-06-18 (git 5da3f05). Recommendation: FLIP.
       (i) CORRECTNESS: IDENTICAL. Bits mode produces zero correctness failures
@@ -1280,14 +1282,19 @@ experiments:
       exactly matching the decision-diff report's 8 flips (extraction x3,
       invention x3, generalization x2 -- all scenarios below their reuse
       crossover). Bits mode correctly rejects premature abstractions.
-      (iii) GENERALIZATION: Recovery identical at 0% for both modes across both
-      domains (crafting and family tree) at all holdout fractions 0.1-0.4.
-      Grand mean recovery delta = +0.0000. This is consistent with EX25c's
-      symbolic-only condition and confirms bits mode does NOT hurt generalization;
-      the flip is safe on the decisive metric. Precision = 100% in both modes
-      (zero spurious derivations) at every holdout level.
+      (iii) GENERALIZATION: Recovery is MODE-INDEPENDENT, 0% for both modes
+      across both domains at all holdout fractions (Analysis C), and Analysis D
+      explains why: symbolic Op C is conservative -- it records held-out items
+      as exceptions (e.g. grade(X,pass):-student(X), not(exception(X)) with the
+      held-out students as exception facts), so it never extrapolates to them.
+      The DL mode changes only WHETHER the conservative rule forms, never
+      recovery; the flip is recovery-NEUTRAL. Genuine held-out recovery needs
+      the LLM (Op G), out of scope for this symbolic zero-cost evaluation.
+      Precision = 100% in both modes (no spurious derivations).
       VERDICT: FLIP -- bits mode is correctness-safe, trades symmetrically on
-      compression objectives (0.5pp each way), and matches clauses-mode recovery
-      exactly. The default is NOT changed in this experiment; it only records
-      the evidence.
+      compression objectives (0.5pp each way), and is recovery-neutral. The flip
+      rests on correctness + the principle that bits-DL is a more faithful
+      Solomonoff/Kolmogorov proxy than clause count, with EX29/EX30 confirming
+      bits accepts mature abstractions and rejects only premature ones. The
+      default is NOT changed in this experiment; it only records the evidence.
     depends_on: [EX29, EX30]
