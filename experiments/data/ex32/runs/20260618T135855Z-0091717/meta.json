@@ -1,0 +1,80 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Tests whether bits-mode description length acts as a noise filter. Noise groups have 3 matching facts + 1 exception -- exactly the N=3 scenario where EX29 showed bits rejects (delta_bits=+5.66) while clause count accepts (delta_clauses=-1). Noise is inserted before true facts so Op C evaluates noise while the symbol table is small (before 'not' is amortized by the true pattern). Sweeps noise level L in {0..5} independent noise groups. Symbolic only, no LLM, deterministic.",
+    "id": "ex32",
+    "name": "bits-mode noise filter",
+    "script": {
+      "path": "experiments/ex32_noise_filter.py",
+      "sha256": "6bcc90556c48b646c45cc57d8875b4578f0baf02ae6a757aee540a2d810b5b67"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "0091717c9083030028785597496e747312cd91de",
+    "commit_short": "0091717",
+    "describe": "v0.13.0-42-g0091717",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 4045,
+      "sha256": "e2951509c155790732c3246f3d9e78a5bc151a3ccefeed1dad0a6f188dd8b036"
+    },
+    "summary.txt": {
+      "bytes": 1915,
+      "sha256": "af25c037bc2fa8ba1c3a023be921ba9993d0cab91f56e27a2f59ad754250294c"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "N_students": 12,
+    "dl_modes": [
+      "clauses",
+      "bits"
+    ],
+    "ex29_reference": "N=3 with 1 exception: delta_clauses=-1, delta_bits=+5.66 (bits rejects). N=4+: accepted by both modes.",
+    "min_group_size": 3,
+    "noise_design": "Each noise group: 3 pref_K(n_K_i, val_K) facts + 1 exception pref_K(nx_K, other_K) + 4 mem_K guard facts. Noise inserted BEFORE true facts so Op C evaluates noise first (small symbol table => bits rejects N=3+exc pattern). True pattern: grade(X,pass):-student(X) with N=12 students.",
+    "noise_facts_per_group": 8,
+    "noise_levels": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "run": {
+    "duration_s": 0.3546,
+    "finished_utc": "2026-06-18T13:58:56.062285+00:00",
+    "run_id": "20260618T135855Z-0091717",
+    "started_utc": "2026-06-18T13:58:55.707695+00:00"
+  },
+  "seeds": {
+    "note": "fully deterministic; no RNG (structured noise)"
+  }
+}

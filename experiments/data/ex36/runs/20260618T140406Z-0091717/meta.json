@@ -1,0 +1,87 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Characterises the bits-mode DL context effect: a proposal's delta_bits is GLOBAL (depends on entire symbol table), so accepts that amortise not/1 and exception functors discount later proposals. Analysis A: order-robustness of the noise filter (3 orderings x L noise groups). Analysis B: amortisation discount magnitude isolated analytically (fixed N=3+1exc proposal, EX29 N=3 case, k prior exception structures). Analysis C: scope statement. Symbolic only, no LLM, deterministic.",
+    "id": "ex36",
+    "name": "global-DL context effect",
+    "script": {
+      "path": "experiments/ex36_context_effect.py",
+      "sha256": "a820cdb104d5b35fda531e4b47bef6210dcf3276bd948eba85a9ec08e9396180"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "0091717c9083030028785597496e747312cd91de",
+    "commit_short": "0091717",
+    "describe": "v0.13.0-42-g0091717-dirty",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 3981,
+      "sha256": "6fcd5cf468edc9f3c4c0d0993bfb858fb3c9f09a5c6fbac333668e559b7c320d"
+    },
+    "summary.txt": {
+      "bytes": 3938,
+      "sha256": "35fcb453850855ecdfdab74924739e1f1d60c38a03f3bda05b89b16432bc156f"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "L_values": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "N_students": 12,
+    "analysis_A_design": "EX32 noisy domain, 3 orderings x L noise groups in {1..5}. bits mode dream, count spurious Op C accepts.",
+    "analysis_B_design": "Fixed N=3+1exc proposal (EX29 N=3 case, delta_bits~+5.66 on lean KB) evaluated against KB with k prior compressed exception structures (k in {0..4}). Each prior: adds not/1+fresh arity-1 exc functor.",
+    "ex29_reference": "N=3 with 1 exc: delta_clauses=-1, delta_bits=+5.66 (bits rejects). N=4+: both accept.",
+    "ex32_reference": "noise-first ordering, all L in {0..5}: 0 spurious (bits).",
+    "k_values": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "orderings": [
+      "noise_first",
+      "true_first",
+      "interleaved"
+    ]
+  },
+  "run": {
+    "duration_s": 0.4937,
+    "finished_utc": "2026-06-18T14:04:07.039910+00:00",
+    "run_id": "20260618T140406Z-0091717",
+    "started_utc": "2026-06-18T14:04:06.546245+00:00"
+  },
+  "seeds": {
+    "note": "fully deterministic; no RNG"
+  }
+}

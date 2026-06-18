@@ -1,0 +1,74 @@
+EX36: global DL context effect in bits mode
+====================================================================
+
+ANALYSIS A: Order-robustness of the noise filter
+--------------------------------------------------------------------
+Domain: 12-student true pattern + L noise groups (3+1exc each)
+3 orderings: noise-first (EX32), true-first, interleaved
+DL mode: bits | min_group_size=3 | no LLM
+
+  L         noise_first       true_first        interleaved       
+  ----------------------------------------------------------------
+  L=1         spur=0  true=Y       spur=1  true=Y       spur=0  true=Y     
+  L=2         spur=0  true=Y       spur=2  true=Y       spur=1  true=Y     
+  L=3         spur=0  true=Y       spur=3  true=Y       spur=2  true=Y     
+  L=4         spur=0  true=Y       spur=4  true=Y       spur=3  true=Y     
+  L=5         spur=0  true=Y       spur=5  true=Y       spur=4  true=Y     
+
+A-SUMMARY (any spurious accepts across L={1..5}?):
+  noise_first:   False
+  true_first:    True
+  interleaved:   True
+  => Context effect CONFIRMED.
+     Spurious accepts appear when true pattern accepted first,
+     amortising not/1 before noise proposals are evaluated.
+
+ANALYSIS B: Amortisation discount (analytic, isolated)
+--------------------------------------------------------------------
+Fixed proposal: EX29 N=3+1exc (delta_bits=+5.66 on lean KB, i.e. REJECT)
+Prior structures: k KB fragments where Op C already accepted once.
+  Each prior adds not/1 (amortised after k=1) + fresh arity-1 exc functor.
+
+  k       delta_bits      delta_clauses    decision  
+  ----------------------------------------------------
+  0              +5.66  -1               rejected
+  1              -2.67  -1               accepted
+  2              -3.33  -1               accepted
+  3              -3.89  -1               accepted
+  4              -4.37  -1               accepted
+
+  Discount per additional prior structure (delta_bits reduction):
+    k 0->1: 8.33 bits
+    k 1->2: 0.66 bits
+    k 2->3: 0.56 bits
+    k 3->4: 0.48 bits
+
+  Crossover: proposal flips REJECT -> ACCEPT at k=1
+    delta_bits: 5.66 (k=0, lean) -> -2.67 (k=1, amortised)
+
+  Hand-sanity of discount (k=0 -> k=1):
+    not/1 is absent from lean KB (k=0); adding it costs
+    elias_gamma(arity+1=2) = 3 bits declaration.
+    exception functor (arity 1) also costs 3 bits declaration.
+    Total static savings when both already in F: ~6 bits decl.
+    Measured total discount k=0->1: 8.33 bits
+    (includes log2(|F|) per-occurrence repricing from larger table)
+
+ANALYSIS C: Scope statement
+--------------------------------------------------------------------
+Bits-mode selectivity holds in lean-context (k=0 prior exception structures): the N=3+1exc noise pattern is correctly rejected (delta_bits=+5.66). After k=1 prior exception-bearing accept(s), the same proposal flips to accepted (delta_bits=-2.67). The amortisation discount averages 2.51 bits per prior structure (largest step: 8.33 bits at k=0->1, when not/1 first enters F). Practical implication: the EX32 noise-filter guarantee applies only when noise proposals are evaluated BEFORE any exception-bearing structure is committed to the KB. In true-first ordering (true pattern accepted first), spurious accepts appear for all L>0 tested: 100% of noise groups accepted on average across L in {1,2,3,4,5}. In interleaved ordering, spurious accepts appear for L>=2.
+
+COMPACT TABLE A (ordering x L -> spurious accepts, bits mode):
+  ordering         L=1  L=2  L=3  L=4  L=5
+  ----------------------------------------------
+  noise_first        0    0    0    0    0
+  true_first         1    2    3    4    5
+  interleaved        0    1    2    3    4
+
+COMPACT TABLE B (k -> delta_bits for fixed N=3+1exc proposal):
+  k       delta_bits    decision  
+  0            +5.66  rejected
+  1            -2.67  accepted
+  2            -3.33  accepted
+  3            -3.89  accepted
+  4            -4.37  accepted

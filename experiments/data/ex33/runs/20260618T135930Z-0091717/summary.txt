@@ -1,0 +1,69 @@
+
+========================================================================
+EX33 RESULTS SUMMARY
+========================================================================
+
+RECOVERY STATISTICS (all domains x modes, N=60):
+  Min=0.0%  Max=100.0%  Mean=53.8%  Nonzero=42/60  Partial(0<r<1)=21
+  Domains where clauses-mode != bits-mode recovery: 10/30
+
+CORRELATIONS (compression metrics vs recovery):
+
+  Mode=clauses  N=30  recovery=[0.0%, 100.0%]  mean=65.1%
+
+    bits_saved vs recovery:          Spearman r=0.630 p=0.000  Pearson r=0.511 p=0.004
+    bits_compression vs recovery:    Spearman r=0.592 p=0.001  Pearson r=0.508 p=0.004
+    clauses_saved vs recovery:       Spearman r=0.694 p=0.000  Pearson r=0.645 p=0.000
+    clause_compression vs recovery:  Spearman r=0.684 p=0.000  Pearson r=0.700 p=0.000
+
+  Mode=bits     N=30  recovery=[0.0%, 100.0%]  mean=42.6%
+
+    bits_saved vs recovery:          Spearman r=0.908 p=0.000  Pearson r=0.840 p=0.000
+    bits_compression vs recovery:    Spearman r=0.874 p=0.000  Pearson r=0.889 p=0.000
+    clauses_saved vs recovery:       Spearman r=0.918 p=0.000  Pearson r=0.896 p=0.000
+    clause_compression vs recovery:  Spearman r=0.911 p=0.000  Pearson r=0.931 p=0.000
+
+BITS MODE vs CLAUSES MODE MEAN RECOVERY:
+  bits_mode_mean_recovery    = 42.6%  (N=30)
+  clauses_mode_mean_recovery = 65.1%  (N=30)
+
+VERDICT: SUPPORTED: compression predicts generalization; bits and clause-count predict similarly
+
+  bits_saved |Spearman r|:          0.908 (bits-mode), 0.630 (clauses-mode)
+  bits_compression |Spearman r|:    0.874 (bits-mode), 0.592 (clauses-mode)
+  clauses_saved |Spearman r|:        0.918 (bits-mode), 0.694 (clauses-mode)
+  clause_compression |Spearman r|:   0.911 (bits-mode), 0.684 (clauses-mode)
+
+PER-DOMAIN TABLE (both modes side-by-side):
+  ID    sf  ng  nc  ni  | cl_recov    cl_bsv   cl_csv | bt_recov    bt_bsv   bt_csv
+  ------------------------------------------------------------------------------
+  D00    A   0   0   4   | 0.0     %     +0.0       +0 | 0.0     %     +0.0       +0
+  D01    A   0   0   3   | 0.0     %     +0.0       +0 | 0.0     %     +0.0       +0
+  D02    A   1   0   3   | 25.0    %    +55.4       +4 | 25.0    %    +55.4       +4
+  D03    A   1   0   2   | 33.3    %    +51.8       +4 | 33.3    %    +51.8       +4
+  D04    A   2   0   2   | 50.0    %   +120.1       +8 | 50.0    %   +120.1       +8
+  D05    A   2   0   1   | 66.7    %   +113.6       +8 | 66.7    %   +113.6       +8
+  D06    A   3   0   2   | 60.0    %   +194.8      +12 | 60.0    %   +194.8      +12
+  D07    A   3   0   1   | 75.0    %   +187.5      +12 | 75.0    %   +187.5      +12
+  D08    A   4   0   2   | 66.7    %   +273.9      +16 | 66.7    %   +273.9      +16
+  D09    A   4   0   0   | 100.0   %   +256.8      +16 | 100.0   %   +256.8      +16
+  D10    B   0   0   4   | 0.0     %     +0.0       +0 | 0.0     %     +0.0       +0
+  D11    B   0   0   3   | 0.0     %     +0.0       +0 | 0.0     %     +0.0       +0
+  D12   *B   0   1   3   | 25.0    %     -1.5       +1 | 0.0     %     +0.0       +0
+  D13   *B   0   1   2   | 33.3    %     -2.4       +1 | 0.0     %     +0.0       +0
+  D14   *B   0   2   2   | 50.0    %     +3.0       +2 | 0.0     %     +0.0       +0
+  D15   *B   0   2   1   | 66.7    %     +1.4       +2 | 0.0     %     +0.0       +0
+  D16   *B   0   3   2   | 60.0    %     +9.8       +3 | 0.0     %     +0.0       +0
+  D17   *B   0   3   1   | 75.0    %     +7.9       +3 | 0.0     %     +0.0       +0
+  D18   *B   0   4   2   | 66.7    %    +17.4       +4 | 0.0     %     +0.0       +0
+  D19   *B   0   4   0   | 100.0   %    +12.9       +4 | 0.0     %     +0.0       +0
+  D20   *C   0   4   0   | 100.0   %    +12.9       +4 | 0.0     %     +0.0       +0
+  D21   *C   0   3   0   | 100.0   %     +5.5       +3 | 0.0     %     +0.0       +0
+  D22    C   1   3   0   | 100.0   %    +73.0       +7 | 100.0   %    +73.0       +7
+  D23    C   1   2   0   | 100.0   %    +62.4       +6 | 100.0   %    +62.4       +6
+  D24    C   2   2   0   | 100.0   %   +133.7      +10 | 100.0   %   +133.7      +10
+  D25    C   2   1   0   | 100.0   %   +120.0       +9 | 100.0   %   +120.0       +9
+  D26    C   3   1   0   | 100.0   %   +195.0      +13 | 100.0   %   +195.0      +13
+  D27    C   3   3   0   | 100.0   %   +225.2      +15 | 100.0   %   +225.2      +15
+  D28    C   4   2   0   | 100.0   %   +291.1      +18 | 100.0   %   +291.1      +18
+  D29    C   4   0   0   | 100.0   %   +256.8      +16 | 100.0   %   +256.8      +16

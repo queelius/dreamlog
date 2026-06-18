@@ -1,0 +1,87 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Characterises the bits-mode DL context effect: a proposal's delta_bits is GLOBAL (depends on entire symbol table), so accepts that amortise not/1 and exception functors discount later proposals. Analysis A: order-robustness of the noise filter (3 orderings x L noise groups). Analysis B: amortisation discount magnitude isolated analytically (fixed N=3+1exc proposal, k prior exception structures). Analysis C: scope statement derived from A+B. Symbolic only, no LLM.",
+    "id": "ex36",
+    "name": "global-DL context effect",
+    "script": {
+      "path": "experiments/ex36_context_effect.py",
+      "sha256": "1b4af4463e614e880c4f0a479dcd8129faedc628484f920c892983440ec1e8b4"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "0091717c9083030028785597496e747312cd91de",
+    "commit_short": "0091717",
+    "describe": "v0.13.0-42-g0091717-dirty",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 3973,
+      "sha256": "1c79cd6330e70e919d088c817f86146c1868d4260f2797c3734d9e0f6c595156"
+    },
+    "summary.txt": {
+      "bytes": 3376,
+      "sha256": "a0b649f8452c07e5aa72f925bb299de24691e4b1a3a6383cf9cc2b47fca86173"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "L_values": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "N_students": 12,
+    "analysis_A_design": "EX32 noisy domain, 3 orderings x L noise groups in {1..5}. bits mode dream, count spurious Op C accepts.",
+    "analysis_B_design": "Fixed N=3+1exc proposal against KB with k prior exception structures (k in {0..4}). Measures amortisation discount analytically.",
+    "ex29_reference": "N=3 with 1 exc: delta_clauses=-6 (raw), delta_bits~+6 on lean KB (bits rejects). N=4+: both accept.",
+    "ex32_reference": "noise-first ordering, all L: 0 spurious (bits).",
+    "k_values": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "orderings": [
+      "noise_first",
+      "true_first",
+      "interleaved"
+    ]
+  },
+  "run": {
+    "duration_s": 0.4963,
+    "finished_utc": "2026-06-18T14:00:54.603408+00:00",
+    "run_id": "20260618T140054Z-0091717",
+    "started_utc": "2026-06-18T14:00:54.107116+00:00"
+  },
+  "seeds": {
+    "note": "fully deterministic; no RNG"
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "amortization_discount": {
+    "by_k": {
+      "0": {
+        "base_n_clauses": 0,
+        "decision": "rejected",
+        "delta_bits": 5.66,
+        "delta_clauses": -1
+      },
+      "1": {
+        "base_n_clauses": 7,
+        "decision": "accepted",
+        "delta_bits": -2.67,
+        "delta_clauses": -1
+      },
+      "2": {
+        "base_n_clauses": 14,
+        "decision": "accepted",
+        "delta_bits": -3.33,
+        "delta_clauses": -1
+      },
+      "3": {
+        "base_n_clauses": 21,
+        "decision": "accepted",
+        "delta_bits": -3.89,
+        "delta_clauses": -1
+      },
+      "4": {
+        "base_n_clauses": 28,
+        "decision": "accepted",
+        "delta_bits": -4.37,
+        "delta_clauses": -1
+      }
+    },
+    "crossover_k": 1,
+    "discount_per_step": {
+      "0->1": 8.33,
+      "1->2": 0.66,
+      "2->3": 0.56,
+      "3->4": 0.48
+    }
+  },
+  "order_robustness": {
+    "interleaved": {
+      "1": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "2": {
+        "spurious_accepts": 1,
+        "spurious_deltas": [
+          -5.8
+        ],
+        "true_captured": true
+      },
+      "3": {
+        "spurious_accepts": 2,
+        "spurious_deltas": [
+          -6.4,
+          -6.37
+        ],
+        "true_captured": true
+      },
+      "4": {
+        "spurious_accepts": 3,
+        "spurious_deltas": [
+          -6.89,
+          -6.88,
+          -6.85
+        ],
+        "true_captured": true
+      },
+      "5": {
+        "spurious_accepts": 4,
+        "spurious_deltas": [
+          -7.32,
+          -7.3,
+          -7.28,
+          -7.25
+        ],
+        "true_captured": true
+      }
+    },
+    "noise_first": {
+      "1": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "2": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "3": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "4": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "5": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      }
+    },
+    "true_first": {
+      "1": {
+        "spurious_accepts": 1,
+        "spurious_deltas": [
+          -5.04
+        ],
+        "true_captured": true
+      },
+      "2": {
+        "spurious_accepts": 2,
+        "spurious_deltas": [
+          -5.8,
+          -5.76
+        ],
+        "true_captured": true
+      },
+      "3": {
+        "spurious_accepts": 3,
+        "spurious_deltas": [
+          -6.4,
+          -6.37,
+          -6.33
+        ],
+        "true_captured": true
+      },
+      "4": {
+        "spurious_accepts": 4,
+        "spurious_deltas": [
+          -6.89,
+          -6.88,
+          -6.85,
+          -6.81
+        ],
+        "true_captured": true
+      },
+      "5": {
+        "spurious_accepts": 5,
+        "spurious_deltas": [
+          -7.32,
+          -7.3,
+          -7.28,
+          -7.25,
+          -7.22
+        ],
+        "true_captured": true
+      }
+    }
+  },
+  "scope": "Bits-mode selectivity holds in lean-context (k=0 prior exception structures): the N=3+1exc noise pattern is correctly rejected (delta_bits=+5.66). After k=1 prior exception-bearing accept(s), the same proposal flips to accepted (delta_bits=-2.67). The amortisation discount averages 2.51 bits per prior structure (largest step: 8.33 bits at k=0->1, when not/1 first enters F). Practical implication: the EX32 noise-filter guarantee applies only when noise proposals are evaluated BEFORE any exception-bearing structure is committed to the KB. In true-first ordering (true pattern accepted first), spurious accepts appear for all L>0 tested: 100% of noise groups accepted on average across L in {1,2,3,4,5}. In interleaved ordering, spurious accepts appear for L>=2."
+}

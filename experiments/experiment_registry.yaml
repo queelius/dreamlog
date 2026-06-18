@@ -1320,24 +1320,27 @@ experiments:
       deterministic (rng seed recorded). NOTE the noise is inserted before the
       true facts so Op C prices it against a lean symbol table (see caveat).
     key_result: |
-      SUPPORTED. Clauses mode accepts L spurious generalizations at noise level L
-      (precision 1.00 -> 0.17 across L=0..5) while bits mode accepts ZERO spurious
-      generalizations at every level (precision stays 1.00); both capture the true
-      pattern (delta_bits -193..-219, far below threshold). Rejected-noise bits
-      delta: +10.90 (L=1) down to +4.14 (L=5).
-      CAVEAT (order/context sensitivity): the effect depends on the shallow noise
-      being priced against a lean dictionary. Because the bits delta is global,
-      once a generalization-with-exceptions has fired it amortizes the not/1 and
-      exception declarations, discounting later shallow patterns; with the true
-      pattern processed first the marginal noise groups can become cheap enough
-      for bits to accept too. The filter is real but contextual, not absolute; an
-      order-robustness study is the natural follow-on.
+      SUPPORTED ONLY IN LEAN/NOISE-FIRST CONTEXT (the headline is an ordering
+      artifact; see EX36 and the verification note). In EX32's noise-first
+      ordering, clauses mode accepts L spurious generalizations at noise level L
+      (precision 1.00 -> 0.17 across L=0..5) while bits mode accepts ZERO
+      (precision 1.00); both capture the true pattern (delta_bits -193..-219).
+      BUT EX36 shows the filter does NOT survive realistic orderings: with the
+      true mature pattern processed first it amortizes not/1 + exception
+      declarations, and EVERY noise group is then accepted by bits too (true-first
+      100% spurious; interleaved L-1 of L). The reject->accept flip occurs after a
+      SINGLE prior exception-bearing accept (k=1): the same N=3 noise proposal
+      goes from +5.66 bits (reject) to -2.67 (accept), an ~8.3-bit amortization
+      discount that exceeds the rejection margin. Independently re-derived and
+      bounded in docs/superpowers/reviews/2026-06-18-ex32-ex33-verification.md.
     implications: >
-      The maturity crossover doubles as a noise gate: spurious shallow structure
-      is information-theoretically unprofitable and bits mode declines it. This is
-      a concrete robustness argument for the bits objective, tempered by the
-      context-sensitivity caveat above.
-    depends_on: [EX29]
+      The bits-mode "noise filter" is NOT a global property of the objective; it
+      is real only while the symbol table is lean (before any exception-bearing
+      generalization has fired). The robust, transferable finding is the
+      mechanism EX36 isolates: the bits delta is global, so abstraction maturity
+      is judged against the current KB state, not in isolation. Paper claims about
+      bits-mode selectivity must carry this scope.
+    depends_on: [EX29, EX36]
 
   EX33_compression_predicts:
     title: "Does compression predict generalization? Bits vs clause count"
@@ -1367,16 +1370,21 @@ experiments:
       recovery 42.6% vs clauses 65.1%) and, when it does compress, its metric is a
       stronger predictor (r~0.91 vs ~0.63-0.69). Mode divergence in 10/30 domains
       (all subfamily B).
-      CAVEAT: subfamily C (mixed GOOD+CL_ONLY) shows symbol-table cross-
-      contamination -- the presence of a GOOD group amortizes shared declarations
-      so bits accepts CL_ONLY groups it would reject in isolation; mode divergence
-      is clean only in subfamily B. The same global-DL context effect as EX32.
+      CAVEAT (verified, see the EX32/EX33 verification note + EX36): the
+      predictive correlation is ROBUST (it survives removing subfamily C: bits_saved
+      Spearman ~0.98 on A+B alone). But the "bits MORE SELECTIVE" sub-claim is
+      bounded to subfamily B. Subfamily C (mixed GOOD+CL_ONLY) shows the same
+      global-DL amortization cross-talk as EX32/EX36: a GOOD group inserted first
+      amortizes not/1 + exception declarations, so bits then accepts the CL_ONLY
+      groups it rejects in isolation (recovery 100%, not the predicted
+      n_good/(n_good+n_cl)). Mode divergence is clean only in subfamily B; a further
+      bound is that pure CL_ONLY groups self-amortize at n>=~6 (EX33 stays at n<=4).
     implications: >
       Closes the paper's admitted predictive-relationship gap: compression is a
-      leading indicator of generalization under both currencies. Bits is more
-      selective and a stronger predictor when it fires; neither currency is
-      decisively better across all conditions.
-    depends_on: [EX25, EX25b, EX29, EX31]
+      robust leading indicator of generalization under both currencies. The
+      "bits more selective" reading is real only in lean/isolated context
+      (subfamily B); state it with that scope, citing EX36 for the mechanism.
+    depends_on: [EX25, EX25b, EX29, EX31, EX36]
 
   EX34_transfer:
     title: "Cross-domain transfer via merged-KB predicate invention"
@@ -1452,3 +1460,41 @@ experiments:
       empirical target for how much recoverable structure the current gate leaves
       behind.
     depends_on: [EX27, EX29]
+
+  EX36_context_effect:
+    title: "The global-DL context effect in bits mode"
+    date: 2026-06-18
+    script: experiments/ex36_context_effect.py
+    status: complete
+    motivation: >
+      EX32 (noise filter) and EX33 (selectivity) both surfaced the same confound:
+      the bits-mode delta is GLOBAL -- it depends on the entire symbol table, so an
+      earlier accept that amortizes not/1 and exception functors discounts every
+      later proposal of the same shape. EX36 turns this confound into a
+      characterized property and bounds the EX32/EX33 claims.
+    method: >
+      Symbolic, deterministic. (A) Order-robustness: EX32's noisy domain (12-student
+      true pattern + L noise groups of 3 + 1 exception) built under three insertion
+      orderings (noise-first, true-first, interleaved); bits-mode dream with a
+      decision recorder; sweep L in {1..5}; count spurious Op C accepts. (B)
+      Amortization discount (analytic): the fixed EX29 N=3 proposal (+5.66 bits on a
+      lean KB) scored via dl.proposal_delta against KBs already holding k prior
+      exception structures, k in {0..4}. (C) scope statement.
+    key_result: |
+      The EX32 noise filter is an ORDERING ARTIFACT, not a global property.
+      (A) Spurious accepts by ordering x L: noise-first 0,0,0,0,0 (EX32);
+      true-first 1,2,3,4,5 (every noise group accepted); interleaved 0,1,2,3,4.
+      (B) Reject->accept crossover at k=1: the same N=3 proposal goes +5.66 (k=0,
+      reject) -> -2.67 (k=1, accept), an 8.33-bit amortization discount when not/1
+      first enters the dictionary (subsequent steps add only ~0.5-0.7 bits of log2
+      repricing). The 8.3-bit discount exceeds the 5.66-bit rejection margin, so a
+      SINGLE prior exception-bearing accept dissolves the filter.
+    implications: >
+      Bits-mode selectivity holds only while the symbol table is lean (before any
+      exception-bearing generalization fires). The robust property is the mechanism
+      itself: a two-part MDL code judges abstraction maturity against the current KB
+      state, so single-group analyses do not predict multi-group behavior. All
+      paper claims about bits-mode noise-filtering / selectivity must carry this
+      scope; the EX29 maturity crossovers (single-proposal) remain valid as
+      lean-context statements.
+    depends_on: [EX29, EX32, EX33]

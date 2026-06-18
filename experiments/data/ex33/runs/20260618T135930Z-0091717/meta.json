@@ -1,0 +1,81 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Family of 30 synthetic domains in 3 subfamilies. A: GOOD+INCOMP groups (both modes agree). B: CL_ONLY+INCOMP (clauses recovers, bits gets 0%). C: GOOD+CL_ONLY (clauses=100%, bits varies with n_good). New-entity generalization protocol: dream full KB, add new guard-only entities, measure fraction recovered. Tests whether compression predicts recovery (Spearman/Pearson) and whether bits_saved predicts better than clause_saved.",
+    "id": "ex33",
+    "name": "does compression predict generalization",
+    "script": {
+      "path": "experiments/ex33_compression_predicts.py",
+      "sha256": "70ff83e06ba41b686f6fddd831c2bce2d60ecb34dc2bea27e3695387b4b78e99"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "0091717c9083030028785597496e747312cd91de",
+    "commit_short": "0091717",
+    "describe": "v0.13.0-42-g0091717-dirty",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 36164,
+      "sha256": "787dc90e48b7d38e2bf0ed1f8458268b8213785e098dcc78949867e126debf11"
+    },
+    "summary.txt": {
+      "bytes": 4507,
+      "sha256": "693cc47a872ef28750cef14dbd64feb138a4fad97fed17334152a709897abed9"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "min_group_size_for_op_c": 3,
+    "modes": [
+      "clauses",
+      "bits"
+    ],
+    "n_domains": 30,
+    "n_exc_cl_only": 1,
+    "n_new_per_group": 3,
+    "open_world": false,
+    "protocol": "new_entity_generalization",
+    "subfamilies": {
+      "A": "GOOD (sz=5,exc=0) + INCOMP: both modes same recovery",
+      "B": "CL_ONLY (sz=3,exc=1) + INCOMP: clauses>0, bits=0",
+      "C": "GOOD + CL_ONLY: clauses=100%, bits varies"
+    },
+    "sz_cl_only": 3,
+    "sz_good": 5,
+    "sz_incomp": 2
+  },
+  "run": {
+    "duration_s": 1.0261,
+    "finished_utc": "2026-06-18T13:59:31.562078+00:00",
+    "run_id": "20260618T135930Z-0091717",
+    "started_utc": "2026-06-18T13:59:30.535992+00:00"
+  },
+  "seeds": {
+    "note": "fully deterministic; no RNG; structures fixed by spec"
+  }
+}

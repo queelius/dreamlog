@@ -1,0 +1,32 @@
+EX32: bits-mode description length as a noise filter
+=================================================================
+HYPOTHESIS: bits mode rejects spurious N=3+exception patterns
+  (delta_bits > 0) while clause count accepts them (delta_clauses=-1).
+  True pattern (grade, N=12) captured by both modes at all noise levels.
+
+SWEEP TABLE
+-----------------------------------------------------------------
+L    f      noise | CLAUSES true/spur/prec   | BITS true/spur/prec     
+-----------------------------------------------------------------
+0    0.000  0     | Y / 0 / 1.00            | Y / 0 / 1.00            
+1    0.250  8     | Y / 1 / 0.50            | Y / 0 / 1.00            
+2    0.400  16    | Y / 2 / 0.33            | Y / 0 / 1.00            
+3    0.500  24    | Y / 3 / 0.25            | Y / 0 / 1.00            
+4    0.571  32    | Y / 4 / 0.20            | Y / 0 / 1.00            
+5    0.625  40    | Y / 5 / 0.17            | Y / 0 / 1.00            
+-----------------------------------------------------------------
+(L=noise groups, f=noise fraction, true:Y/N, spur:count, prec=precision)
+
+BITS DELTA for noise proposals (rejected by bits mode):
+  L=1: bits delta(s) = 10.90 (positive => bits rejects)
+  L=2: bits delta(s) = 8.03, 8.03 (positive => bits rejects)
+  L=3: bits delta(s) = 6.28, 6.28, 6.28 (positive => bits rejects)
+  L=4: bits delta(s) = 5.06, 5.06, 5.06, 5.06 (positive => bits rejects)
+  L=5: bits delta(s) = 4.14, 4.14, 4.14, 4.14, 4.14 (positive => bits rejects)
+
+SUMMARY
+  Clauses mode: spurious counts by L = [0, 1, 2, 3, 4, 5] (max=5), true all: True
+  Bits mode:    spurious counts by L = [0, 0, 0, 0, 0, 0] (max=0), true all: True
+
+VERDICT: SUPPORTED
+  Bits mode eliminated all spurious generalizations (max spur=0) vs clause count max spur=5, while capturing the true pattern at all noise levels. The EX29 N=3+exc crossover (delta_bits>0) acts as a structural noise gate.

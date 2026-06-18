@@ -1,0 +1,166 @@
+{
+  "amortization_discount": {
+    "by_k": {
+      "0": {
+        "base_n_clauses": 0,
+        "base_n_facts": 0,
+        "base_n_rules": 0,
+        "delta_bits": -69.02,
+        "delta_clauses": -6
+      },
+      "1": {
+        "base_n_clauses": 9,
+        "base_n_facts": 8,
+        "base_n_rules": 1,
+        "delta_bits": -92.7,
+        "delta_clauses": -6
+      },
+      "2": {
+        "base_n_clauses": 18,
+        "base_n_facts": 16,
+        "base_n_rules": 2,
+        "delta_bits": -100.89,
+        "delta_clauses": -6
+      },
+      "3": {
+        "base_n_clauses": 27,
+        "base_n_facts": 24,
+        "base_n_rules": 3,
+        "delta_bits": -106.53,
+        "delta_clauses": -6
+      },
+      "4": {
+        "base_n_clauses": 36,
+        "base_n_facts": 32,
+        "base_n_rules": 4,
+        "delta_bits": -110.84,
+        "delta_clauses": -6
+      }
+    },
+    "crossover_k": 0,
+    "discount_per_step": {
+      "0->1": 23.68,
+      "1->2": 8.19,
+      "2->3": 5.64,
+      "3->4": 4.31
+    }
+  },
+  "order_robustness": {
+    "interleaved": {
+      "1": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "2": {
+        "spurious_accepts": 1,
+        "spurious_deltas": [
+          -5.8
+        ],
+        "true_captured": true
+      },
+      "3": {
+        "spurious_accepts": 2,
+        "spurious_deltas": [
+          -6.4,
+          -6.37
+        ],
+        "true_captured": true
+      },
+      "4": {
+        "spurious_accepts": 3,
+        "spurious_deltas": [
+          -6.89,
+          -6.88,
+          -6.85
+        ],
+        "true_captured": true
+      },
+      "5": {
+        "spurious_accepts": 4,
+        "spurious_deltas": [
+          -7.32,
+          -7.3,
+          -7.28,
+          -7.25
+        ],
+        "true_captured": true
+      }
+    },
+    "noise_first": {
+      "1": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "2": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "3": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "4": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      },
+      "5": {
+        "spurious_accepts": 0,
+        "spurious_deltas": [],
+        "true_captured": true
+      }
+    },
+    "true_first": {
+      "1": {
+        "spurious_accepts": 1,
+        "spurious_deltas": [
+          -5.04
+        ],
+        "true_captured": true
+      },
+      "2": {
+        "spurious_accepts": 2,
+        "spurious_deltas": [
+          -5.8,
+          -5.76
+        ],
+        "true_captured": true
+      },
+      "3": {
+        "spurious_accepts": 3,
+        "spurious_deltas": [
+          -6.4,
+          -6.37,
+          -6.33
+        ],
+        "true_captured": true
+      },
+      "4": {
+        "spurious_accepts": 4,
+        "spurious_deltas": [
+          -6.89,
+          -6.88,
+          -6.85,
+          -6.81
+        ],
+        "true_captured": true
+      },
+      "5": {
+        "spurious_accepts": 5,
+        "spurious_deltas": [
+          -7.32,
+          -7.3,
+          -7.28,
+          -7.25,
+          -7.22
+        ],
+        "true_captured": true
+      }
+    }
+  },
+  "scope": "Bits-mode selectivity holds in lean-context (k=0 prior exception structures): the N=3+1exc pattern is rejected with delta_bits=-69.02. After 0 prior exception-bearing accepts, the same proposal flips to accepted (delta_bits=-69.02). The amortisation erosion is approx 23.68 bits per prior structure. The noise-filter guarantee from EX32 strictly applies to the first generalization proposals encountered in ordering (lean context). For orderings that process the true pattern first, not/1 and exception functors are amortised before noise proposals are evaluated; in this regime spurious N=3+1exc groups can flip from reject to accept."
+}
