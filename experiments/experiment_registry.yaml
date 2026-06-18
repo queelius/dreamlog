@@ -1516,23 +1516,25 @@ experiments:
       (dream.compressed, i.e. survived the final pipeline verify), recovery
       (held-out pairs now derivable), and spurious_count. Symbolic, no LLM.
     key_result: |
-      Gap CLOSED at high completeness. Threshold confirmed: the Op I gate fires at
-      actual coverage >= tau=0.5 and never below. The paper's key example L=8,p=0.9:
-      EX35 left 4 pairs uncovered; EX37 recovers all 4 (recovery=1.0). At every
-      COMMITTED point recovery=1.000 and spurious=0 (precision preserved
-      unconditionally, as the safety proof predicts).
-      KNOWN LIMITATION (honest): at lower completeness with many held-out pairs
-      (L=6 p=0.6; L=8 p=0.5/0.6/0.7) the ClosurePolicy gate accepts but the FINAL
-      pipeline verification in dream() rolls the whole dream back, because that
-      final verify reuses the ORIGINAL unfiltered suite and a held-out closure pair
-      sometimes coincides with a synthetic negative. The per-op S- relaxation was
-      implemented; the SAME relaxation at the final pipeline verify was not. So
-      committed recovery is 38 of 141 gap pairs (27%) -- full at high completeness,
-      blocked at low completeness by the final-sweep artifact.
+      Gap CLOSED across the whole at-threshold range. Threshold confirmed: the Op I
+      gate fires at actual coverage >= tau=0.5 and never below. EVERY gate-firing
+      point now COMMITS with recovery=1.000 and spurious=0 (precision preserved
+      unconditionally, as the safety proof predicts). The paper's key example
+      L=8,p=0.9: EX35 left 4 pairs uncovered; EX37 recovers all 4. Committed
+      recovery: 89 of 141 EX35 gap pairs (63%); the remaining 52 are at sub-tau
+      coverage (p=0.4, and L=6 p=0.5 which rounds to 0.476) where the gate
+      correctly abstains -- a sparse subset is not confidently a closure.
+      HISTORY: the FIRST EX37 run (against commit 1d0928d, recovery 38/141) exposed
+      a final-pipeline-verify artifact -- the per-op ClosurePolicy relaxed its
+      negatives but dream()'s final verify reused the unfiltered suite and rolled
+      back low-completeness dreams when a recovered pair coincided with a synthetic
+      negative. Commit 4eb186e fixed it (filter_recovered_negatives applied at the
+      final verify too, byte-identical in closed-world); this run is post-fix.
     implications: >
-      Open-world Op I closes the partial-closure gap at the practically significant
-      high-completeness points and never derives a spurious pair. Completing it
-      requires threading accepted-closure predictions into dream()'s final
-      verification (mirror ClosurePolicy's S- relaxation there); that is a small,
-      well-scoped follow-on the EX37 data motivates.
+      Open-world Op I closes the partial-closure gap for every closure whose
+      observed coverage clears tau, recovers the held-out pairs, and never derives
+      a spurious pair (the rule computes exactly transitive_closure(B), so only
+      in-closure pairs are ever derivable). Sub-tau closures are intentionally left
+      uncompressed. tau=0.5 is the calibration knob; EX37 shows it cleanly
+      separates trusted (>=tau) from untrusted (<tau) partial closures.
     depends_on: [EX35]

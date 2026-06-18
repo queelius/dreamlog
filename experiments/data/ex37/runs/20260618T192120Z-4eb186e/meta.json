@@ -1,0 +1,79 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Re-runs the EX35 density sweep with open_world=True and min_closure_coverage=0.5 (tau). Shows that the partial-closure gap from EX35 is CLOSED by the open-world extension: Op I gate fires for all p >= tau (not only p=1.0). End-to-end recovery depends additionally on the final suite check not encountering a held-out closure pair as a synthetic negative (build_verification_suite artifact). Key results: L=8 p=0.9 recovers all 4 held-out pairs; zero spurious derivations at all committed points (precision preserved). Side-by-side comparison: each (L,p) point run in both modes; gate_accepted and committed tracked separately.",
+    "id": "ex37",
+    "name": "Op I open-world closed-gap sweep",
+    "script": {
+      "path": "experiments/ex37_opi_open_world.py",
+      "sha256": "8f8e5ebceba2947fe06c6c0e0bcb38f2e8a9e6332d2e4eb55536248bada42114"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "4eb186e6d60ce45b30bb2bbb443e8e46be6a8fd7",
+    "commit_short": "4eb186e",
+    "describe": "v0.13.0-47-g4eb186e",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 20535,
+      "sha256": "387f3dc61bfb209500c3b5164afa636a6231853e4de4716b0be4bb1bf9d9eecb"
+    },
+    "summary.txt": {
+      "bytes": 5308,
+      "sha256": "5f1556c5826050fcc7fa5cacf6b15013f3d98d2986fc25cc278254a3f4bc28a3"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "chain_lengths": [
+      4,
+      6,
+      8
+    ],
+    "completeness_fractions": [
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "min_base_facts_default": 3,
+    "tau": 0.5
+  },
+  "run": {
+    "duration_s": 2.5415,
+    "finished_utc": "2026-06-18T19:21:23.302091+00:00",
+    "run_id": "20260618T192120Z-4eb186e",
+    "started_utc": "2026-06-18T19:21:20.760608+00:00"
+  },
+  "seeds": {
+    "sampling": 42
+  }
+}
