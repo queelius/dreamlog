@@ -1149,32 +1149,44 @@ experiments:
       the symbol-occurrence count, but reused deeply it pays, so the rejections
       should flip to acceptances at a crossover as reuse deepens.
     method: >
-      Three sweeps, symbolic only (no LLM), deterministic. (1) Extraction
+      Six sweeps, symbolic only (no LLM), deterministic. (1) Extraction
       analytic: K rules sharing an L-goal body; construct the exact extraction
       proposal and read proposal_delta in bits mode; report crossover K*(L).
       (2) Invention via the dreamer: M structurally identical transitive-closure
-      sets; sweep M, read the invention proposal's bits delta and bits-mode
-      decision. (3) Generalization via the dreamer: a group of N facts under a
-      guard; sweep N. Dream OUTCOMES were cross-checked against recorder
+      sets. (3) Generalization via the dreamer: a group of N facts under a
+      guard. (4) Recursion (Op I) via the dreamer: r = transitive closure of a
+      base chain, sweep chain length. (5) Generalization 2D: crossover surface
+      over (group size N, #exceptions E). (6) Removal baseline: subsumption and
+      pruning always pay. Dream OUTCOMES were cross-checked against recorder
       decisions at each crossover.
     key_result: |
       Run 2026-06-18 (git 9afcdea). Bits mode implements a sharp abstraction-
       maturity threshold; clause-count is blind to it (delta = +1 / "accept"
-      for every reuse depth).
+      for every reuse depth). COMPLETE TAXONOMY of the symbolic ops:
+      -- Removal + recursion pay IMMEDIATELY --
+      (6) REMOVAL (subsumption -15, pruning -11 bits): always pay (removing a
+          clause only lowers DL).
+      (4) RECURSION (Op I): pays as soon as valid (chain length >= min_base_facts
+          = 3) and the savings grow super-linearly with the closure it deletes:
+          L=3 (6 pairs) -33; L=5 -186; L=8 -568; L=10 (55 pairs) -929. No reuse
+          threshold: it removes an O(L^2) fact extension for two rules.
+      -- Abstraction ops require a reuse threshold (crossover) --
       (1) EXTRACTION crossover K* falls as the shared body L deepens:
-          L=2 -> K*=5, L=3 -> K*=3, L=4 -> K*=3, L=5 -> K*=2. delta_bits is
-          monotonically more negative in both K and L (e.g. L=2,K=2 = +15;
-          L=5,K=12 = -330).
+          L=2 -> K*=5, L=3 -> 3, L=4 -> 3, L=5 -> 2. delta_bits monotonically
+          more negative in both K and L (L=2,K=2 = +15; L=5,K=12 = -330).
       (2) INVENTION (M transitive-closure sets): M=2 no proposal (Op D does not
-          fire), M=3 rejected (+15 bits), M>=4 accepted (-16, -49, -83, -118).
+          fire), M=3 rejected (+15), M>=4 accepted (-16, -49, -83, -118).
           Crossover M*=4. Clause-count accepts every M>=3.
-      (3) GENERALIZATION (group of N facts): N=3 rejected (+6 bits), N>=4
-          accepted (-11 down to -413 at N=24). Crossover N*=4. Clause-count
-          accepts every N (incl. N=3, where it adds the rule the bits gate
-          correctly declines as premature).
-      Interpretation: the bits-DL gate accepts an abstraction exactly when its
-      reuse depth makes it compress, which is the MDL-correct behavior and a
-      distinction clause-count cannot express. The 8 decision-diff flips are
-      scenarios sitting below their crossover; deepening reuse reverts them to
-      accepts.
+      (3) GENERALIZATION (group of N facts, 1 exception): N=3 rejected (+6),
+          N>=4 accepted (-11 down to -413 at N=24). Crossover N*=4.
+      (5) GENERALIZATION 2D: the crossover RISES with the exception count E.
+          N=4 pays at E=1 (-11) but flips to reject at E=2 (+3) and Op C stops
+          firing at E>=3; N=6 pays through E=4 (margin -46 -> -3); N>=8 pays
+          comfortably. So generalization compresses when the group is large
+          relative to its exceptions.
+      Interpretation: the bits-DL gate accepts an abstraction exactly when it
+      compresses -- immediately for removal/recursion, and past a reuse
+      threshold for extraction/invention/generalization -- which is the
+      MDL-correct behavior and a distinction clause-count cannot express. The 8
+      decision-diff flips are scenarios sitting below their crossover.
     depends_on: [EX25, EX25b, EX28]

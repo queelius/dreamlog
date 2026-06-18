@@ -1,5 +1,5 @@
 {
-  "git_sha": "9afcdea",
+  "git_sha": "9974b61",
   "extraction": [
     {
       "body_len": 2,
@@ -238,5 +238,106 @@
         "delta_clauses": -22
       }
     }
-  ]
+  ],
+  "recursion": [
+    {
+      "chain_len": 3,
+      "closure_pairs": 6,
+      "result": {
+        "decision": "accepted",
+        "delta_bits": -33.49
+      }
+    },
+    {
+      "chain_len": 4,
+      "closure_pairs": 10,
+      "result": {
+        "decision": "accepted",
+        "delta_bits": -99.93
+      }
+    },
+    {
+      "chain_len": 5,
+      "closure_pairs": 15,
+      "result": {
+        "decision": "accepted",
+        "delta_bits": -186.04
+      }
+    },
+    {
+      "chain_len": 6,
+      "closure_pairs": 21,
+      "result": {
+        "decision": "accepted",
+        "delta_bits": -292.4
+      }
+    },
+    {
+      "chain_len": 8,
+      "closure_pairs": 36,
+      "result": {
+        "decision": "accepted",
+        "delta_bits": -567.72
+      }
+    },
+    {
+      "chain_len": 10,
+      "closure_pairs": 55,
+      "result": {
+        "decision": "accepted",
+        "delta_bits": -929.03
+      }
+    }
+  ],
+  "generalization_2d": [
+    {
+      "n_pass": 4,
+      "by_exceptions": {
+        "1": -10.84,
+        "2": 3.0,
+        "3": null,
+        "4": null
+      }
+    },
+    {
+      "n_pass": 6,
+      "by_exceptions": {
+        "1": -45.7,
+        "2": -31.9,
+        "3": -17.68,
+        "4": -3.09
+      }
+    },
+    {
+      "n_pass": 8,
+      "by_exceptions": {
+        "1": -82.43,
+        "2": -68.6,
+        "3": -54.41,
+        "4": -39.88
+      }
+    },
+    {
+      "n_pass": 12,
+      "by_exceptions": {
+        "1": -159.95,
+        "2": -146.0,
+        "3": -131.75,
+        "4": -117.23
+      }
+    },
+    {
+      "n_pass": 16,
+      "by_exceptions": {
+        "1": -241.44,
+        "2": -227.34,
+        "3": -212.98,
+        "4": -198.4
+      }
+    }
+  ],
+  "removal_baseline": {
+    "subsumption_delta_bits": -15.0,
+    "pruning_delta_bits": -11.0
+  }
 }

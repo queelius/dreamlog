@@ -94,18 +94,33 @@ def invention_kb(m_sets):
     return kb
 
 
-def generalization_kb(n_facts):
-    """N entities that are all 'grade(e_i, pass)' under guard 'student(e_i)',
-    plus one exception entity that fails. Op C's target: generalize to
-    grade(X, pass) :- student(X), with the failing entity as an exception."""
+def generalization_kb(n_pass, n_fail=1):
+    """n_pass entities are 'grade(e_i, pass)' under guard 'student(e_i)', plus
+    n_fail exception entities that fail. Op C's target: generalize to
+    grade(X, pass) :- student(X), with the failing entities as exceptions."""
     kb = KnowledgeBase()
-    for i in range(n_facts):
+    for i in range(n_pass):
         e = "s%d" % i
         kb.add_fact(compound("student", atom(e)))
         kb.add_fact(compound("grade", atom(e), atom("pass")))
-    # one guarded exception so the generalization is non-trivial
-    kb.add_fact(compound("student", atom("x0")))
-    kb.add_fact(compound("grade", atom("x0"), atom("fail")))
+    for j in range(n_fail):
+        x = "x%d" % j
+        kb.add_fact(compound("student", atom(x)))
+        kb.add_fact(compound("grade", atom(x), atom("fail")))
+    return kb
+
+
+def recursion_kb(chain_len):
+    """A base chain b: n0->n1->...->n{L}, plus r = the FULL transitive closure
+    of b as ground facts. Op I's target: detect r = closure(b) and replace r's
+    O(L^2) fact extension with r(X,Y):-b(X,Y); r(X,Z):-b(X,Y),r(Y,Z)."""
+    kb = KnowledgeBase()
+    nodes = ["n%d" % i for i in range(chain_len + 1)]
+    for i in range(chain_len):
+        kb.add_fact(compound("b", atom(nodes[i]), atom(nodes[i + 1])))
+    for i in range(chain_len + 1):
+        for j in range(i + 1, chain_len + 1):
+            kb.add_fact(compound("r", atom(nodes[i]), atom(nodes[j])))
     return kb
 
 
@@ -135,6 +150,63 @@ def generalization_sweep():
             for n in (3, 4, 6, 8, 12, 16, 24)]
 
 
+def recursion_sweep():
+    out = []
+    for chain_len in (3, 4, 5, 6, 8, 10):
+        recs = []
+        KnowledgeBaseDreamer(dl_mode="bits", discover_recursion=True,
+                             decision_recorder=recs.append).dream(
+                                 recursion_kb(chain_len))
+        hit = next((r for r in recs if r["kind"] == "recursion"), None)
+        out.append({"chain_len": chain_len,
+                    "closure_pairs": chain_len * (chain_len + 1) // 2,
+                    "result": None if hit is None else {
+                        "decision": hit["decision"],
+                        "delta_bits": round(hit["delta_bits"], 2)}})
+    return out
+
+
+def generalization_2d():
+    """Generalization crossover as a SURFACE over (group size N, #exceptions E):
+    more exceptions raise the bar an abstraction must clear."""
+    grid = []
+    for n_pass in (4, 6, 8, 12, 16):
+        row = {"n_pass": n_pass, "by_exceptions": {}}
+        for n_fail in (1, 2, 3, 4):
+            recs = []
+            KnowledgeBaseDreamer(dl_mode="bits",
+                                 decision_recorder=recs.append).dream(
+                                     generalization_kb(n_pass, n_fail))
+            hit = next((r for r in recs if r["kind"] == "generalization"), None)
+            row["by_exceptions"][n_fail] = (
+                None if hit is None else round(hit["delta_bits"], 2))
+        grid.append(row)
+    return grid
+
+
+def removal_baseline():
+    """Pure-removal ops (subsumption, pruning) always pay: removing a clause
+    only lowers DL. Confirms the taxonomy's other end against the abstraction
+    crossovers."""
+    X = var("X")
+    general = Rule(compound("p", X), [compound("q", X)])
+    specific = Rule(compound("p", atom("a")), [compound("q", atom("a"))])
+    kb_sub = KnowledgeBase()
+    kb_sub.add_rule(general)
+    kb_sub.add_rule(specific)
+    sub = Proposal(kind="subsumption", remove=(specific,))
+    kb_prune = KnowledgeBase()
+    kb_prune.add_fact(Fact(compound("f", atom("a"))))
+    kb_prune.add_fact(Fact(compound("f", atom("b"))))
+    prune = Proposal(kind="pruning", remove=(Fact(compound("f", atom("a"))),))
+    return {
+        "subsumption_delta_bits": round(
+            dl.proposal_delta(sub, kb=kb_sub, mode="bits"), 2),
+        "pruning_delta_bits": round(
+            dl.proposal_delta(prune, kb=kb_prune, mode="bits"), 2),
+    }
+
+
 # --------------------------------------------------------------------------
 
 def main():
@@ -147,9 +219,14 @@ def main():
     extraction = extraction_sweep()
     invention = invention_sweep()
     generalization = generalization_sweep()
+    recursion = recursion_sweep()
+    gen2d = generalization_2d()
+    removal = removal_baseline()
 
     results = {"git_sha": git_sha, "extraction": extraction,
-               "invention": invention, "generalization": generalization}
+               "invention": invention, "generalization": generalization,
+               "recursion": recursion, "generalization_2d": gen2d,
+               "removal_baseline": removal}
     (out_dir / "results.json").write_text(json.dumps(results, indent=2))
 
     # human-readable summary
@@ -179,6 +256,31 @@ def main():
                  None if b is None else "%s/%+.0f" % (b["decision"], b["delta_bits"]),
                  None if c is None else c["decision"]))
 
+    print("\n4. RECURSION -- r = closure(b), sweep chain length (dreamer, Op I)")
+    print("   (always pays once valid; savings grow with closure size)")
+    for r in recursion:
+        res = r["result"]
+        print("   L=%-2d (closure %3d)  %s"
+              % (r["chain_len"], r["closure_pairs"],
+                 None if res is None else "%s/%+.0f"
+                 % (res["decision"], res["delta_bits"])))
+
+    print("\n5. GENERALIZATION 2D -- crossover surface over (N pass, E exceptions)")
+    print("   (delta_bits; negative = bits accepts; 'none' = Op C did not fire)")
+    print("   %-6s %s" % ("N\\E", "  ".join("E=%d" % e for e in (1, 2, 3, 4))))
+    for row in gen2d:
+        cells = "  ".join(
+            " none" if row["by_exceptions"][e] is None
+            else "%5.0f" % row["by_exceptions"][e] for e in (1, 2, 3, 4))
+        print("   N=%-4d %s" % (row["n_pass"], cells))
+
+    print("\n6. REMOVAL ops always pay (taxonomy's other end): "
+          "subsumption=%+.0f  pruning=%+.0f bits"
+          % (removal["subsumption_delta_bits"], removal["pruning_delta_bits"]))
+
+    print("\nTAXONOMY: removal + recursion pay immediately; extraction, "
+          "invention,\n  and generalization require a reuse threshold "
+          "(crossover) to pay.")
     print("\nWrote %s" % (out_dir / "results.json"))
 
 
