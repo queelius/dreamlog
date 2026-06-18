@@ -1,0 +1,28 @@
+EX34: Cross-Domain Transfer via Merged-KB Predicate Invention
+========================================================================
+SYMBOLIC ONLY -- no LLM, zero cost, deterministic
+
+HYPOTHESIS: compressing M domains merged together discovers a SHARED
+  _invented_ predicate (Op D) spanning all domains, which separate
+  per-domain dreams cannot produce. Bits mode (rename-invariant DL)
+  should accept the shared abstraction at fewer domains (lower M*).
+
+DOMAIN DESIGN: each domain k has:
+  base relation b<k>(X,Y) over a 4-entity chain
+  closure relation c<k> defined by two rules: c<k>(X,Y):-b<k>(X,Y)
+    and c<k>(X,Z):-b<k>(X,Y),c<k>(Y,Z)  (transitive closure)
+  within-domain generalizable group: tag<k>(e,kind<k>) for 3 entities
+
+DETECTION METHOD: after merged dream, find _invented_ functor in
+  rule heads; find wrapper rules calling it; if wrappers span >=2
+  distinct domain closure heads (c0,c1,...) -> shared abstraction.
+
+Running sweep (M x mode)...
+
+SWEEP TABLE
+  Columns: mer-sav=merged clauses saved, sep-sav=sum-separate clauses saved,
+    super+c=super-additive clause savings (merged-sep), mer-bit/sep-bit same for bits,
+    super+b=super-additive bits savings, shared=YES if shared abstraction found
+
+  M     mode      mer-cl  sep-cl  sup-cl   mer-bt  sep-bt  sup-bt  shared
+  --------------------------------------------------------------------

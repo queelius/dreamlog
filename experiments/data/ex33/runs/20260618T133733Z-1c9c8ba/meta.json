@@ -1,0 +1,79 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Generate a family of 30 synthetic domains varying in compressibility (n_comp vs n_incomp groups, group sizes). For each domain and each DL mode (clauses, bits), dream symbolically then add new entities and measure recovery of ground-truth derived facts. Compressible groups (size >= 3) always recover (rule discovered); incompressible groups never recover (no rule). Recovery = n_comp/(n_comp+n_incomp). Compute Spearman and Pearson correlations between compression metrics (bits saved, bits ratio, clauses saved, clause ratio) and recovery across the domain family. Tests whether compression predicts generalization and whether bits-saved is the better predictor.",
+    "id": "ex33",
+    "name": "does compression predict generalization",
+    "script": {
+      "path": "experiments/ex33_compression_predicts.py",
+      "sha256": "fccae7a21c213fea42d8141f16c1b222a2203da7c91aa34d50eb9a788269c8c4"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "1c9c8baafbdd8ee43b936229ff30e5c49bdf0c15",
+    "commit_short": "1c9c8ba",
+    "describe": "v0.13.0-40-g1c9c8ba",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 41413,
+      "sha256": "845d72f2f87e05ef2c1c266762c992d98b1d5e9cbc181ef1b9bb2b707738375e"
+    },
+    "summary.txt": {
+      "bytes": 3962,
+      "sha256": "339fb5ddfc5bc504ace65194d29daa68446e1ae003919d46cd1990d5026351ac"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "domain_axes": [
+      "n_comp (0-6)",
+      "n_incomp (0-6)",
+      "sz_c (3-12)",
+      "sz_ic (0-2)"
+    ],
+    "min_group_size_for_op_c": 3,
+    "modes": [
+      "clauses",
+      "bits"
+    ],
+    "n_domains": 30,
+    "n_new_per_group": 3,
+    "open_world": false,
+    "protocol": "new_entity_generalization"
+  },
+  "run": {
+    "duration_s": 1.9134,
+    "finished_utc": "2026-06-18T13:37:35.421835+00:00",
+    "run_id": "20260618T133733Z-1c9c8ba",
+    "started_utc": "2026-06-18T13:37:33.508492+00:00"
+  },
+  "seeds": {
+    "master_seed": 42,
+    "note": "fully deterministic; domain structure fixed by spec"
+  }
+}

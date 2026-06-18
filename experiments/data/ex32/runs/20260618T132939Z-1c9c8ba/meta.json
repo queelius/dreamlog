@@ -1,0 +1,79 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Tests whether bits-mode description length acts as a noise filter. Hypothesis: shallow spurious patterns (group size 2) are accepted by clause-count mode but rejected by bits mode, while the true mature pattern (N=12 students) is captured by both. Sweeps noise fraction f in {0.0,...,0.4}.",
+    "id": "ex32",
+    "name": "bits-mode noise filter",
+    "script": {
+      "path": "experiments/ex32_noise_filter.py",
+      "sha256": "deb9580bb40bfd35a722ddfa1252a7250f3f9f0eca27146a45b405beb325c15b"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "1c9c8baafbdd8ee43b936229ff30e5c49bdf0c15",
+    "commit_short": "1c9c8ba",
+    "describe": "v0.13.0-40-g1c9c8ba",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 2717,
+      "sha256": "979ddfb771e7fe7a611307ad206cfc6171cb014befa75dea532dfd7fc50d9709"
+    },
+    "summary.txt": {
+      "bytes": 1396,
+      "sha256": "e2e37220288d1feb0ab340d6b2fdfe33fa10f96b906a0c6f2718f8a91878a264"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "N_students": 12,
+    "dl_mode_default": "clauses",
+    "dl_modes": [
+      "clauses",
+      "bits"
+    ],
+    "min_group_size": 3,
+    "noise_design": "hobby(s, hobby_name) + person(s) facts for randomly chosen students; hobby pool size = ceil(n_noise/2) forces 2-member groups; true pattern: grade(X,pass):-student(X)",
+    "noise_fractions": [
+      0.0,
+      0.05,
+      0.1,
+      0.2,
+      0.3,
+      0.4
+    ]
+  },
+  "run": {
+    "duration_s": 0.1864,
+    "finished_utc": "2026-06-18T13:29:39.652253+00:00",
+    "run_id": "20260618T132939Z-1c9c8ba",
+    "started_utc": "2026-06-18T13:29:39.465851+00:00"
+  },
+  "seeds": {
+    "rng": 20260618
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Does compressing M merged single-skeleton domains (each with distinct vocabulary but same transitive-closure structure) produce a SHARED abstraction (one _invented_ predicate covering all domains) that separate per-domain dreams cannot? Sweeps M in {2,3,4,5,6} under both clause-count and bits DL modes. Symbolic only, no LLM. Measures super-additivity of merged vs sum-of-separate compression and whether bits mode favors the shared abstraction more than clauses.",
+    "id": "ex34",
+    "name": "cross-domain transfer via merged-KB predicate invention",
+    "script": {
+      "path": "experiments/ex34_transfer.py",
+      "sha256": "999e1f576900397ba6c339014274aed4243951c2bd39cd43aeaf406bc35d1e15"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "1c9c8baafbdd8ee43b936229ff30e5c49bdf0c15",
+    "commit_short": "1c9c8ba",
+    "describe": "v0.13.0-40-g1c9c8ba",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 8416,
+      "sha256": "f1f31d596c641822c22887fda1fe757a47046643db5b06054acab21edfff61e9"
+    },
+    "summary.txt": {
+      "bytes": 4306,
+      "sha256": "c64d30d3847e0101a158f05fd205b707d1253aaaef6f7fb149e912f8f24b10ee"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "M_values": [
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "chain_len": 4,
+    "conditions": [
+      "separate",
+      "merged"
+    ],
+    "detection_method": "After merged dream, inspect kb.rules for any rule head containing '_invented_'. For each invented functor, find wrapper rules whose body references it (direct or via call/N dispatch). A shared abstraction is found when the wrapper rules' head functors span >=2 distinct domain closure heads (c0..c{M-1}).",
+    "llm": false,
+    "modes": [
+      "clauses",
+      "bits"
+    ]
+  },
+  "run": {
+    "duration_s": 1.1807,
+    "finished_utc": "2026-06-18T13:31:58.885244+00:00",
+    "run_id": "20260618T133157Z-1c9c8ba",
+    "started_utc": "2026-06-18T13:31:57.704557+00:00"
+  },
+  "seeds": {
+    "note": "fully deterministic; no RNG"
+  }
+}

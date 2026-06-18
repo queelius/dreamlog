@@ -1,0 +1,181 @@
+{
+  "summary": {
+    "bits_filters_better": true,
+    "bits_preserves_true": true,
+    "max_spurious_bits": 0,
+    "max_spurious_clauses": 5,
+    "spurious_by_level_bits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "spurious_by_level_clauses": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "true_captured_all_levels_bits": true,
+    "true_captured_all_levels_clauses": true
+  },
+  "sweep": [
+    {
+      "bits": {
+        "noise_bits_deltas_rejected": [],
+        "precision": 1.0,
+        "spurious_count": 0,
+        "total_accepted": 1,
+        "total_proposals": 1,
+        "true_captured": true
+      },
+      "clauses": {
+        "noise_bits_deltas_rejected": [],
+        "precision": 1.0,
+        "spurious_count": 0,
+        "total_accepted": 1,
+        "total_proposals": 1,
+        "true_captured": true
+      },
+      "n_noise_facts": 0,
+      "n_total_facts": 24,
+      "noise_fraction": 0.0,
+      "noise_level": 0
+    },
+    {
+      "bits": {
+        "noise_bits_deltas_rejected": [
+          10.9
+        ],
+        "precision": 1.0,
+        "spurious_count": 0,
+        "total_accepted": 1,
+        "total_proposals": 2,
+        "true_captured": true
+      },
+      "clauses": {
+        "noise_bits_deltas_rejected": [],
+        "precision": 0.5,
+        "spurious_count": 1,
+        "total_accepted": 2,
+        "total_proposals": 2,
+        "true_captured": true
+      },
+      "n_noise_facts": 8,
+      "n_total_facts": 32,
+      "noise_fraction": 0.25,
+      "noise_level": 1
+    },
+    {
+      "bits": {
+        "noise_bits_deltas_rejected": [
+          8.03,
+          8.03
+        ],
+        "precision": 1.0,
+        "spurious_count": 0,
+        "total_accepted": 1,
+        "total_proposals": 3,
+        "true_captured": true
+      },
+      "clauses": {
+        "noise_bits_deltas_rejected": [],
+        "precision": 0.3333333333333333,
+        "spurious_count": 2,
+        "total_accepted": 3,
+        "total_proposals": 3,
+        "true_captured": true
+      },
+      "n_noise_facts": 16,
+      "n_total_facts": 40,
+      "noise_fraction": 0.4,
+      "noise_level": 2
+    },
+    {
+      "bits": {
+        "noise_bits_deltas_rejected": [
+          6.28,
+          6.28,
+          6.28
+        ],
+        "precision": 1.0,
+        "spurious_count": 0,
+        "total_accepted": 1,
+        "total_proposals": 4,
+        "true_captured": true
+      },
+      "clauses": {
+        "noise_bits_deltas_rejected": [],
+        "precision": 0.25,
+        "spurious_count": 3,
+        "total_accepted": 4,
+        "total_proposals": 4,
+        "true_captured": true
+      },
+      "n_noise_facts": 24,
+      "n_total_facts": 48,
+      "noise_fraction": 0.5,
+      "noise_level": 3
+    },
+    {
+      "bits": {
+        "noise_bits_deltas_rejected": [
+          5.06,
+          5.06,
+          5.06,
+          5.06
+        ],
+        "precision": 1.0,
+        "spurious_count": 0,
+        "total_accepted": 1,
+        "total_proposals": 5,
+        "true_captured": true
+      },
+      "clauses": {
+        "noise_bits_deltas_rejected": [],
+        "precision": 0.2,
+        "spurious_count": 4,
+        "total_accepted": 5,
+        "total_proposals": 5,
+        "true_captured": true
+      },
+      "n_noise_facts": 32,
+      "n_total_facts": 56,
+      "noise_fraction": 0.5714,
+      "noise_level": 4
+    },
+    {
+      "bits": {
+        "noise_bits_deltas_rejected": [
+          4.14,
+          4.14,
+          4.14,
+          4.14,
+          4.14
+        ],
+        "precision": 1.0,
+        "spurious_count": 0,
+        "total_accepted": 1,
+        "total_proposals": 6,
+        "true_captured": true
+      },
+      "clauses": {
+        "noise_bits_deltas_rejected": [],
+        "precision": 0.16666666666666666,
+        "spurious_count": 5,
+        "total_accepted": 6,
+        "total_proposals": 6,
+        "true_captured": true
+      },
+      "n_noise_facts": 40,
+      "n_total_facts": 64,
+      "noise_fraction": 0.625,
+      "noise_level": 5
+    }
+  ],
+  "verdict": "SUPPORTED"
+}

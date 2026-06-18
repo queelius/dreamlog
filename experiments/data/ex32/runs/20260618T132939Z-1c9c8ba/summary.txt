@@ -1,0 +1,27 @@
+EX32: bits-mode description length as a noise filter
+============================================================
+HYPOTHESIS: bits mode rejects noise-induced spurious
+generalizations (group size 2-3) while capturing the
+true pattern (grade, N=12 students). Clause count accepts
+any net-reduction pattern regardless of group size.
+
+SWEEP TABLE (Op C generalization proposals)
+------------------------------------------------------------
+f       noise      CLAUSES (true/spur/prec)  BITS (true/spur/prec) 
+------------------------------------------------------------
+0.00    0          Y / 0 / 1.00            Y / 0 / 1.00          
+0.05    2          Y / 0 / 1.00            Y / 0 / 1.00          
+0.10    4          Y / 0 / 1.00            Y / 0 / 1.00          
+0.20    6          Y / 1 / 0.50            Y / 1 / 0.50          
+0.30    8          Y / 1 / 0.50            Y / 1 / 0.50          
+0.40    10         Y / 0 / 1.00            Y / 0 / 1.00          
+------------------------------------------------------------
+(true: Y=true pattern captured, spur: spurious generalizations,
+ prec: true/(true+spurious) or - if no proposals accepted)
+
+SUMMARY
+  Clauses mode: max spurious=1, true captured all f: True
+  Bits mode:    max spurious=1, true captured all f: True
+
+VERDICT: REFUTED
+  Bits mode did NOT suppress more spurious generalizations than clause count despite hypothesis prediction.

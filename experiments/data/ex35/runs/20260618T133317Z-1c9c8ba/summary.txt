@@ -1,0 +1,78 @@
+EX35: Op I data-density characterization
+============================================================
+
+1. COMPLETENESS SWEEP -- fraction p of closure pairs present
+   Op I fires ONLY at p=1.0 (exact match gate)
+   L     p      total     present   Op_I_fired  delta_c   left_on_table
+   4     0.50   10        5         False       --        5           
+   4     0.60   10        6         False       --        4           
+   4     0.70   10        7         False       --        3           
+   4     0.80   10        8         False       --        2           
+   4     0.90   10        9         False       --        1           
+   4     0.95   10        10        True        -8        0           
+   4     1.00   10        10        True        -8        0           
+   6     0.50   21        10        False       --        11          
+   6     0.60   21        13        False       --        8           
+   6     0.70   21        15        False       --        6           
+   6     0.80   21        17        False       --        4           
+   6     0.90   21        19        False       --        2           
+   6     0.95   21        20        False       --        1           
+   6     1.00   21        21        True        -19       0           
+   8     0.50   36        18        False       --        18          
+   8     0.60   36        22        False       --        14          
+   8     0.70   36        25        False       --        11          
+   8     0.80   36        29        False       --        7           
+   8     0.90   36        32        False       --        4           
+   8     0.95   36        34        False       --        2           
+   8     1.00   36        36        True        -34       0           
+
+2. BASE-DENSITY SWEEP -- chain length L at p=1.0 (exact closure)
+   min_base_facts=3: Op I must NOT fire for L<3 (base_facts<3)
+   L     base_facts  closure_pairs  total_clauses_before  decision    delta_c     delta_bits
+   2     2           3              5                   no_proposal  --          --        
+   3     3           6              9                   accepted    -4          -33.49    
+   4     4           10             14                  accepted    -8          -99.93    
+   5     5           15             20                  accepted    -13         -186.04   
+   6     6           21             27                  accepted    -19         -292.4    
+   7     7           28             35                  accepted    -26         -419.49   
+   8     8           36             44                  accepted    -34         -567.72   
+   9     9           45             54                  accepted    -43         -737.46   
+   10    10          55             65                  accepted    -53         -929.03   
+
+3. OVER-COMPLETE SWEEP -- spurious r-facts at p=1.0 (L=6)
+   Op I must NOT fire when spurious facts are present
+   n_spurious  true_pairs    total_r_facts  op_i_fired    delta_c   
+   0           21            21             True          -19       
+   1           21            22             False         --        
+   2           21            23             False         --        
+   3           21            24             False         --        
+
+4. PARTIAL-CLOSURE GAP SUMMARY
+   Op I fires only when: p=1.0 AND no spurious AND base_facts>=3
+   At p<1.0, recoverable closure pairs left on the table:
+   L=8  p=0.50 -- 18 of 36 closure pairs present, 18 left on the table (Op I abstains)
+   L=8  p=0.60 -- 22 of 36 closure pairs present, 14 left on the table (Op I abstains)
+   L=8  p=0.70 -- 25 of 36 closure pairs present, 11 left on the table (Op I abstains)
+   L=8  p=0.80 -- 29 of 36 closure pairs present, 7 left on the table (Op I abstains)
+   L=8  p=0.90 -- 32 of 36 closure pairs present, 4 left on the table (Op I abstains)
+   L=8  p=0.95 -- 34 of 36 closure pairs present, 2 left on the table (Op I abstains)
+
+   KEY FINDING: At L=8, p=0.9 -- 4 closure pairs recoverable by a recursive rule
+   are left on the table because Op I requires exact-match (p=1.0).
+
+   Fire condition: p == 1.0 AND n_spurious == 0 AND base_facts >= min_base_facts(3)
+
+   min_base_facts threshold confirmed: Op I first fires at L=3 (base_facts=3, min_base_facts=3)
+
+   bits-delta growth with chain length (Op I, p=1.0):
+   L=3   closure=  6  delta_bits=-33.49    delta_clauses=-4
+   L=4   closure= 10  delta_bits=-99.93    delta_clauses=-8
+   L=5   closure= 15  delta_bits=-186.04   delta_clauses=-13
+   L=6   closure= 21  delta_bits=-292.4    delta_clauses=-19
+   L=7   closure= 28  delta_bits=-419.49   delta_clauses=-26
+   L=8   closure= 36  delta_bits=-567.72   delta_clauses=-34
+   L=9   closure= 45  delta_bits=-737.46   delta_clauses=-43
+   L=10  closure= 55  delta_bits=-929.03   delta_clauses=-53
+
+============================================================
+EX35 complete. Zero library changes (symbolic only, no LLM).

@@ -1298,3 +1298,157 @@ experiments:
       bits accepts mature abstractions and rejects only premature ones. The
       default is NOT changed in this experiment; it only records the evidence.
     depends_on: [EX29, EX30]
+
+  EX32_noise_filter:
+    title: "Bits-mode description length as a noise filter for generalization"
+    date: 2026-06-18
+    script: experiments/ex32_noise_filter.py
+    status: complete
+    motivation: >
+      EX29 established a sharp bits-mode crossover: a generalization over a group
+      of 3 with one exception costs positive bits (rejected) while a group of 4+
+      pays. EX32 tests the practical consequence: random noise creates shallow,
+      coincidental patterns that sit below the crossover, so bits mode should
+      reject the spurious generalizations clause count accepts -- acting as a
+      principled noise filter.
+    method: >
+      Clean domain of 12 students with a true mature regularity grade(X,pass)
+      :- student(X). Noise at fraction f adds L independent fresh-predicate
+      groups, each 3 matching facts + 1 exception (the EX29 rejection scenario).
+      Sweep f via L in {0..5}; dream in both dl_modes with a decision recorder;
+      count true-pattern capture and spurious accepted generalizations. Symbolic,
+      deterministic (rng seed recorded). NOTE the noise is inserted before the
+      true facts so Op C prices it against a lean symbol table (see caveat).
+    key_result: |
+      SUPPORTED. Clauses mode accepts L spurious generalizations at noise level L
+      (precision 1.00 -> 0.17 across L=0..5) while bits mode accepts ZERO spurious
+      generalizations at every level (precision stays 1.00); both capture the true
+      pattern (delta_bits -193..-219, far below threshold). Rejected-noise bits
+      delta: +10.90 (L=1) down to +4.14 (L=5).
+      CAVEAT (order/context sensitivity): the effect depends on the shallow noise
+      being priced against a lean dictionary. Because the bits delta is global,
+      once a generalization-with-exceptions has fired it amortizes the not/1 and
+      exception declarations, discounting later shallow patterns; with the true
+      pattern processed first the marginal noise groups can become cheap enough
+      for bits to accept too. The filter is real but contextual, not absolute; an
+      order-robustness study is the natural follow-on.
+    implications: >
+      The maturity crossover doubles as a noise gate: spurious shallow structure
+      is information-theoretically unprofitable and bits mode declines it. This is
+      a concrete robustness argument for the bits objective, tempered by the
+      context-sensitivity caveat above.
+    depends_on: [EX29]
+
+  EX33_compression_predicts:
+    title: "Does compression predict generalization? Bits vs clause count"
+    date: 2026-06-18
+    script: experiments/ex33_compression_predicts.py
+    status: complete
+    motivation: >
+      The paper admits two domains do not establish a predictive relationship
+      between compression ratio and generalization recall, and that connecting
+      the bits-length margin of an accepted abstraction to its downstream
+      generalization value is open. EX33 fills the gap with a family of synthetic
+      domains varying in compressibility.
+    method: >
+      30 synthetic domains in three subfamilies (GOOD+INCOMP, CL_ONLY+INCOMP,
+      GOOD+CL_ONLY). Recoverable (new-entity) generalization protocol: dream the
+      full KB, then add guard-only entities and test whether the generalization
+      rule derives their held-out property. Per domain x mode, record recovery,
+      precision, clause/bits compression and savings; compute Spearman and Pearson
+      correlations of each compression currency with recovery. Symbolic, no LLM,
+      seed recorded.
+    key_result: |
+      SUPPORTED. Compression strongly predicts generalization: Spearman r in
+      [0.59, 0.92] (all p<0.001, N=30 per mode), recovery range 0-100% (mean
+      53.8%, matching EX25b's ~53%). Both currencies predict well; clause count is
+      marginally better in clauses mode (0.694 vs bits_saved 0.630), and in bits
+      mode both are near-identical (~0.91). Bits mode is MORE SELECTIVE (mean
+      recovery 42.6% vs clauses 65.1%) and, when it does compress, its metric is a
+      stronger predictor (r~0.91 vs ~0.63-0.69). Mode divergence in 10/30 domains
+      (all subfamily B).
+      CAVEAT: subfamily C (mixed GOOD+CL_ONLY) shows symbol-table cross-
+      contamination -- the presence of a GOOD group amortizes shared declarations
+      so bits accepts CL_ONLY groups it would reject in isolation; mode divergence
+      is clean only in subfamily B. The same global-DL context effect as EX32.
+    implications: >
+      Closes the paper's admitted predictive-relationship gap: compression is a
+      leading indicator of generalization under both currencies. Bits is more
+      selective and a stronger predictor when it fires; neither currency is
+      decisively better across all conditions.
+    depends_on: [EX25, EX25b, EX29, EX31]
+
+  EX34_transfer:
+    title: "Cross-domain transfer via merged-KB predicate invention"
+    date: 2026-06-18
+    script: experiments/ex34_transfer.py
+    status: complete
+    motivation: >
+      Two domains with the same relational skeleton but distinct vocabulary share
+      deep structure. Compressing the merged KB should let Op D discover a shared
+      invented predicate spanning all domains -- a transfer effect impossible when
+      dreaming each domain separately. The rename-invariant bits code was
+      hypothesized to favor this shared abstraction.
+    method: >
+      M domains (M in {2..6}), each a transitive closure (b_k, c_k) over a
+      4-entity chain plus a within-domain generalizable tag group. Three
+      conditions: SEPARATE (dream each alone, sum compression), MERGED (dream the
+      union), and compare. Shared-abstraction detection: an _invented_ functor in
+      the merged KB whose wrapper rules span >=2 distinct domain closure heads.
+      Both dl_modes. Symbolic, no LLM.
+    key_result: |
+      Transfer effect CONFIRMED: the merged dream discovers a single shared
+      _invented_ predicate covering all M domain closure heads via call/N dispatch
+      -- structure the separate dreams cannot produce. Compression is
+      super-additive (merged saves more than the sum of separates), peaking at M=6
+      with +4 clauses / +192.6 bits.
+      HYPOTHESIS REVERSED: bits does NOT favor the shared abstraction earlier; it
+      is MORE conservative (shared-invention crossover M*=4 in bits vs M*=3 in
+      clauses), exactly consistent with EX29's invention crossover M*=4. At M=3
+      bits rejects the shared invention (the new invented-predicate + call/N
+      declarations cost more bits than the structure factored away).
+    implications: >
+      Multi-domain compression is super-additive: merged dreams recover shared
+      structure separate dreams miss. The bits gate does not lower the abstraction
+      threshold relative to clause count; it consistently requires more reuse
+      (more co-domains) before naming shared structure pays. Both modes converge
+      for M>=4.
+    depends_on: [EX29]
+
+  EX35_opi_density:
+    title: "Op I data-density characterization -- the partial-closure gap"
+    date: 2026-06-18
+    script: experiments/ex35_opi_density.py
+    status: complete
+    motivation: >
+      The paper lists as a limitation that Operation I fires only when the target
+      relation is the EXACT transitive closure of a single base relation
+      (closed-world exact-match gate), so holdout-style partial closures never
+      trigger it. EX35 quantifies the gap: at what completeness does Op I stop
+      firing, how does base density interact, and where is the boundary. This is a
+      characterization only -- no library change -- and motivates a future
+      open-world partial-closure extension.
+    method: >
+      Three symbolic, deterministic sweeps (sampling seed recorded).
+      (1) Completeness: base chain length L in {4,6,8}, fraction p of closure
+      pairs in {0.5..1.0}; does Op I fire? (2) Base density: p=1.0, L in {2..10};
+      confirm min_base_facts=3 and record delta_clauses/delta_bits growth.
+      (3) Over-complete: L=6, p=1.0, add n_spurious in {0..3} false closure facts;
+      does Op I abstain?
+    key_result: |
+      Op I fires under a STRICT exact-match gate: iff p=1.0 AND n_spurious=0 AND
+      base_facts>=3. The boundary is a hard cliff, not a gradual falloff. The
+      partial-closure gap is total: at L=8 (36 true pairs), p=0.9 leaves 4
+      recoverable pairs uncovered, p=0.7 leaves 11, p=0.5 leaves 18 -- a single
+      2-clause recursive rule would cover them all. One spurious fact also
+      silences Op I. min_base_facts=3 fires exactly at L=3 (delta_bits -33.49);
+      bits savings grow super-linearly with L: -33 (L=3), -292 (L=6), -568 (L=8),
+      -929 (L=10). (At L=4, p=0.95 fires only because banker's rounding samples
+      all 10 pairs; documented via left_on_table=0.)
+    implications: >
+      Any real corpus with holdout gaps or label noise will never trigger Op I,
+      even at 95% completeness. A partial-closure relaxation (subset-match,
+      MDL-weighted under an open-world gate) is needed; EX35 gives a concrete
+      empirical target for how much recoverable structure the current gate leaves
+      behind.
+    depends_on: [EX27, EX29]

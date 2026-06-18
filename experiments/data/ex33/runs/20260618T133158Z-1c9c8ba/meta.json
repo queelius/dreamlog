@@ -1,0 +1,73 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Generate a family of 30 synthetic domains varying in compressibility and generalizable structure. For each domain and each DL mode (clauses, bits), apply a recoverable holdout, dream symbolically with open_world=True, and measure held-out recovery. Compute Spearman and Pearson correlations between compression metrics (bits saved, bits ratio, clauses saved, clause ratio) and recovery across the domain family. Tests whether compression predicts generalization, and whether the bits currency is the better predictor.",
+    "id": "ex33",
+    "name": "does compression predict generalization",
+    "script": {
+      "path": "experiments/ex33_compression_predicts.py",
+      "sha256": "a9e986d8d2fd30abc99fde2b9cdab692b3ce99b13c1c02417fb0596ec5c721cf"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "1c9c8baafbdd8ee43b936229ff30e5c49bdf0c15",
+    "commit_short": "1c9c8ba",
+    "describe": "v0.13.0-40-g1c9c8ba",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 38971,
+      "sha256": "393a297fbb831f9dcdc7dea4554c7d8e017fa43ef70f06d0ba824f08d10b1e01"
+    },
+    "summary.txt": {
+      "bytes": 2421,
+      "sha256": "4f24485ea294d54ed96c21bbf1aa9f78fb9c948f6cbe5c1c60d50557ecde26d0"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "domain_family": "synthetic_guard_property",
+    "holdout_ratio": 0.2,
+    "min_group_size_for_dreamer": 3,
+    "modes": [
+      "clauses",
+      "bits"
+    ],
+    "n_domains": 30,
+    "open_world": true
+  },
+  "run": {
+    "duration_s": 5.3157,
+    "finished_utc": "2026-06-18T13:32:04.010097+00:00",
+    "run_id": "20260618T133158Z-1c9c8ba",
+    "started_utc": "2026-06-18T13:31:58.694442+00:00"
+  },
+  "seeds": {
+    "holdout_seed": 7,
+    "master_seed": 42
+  }
+}

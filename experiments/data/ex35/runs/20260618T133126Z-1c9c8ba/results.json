@@ -1,0 +1,495 @@
+{
+  "base_density_sweep": [
+    {
+      "base_facts": 2,
+      "chain_len": 2,
+      "closure_pairs": 3,
+      "decision": "no_proposal",
+      "delta_bits": null,
+      "delta_clauses": null,
+      "op_i_fired": false,
+      "total_clauses_before": 5
+    },
+    {
+      "base_facts": 3,
+      "chain_len": 3,
+      "closure_pairs": 6,
+      "decision": "accepted",
+      "delta_bits": -33.49,
+      "delta_clauses": -4,
+      "op_i_fired": false,
+      "total_clauses_before": 9
+    },
+    {
+      "base_facts": 4,
+      "chain_len": 4,
+      "closure_pairs": 10,
+      "decision": "accepted",
+      "delta_bits": -99.93,
+      "delta_clauses": -8,
+      "op_i_fired": false,
+      "total_clauses_before": 14
+    },
+    {
+      "base_facts": 5,
+      "chain_len": 5,
+      "closure_pairs": 15,
+      "decision": "accepted",
+      "delta_bits": -186.04,
+      "delta_clauses": -13,
+      "op_i_fired": false,
+      "total_clauses_before": 20
+    },
+    {
+      "base_facts": 6,
+      "chain_len": 6,
+      "closure_pairs": 21,
+      "decision": "accepted",
+      "delta_bits": -292.4,
+      "delta_clauses": -19,
+      "op_i_fired": false,
+      "total_clauses_before": 27
+    },
+    {
+      "base_facts": 7,
+      "chain_len": 7,
+      "closure_pairs": 28,
+      "decision": "accepted",
+      "delta_bits": -419.49,
+      "delta_clauses": -26,
+      "op_i_fired": false,
+      "total_clauses_before": 35
+    },
+    {
+      "base_facts": 8,
+      "chain_len": 8,
+      "closure_pairs": 36,
+      "decision": "accepted",
+      "delta_bits": -567.72,
+      "delta_clauses": -34,
+      "op_i_fired": false,
+      "total_clauses_before": 44
+    },
+    {
+      "base_facts": 9,
+      "chain_len": 9,
+      "closure_pairs": 45,
+      "decision": "accepted",
+      "delta_bits": -737.46,
+      "delta_clauses": -43,
+      "op_i_fired": false,
+      "total_clauses_before": 54
+    },
+    {
+      "base_facts": 10,
+      "chain_len": 10,
+      "closure_pairs": 55,
+      "decision": "accepted",
+      "delta_bits": -929.03,
+      "delta_clauses": -53,
+      "op_i_fired": false,
+      "total_clauses_before": 65
+    }
+  ],
+  "completeness_sweep": [
+    {
+      "chain_len": 4,
+      "delta_clauses": null,
+      "fraction": 0.5,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 5,
+      "sampled_pairs": 5,
+      "total_closure_pairs": 10
+    },
+    {
+      "chain_len": 4,
+      "delta_clauses": null,
+      "fraction": 0.6,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 4,
+      "sampled_pairs": 6,
+      "total_closure_pairs": 10
+    },
+    {
+      "chain_len": 4,
+      "delta_clauses": null,
+      "fraction": 0.7,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 3,
+      "sampled_pairs": 7,
+      "total_closure_pairs": 10
+    },
+    {
+      "chain_len": 4,
+      "delta_clauses": null,
+      "fraction": 0.8,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 2,
+      "sampled_pairs": 8,
+      "total_closure_pairs": 10
+    },
+    {
+      "chain_len": 4,
+      "delta_clauses": null,
+      "fraction": 0.9,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 1,
+      "sampled_pairs": 9,
+      "total_closure_pairs": 10
+    },
+    {
+      "chain_len": 4,
+      "delta_clauses": -8,
+      "fraction": 0.95,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 0,
+      "sampled_pairs": 10,
+      "total_closure_pairs": 10
+    },
+    {
+      "chain_len": 4,
+      "delta_clauses": -8,
+      "fraction": 1.0,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 0,
+      "sampled_pairs": 10,
+      "total_closure_pairs": 10
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "fraction": 0.5,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 11,
+      "sampled_pairs": 10,
+      "total_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "fraction": 0.6,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 8,
+      "sampled_pairs": 13,
+      "total_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "fraction": 0.7,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 6,
+      "sampled_pairs": 15,
+      "total_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "fraction": 0.8,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 4,
+      "sampled_pairs": 17,
+      "total_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "fraction": 0.9,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 2,
+      "sampled_pairs": 19,
+      "total_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "fraction": 0.95,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 1,
+      "sampled_pairs": 20,
+      "total_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": -19,
+      "fraction": 1.0,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 0,
+      "sampled_pairs": 21,
+      "total_closure_pairs": 21
+    },
+    {
+      "chain_len": 8,
+      "delta_clauses": null,
+      "fraction": 0.5,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 18,
+      "sampled_pairs": 18,
+      "total_closure_pairs": 36
+    },
+    {
+      "chain_len": 8,
+      "delta_clauses": null,
+      "fraction": 0.6,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 14,
+      "sampled_pairs": 22,
+      "total_closure_pairs": 36
+    },
+    {
+      "chain_len": 8,
+      "delta_clauses": null,
+      "fraction": 0.7,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 11,
+      "sampled_pairs": 25,
+      "total_closure_pairs": 36
+    },
+    {
+      "chain_len": 8,
+      "delta_clauses": null,
+      "fraction": 0.8,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 7,
+      "sampled_pairs": 29,
+      "total_closure_pairs": 36
+    },
+    {
+      "chain_len": 8,
+      "delta_clauses": null,
+      "fraction": 0.9,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 4,
+      "sampled_pairs": 32,
+      "total_closure_pairs": 36
+    },
+    {
+      "chain_len": 8,
+      "delta_clauses": null,
+      "fraction": 0.95,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 2,
+      "sampled_pairs": 34,
+      "total_closure_pairs": 36
+    },
+    {
+      "chain_len": 8,
+      "delta_clauses": -34,
+      "fraction": 1.0,
+      "op_i_fired": false,
+      "recoverable_pairs_not_present": 0,
+      "sampled_pairs": 36,
+      "total_closure_pairs": 36
+    }
+  ],
+  "gap_summary": {
+    "boundary": {
+      "exact_match_is_strict": true,
+      "l8_p09_fraction": 0.9,
+      "l8_p09_pairs_left_on_table": 4,
+      "op_i_fire_condition": "p == 1.0 AND n_spurious == 0 AND base_facts >= min_base_facts(3)"
+    },
+    "rows": [
+      {
+        "chain_len": 4,
+        "closure_pairs_present": 5,
+        "closure_pairs_total": 10,
+        "fraction": 0.5,
+        "note": "recursive rule would cover 5 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 5
+      },
+      {
+        "chain_len": 4,
+        "closure_pairs_present": 6,
+        "closure_pairs_total": 10,
+        "fraction": 0.6,
+        "note": "recursive rule would cover 4 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 4
+      },
+      {
+        "chain_len": 4,
+        "closure_pairs_present": 7,
+        "closure_pairs_total": 10,
+        "fraction": 0.7,
+        "note": "recursive rule would cover 3 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 3
+      },
+      {
+        "chain_len": 4,
+        "closure_pairs_present": 8,
+        "closure_pairs_total": 10,
+        "fraction": 0.8,
+        "note": "recursive rule would cover 2 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 2
+      },
+      {
+        "chain_len": 4,
+        "closure_pairs_present": 9,
+        "closure_pairs_total": 10,
+        "fraction": 0.9,
+        "note": "recursive rule would cover 1 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 1
+      },
+      {
+        "chain_len": 4,
+        "closure_pairs_present": 10,
+        "closure_pairs_total": 10,
+        "fraction": 0.95,
+        "note": "recursive rule would cover 0 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 0
+      },
+      {
+        "chain_len": 6,
+        "closure_pairs_present": 10,
+        "closure_pairs_total": 21,
+        "fraction": 0.5,
+        "note": "recursive rule would cover 11 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 11
+      },
+      {
+        "chain_len": 6,
+        "closure_pairs_present": 13,
+        "closure_pairs_total": 21,
+        "fraction": 0.6,
+        "note": "recursive rule would cover 8 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 8
+      },
+      {
+        "chain_len": 6,
+        "closure_pairs_present": 15,
+        "closure_pairs_total": 21,
+        "fraction": 0.7,
+        "note": "recursive rule would cover 6 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 6
+      },
+      {
+        "chain_len": 6,
+        "closure_pairs_present": 17,
+        "closure_pairs_total": 21,
+        "fraction": 0.8,
+        "note": "recursive rule would cover 4 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 4
+      },
+      {
+        "chain_len": 6,
+        "closure_pairs_present": 19,
+        "closure_pairs_total": 21,
+        "fraction": 0.9,
+        "note": "recursive rule would cover 2 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 2
+      },
+      {
+        "chain_len": 6,
+        "closure_pairs_present": 20,
+        "closure_pairs_total": 21,
+        "fraction": 0.95,
+        "note": "recursive rule would cover 1 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 1
+      },
+      {
+        "chain_len": 8,
+        "closure_pairs_present": 18,
+        "closure_pairs_total": 36,
+        "fraction": 0.5,
+        "note": "recursive rule would cover 18 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 18
+      },
+      {
+        "chain_len": 8,
+        "closure_pairs_present": 22,
+        "closure_pairs_total": 36,
+        "fraction": 0.6,
+        "note": "recursive rule would cover 14 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 14
+      },
+      {
+        "chain_len": 8,
+        "closure_pairs_present": 25,
+        "closure_pairs_total": 36,
+        "fraction": 0.7,
+        "note": "recursive rule would cover 11 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 11
+      },
+      {
+        "chain_len": 8,
+        "closure_pairs_present": 29,
+        "closure_pairs_total": 36,
+        "fraction": 0.8,
+        "note": "recursive rule would cover 7 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 7
+      },
+      {
+        "chain_len": 8,
+        "closure_pairs_present": 32,
+        "closure_pairs_total": 36,
+        "fraction": 0.9,
+        "note": "recursive rule would cover 4 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 4
+      },
+      {
+        "chain_len": 8,
+        "closure_pairs_present": 34,
+        "closure_pairs_total": 36,
+        "fraction": 0.95,
+        "note": "recursive rule would cover 2 more pairs but Op I abstains (r_ext != closure(b_ext))",
+        "op_i_fired": false,
+        "pairs_left_on_table": 2
+      }
+    ]
+  },
+  "overcomplete_sweep": [
+    {
+      "chain_len": 6,
+      "delta_clauses": -19,
+      "n_spurious_added": 0,
+      "n_spurious_requested": 0,
+      "op_i_fired": false,
+      "total_r_facts": 21,
+      "true_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "n_spurious_added": 1,
+      "n_spurious_requested": 1,
+      "op_i_fired": false,
+      "total_r_facts": 22,
+      "true_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "n_spurious_added": 2,
+      "n_spurious_requested": 2,
+      "op_i_fired": false,
+      "total_r_facts": 23,
+      "true_closure_pairs": 21
+    },
+    {
+      "chain_len": 6,
+      "delta_clauses": null,
+      "n_spurious_added": 3,
+      "n_spurious_requested": 3,
+      "op_i_fired": false,
+      "total_r_facts": 24,
+      "true_closure_pairs": 21
+    }
+  ]
+}

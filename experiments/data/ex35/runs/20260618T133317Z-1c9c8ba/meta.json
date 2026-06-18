@@ -1,0 +1,96 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Characterizes Operation I (recursive closure discovery) as a function of closure completeness, base-relation density, and over-completion noise. Quantifies the partial-closure gap: Op I fires only when r_ext == transitive_closure(b_ext) exactly (p=1.0, no spurious facts, base_facts >= 3). At p<1.0, Op I abstains and recoverable structure is left on the table.",
+    "id": "ex35",
+    "name": "Op I data-density characterization -- partial-closure gap",
+    "script": {
+      "path": "experiments/ex35_opi_density.py",
+      "sha256": "e84b94d68b6ec4b1b29a080fb4f6d6986c8fdc7e00d11ec86408507e8e2ded2a"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "1c9c8baafbdd8ee43b936229ff30e5c49bdf0c15",
+    "commit_short": "1c9c8ba",
+    "describe": "v0.13.0-40-g1c9c8ba",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 13244,
+      "sha256": "946bb813637526ca88281a279f39068362efdf127aa61d34ddac0b5feb7fdf90"
+    },
+    "summary.txt": {
+      "bytes": 4944,
+      "sha256": "a148ceaa3bf985d9a7aa68da9dcf1673d7e00f1b66ccd3234bb72e74898abbec"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "chain_len_spurious": 6,
+    "chain_lengths_completeness": [
+      4,
+      6,
+      8
+    ],
+    "chain_lengths_density": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "completeness_fractions": [
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      0.95,
+      1.0
+    ],
+    "min_base_facts_default": 3,
+    "spurious_counts": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "run": {
+    "duration_s": 0.6344,
+    "finished_utc": "2026-06-18T13:33:18.410884+00:00",
+    "run_id": "20260618T133317Z-1c9c8ba",
+    "started_utc": "2026-06-18T13:33:17.776535+00:00"
+  },
+  "seeds": {
+    "sampling": 42
+  }
+}

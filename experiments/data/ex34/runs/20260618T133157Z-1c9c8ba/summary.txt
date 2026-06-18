@@ -1,0 +1,86 @@
+EX34: Cross-Domain Transfer via Merged-KB Predicate Invention
+========================================================================
+SYMBOLIC ONLY -- no LLM, zero cost, deterministic
+
+HYPOTHESIS: compressing M domains merged together discovers a SHARED
+  _invented_ predicate (Op D) spanning all domains, which separate
+  per-domain dreams cannot produce. Bits mode (rename-invariant DL)
+  should accept the shared abstraction at fewer domains (lower M*).
+
+DOMAIN DESIGN: each domain k has:
+  base relation b<k>(X,Y) over a 4-entity chain
+  closure relation c<k> defined by two rules: c<k>(X,Y):-b<k>(X,Y)
+    and c<k>(X,Z):-b<k>(X,Y),c<k>(Y,Z)  (transitive closure)
+  within-domain generalizable group: tag<k>(e,kind<k>) for 3 entities
+
+DETECTION METHOD: after merged dream, find _invented_ functor in
+  rule heads; find wrapper rules calling it; if wrappers span >=2
+  distinct domain closure heads (c0,c1,...) -> shared abstraction.
+
+Running sweep (M x mode)...
+
+SWEEP TABLE
+  Columns: mer-sav=merged clauses saved, sep-sav=sum-separate clauses saved,
+    super+c=super-additive clause savings (merged-sep), mer-bit/sep-bit same for bits,
+    super+b=super-additive bits savings, shared=YES if shared abstraction found
+
+  M     mode      mer-cl  sep-cl  sup-cl   mer-bt  sep-bt  sup-bt  shared
+  --------------------------------------------------------------------
+  2     clauses        4       4       0     24.4     9.7   +14.8  no    
+  2     bits           4       4       0     24.4     9.7   +14.8  no    
+  3     clauses        7       6      +1     35.8    14.5   +21.3  YES   
+  3     bits           6       6       0     47.2    14.5   +32.6  no    
+  4     clauses       10       8      +2     95.3    19.4   +76.0  YES   
+  4     bits          10       8      +2     95.3    19.4   +76.0  YES   
+  5     clauses       13      10      +3    157.5    24.2  +133.3  YES   
+  5     bits          13      10      +3    157.5    24.2  +133.3  YES   
+  6     clauses       16      12      +4    221.7    29.0  +192.6  YES   
+  6     bits          16      12      +4    221.7    29.0  +192.6  YES   
+
+DETAILS: shared abstraction detection per (M, mode)
+  M     mode     found     invented_fn     domains_covered               
+  ------------------------------------------------------------------------
+  2     clauses  no        -               0 domains                     
+  2     bits     no        -               0 domains                     
+  3     clauses  YES       _invented_0     3 domains                     
+  3     bits     no        -               0 domains                     
+  4     clauses  YES       _invented_0     4 domains                     
+  4     bits     YES       _invented_0     4 domains                     
+  5     clauses  YES       _invented_0     5 domains                     
+  5     bits     YES       _invented_0     5 domains                     
+  6     clauses  YES       _invented_0     6 domains                     
+  6     bits     YES       _invented_0     6 domains                     
+
+CROSSOVER M* (first M where shared abstraction is found)
+  mode=clauses -> M*=3
+  mode=bits    -> M*=4
+
+SUPER-ADDITIVITY (merged saves MORE than sum of separates, positive = transfer)
+  M     mode       super+cl    super+bt
+  ------------------------------------
+  2     clauses           0       +14.8
+  2     bits              0       +14.8
+  3     clauses          +1       +21.3
+  3     bits              0       +32.6
+  4     clauses          +2       +76.0
+  4     bits             +2       +76.0
+  5     clauses          +3      +133.3
+  5     bits             +3      +133.3
+  6     clauses          +4      +192.6
+  6     bits             +4      +192.6
+
+========================================================================
+VERDICT
+========================================================================
+
+Transfer effect (shared abstraction found in merged but not separates):
+  clauses mode: YES (M*=3)
+  bits mode:    YES (M*=4)
+
+Super-additivity (peak extra savings from merged vs sum-of-separate):
+  clauses mode: +4 clauses
+  bits mode:    +192.6 bits
+
+TRANSFER EFFECT CONFIRMED: merged dream discovers a shared abstraction
+  Clauses mode accepts it at M*=3, bits at M*=4.
+  -> Clauses mode is LESS conservative for this abstraction.
