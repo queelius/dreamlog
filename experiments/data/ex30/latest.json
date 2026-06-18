@@ -1,7 +1,7 @@
 {
-  "finished_utc": "2026-06-18T12:23:59.371951+00:00",
-  "git_commit_short": "598e900",
+  "finished_utc": "2026-06-18T12:26:38.985573+00:00",
+  "git_commit_short": "f924bf7",
   "results_sha256": "bb5d8dfe7dd5b8ab3f828f9d4af51e0bc876c7c113c1f40f137cca29fe666586",
-  "run_dir": "experiments/data/ex30/runs/20260618T122356Z-598e900",
-  "run_id": "20260618T122356Z-598e900"
+  "run_dir": "experiments/data/ex30/runs/20260618T122636Z-f924bf7",
+  "run_id": "20260618T122636Z-f924bf7"
 }

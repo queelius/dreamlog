@@ -1,0 +1,116 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "EX29 reported a single crossover K*(L) for extraction and a single M* for invention. EX30 produces finer-grained surfaces: (1) the complete delta_bits(K,L) grid with slopes for K in 2..12 x L in 2..8; (2) the invention crossover on TWO axes (M at fixed chain length, chain length at fixed M); (3) a realistic scaled-KB sweep showing whether the bits-vs-clauses accept gap shrinks as the KB grows. Symbolic only, no LLM, deterministic.",
+    "id": "ex30",
+    "name": "deeper bits-DL abstraction surfaces (extraction grid, 2-axis invention, scaled KB)",
+    "script": {
+      "path": "experiments/ex30_bits_surfaces.py",
+      "sha256": "517d0773f10ea4f919471550ef2eea6b57b1f70378b43e9b347d9bef50718f82"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "f924bf7812ac96750af43119bbdc5a5fcc076b4e",
+    "commit_short": "f924bf7",
+    "describe": "v0.13.0-34-gf924bf7-dirty",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "notes": [
+    "extraction crossovers (L=2..5): {2: 5, 3: 3, 4: 3, 5: 2}",
+    "invention M* (bits mode): 4",
+    "scaled-kb: gap peaks at K=3 (clauses premature, bits conservative), then shrinks to 0 at K=2 as abstraction matures past contextual K*"
+  ],
+  "outputs": {
+    "results.json": {
+      "bytes": 9840,
+      "sha256": "bb5d8dfe7dd5b8ab3f828f9d4af51e0bc876c7c113c1f40f137cca29fe666586"
+    },
+    "summary.txt": {
+      "bytes": 4153,
+      "sha256": "8c661a270f957d3889fa8d73e00b05ae5c4166416e4f391bf12a56741798a730"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "extraction_surface": {
+      "k_range": [
+        2,
+        12
+      ],
+      "l_range": [
+        2,
+        8
+      ]
+    },
+    "invention_2axis": {
+      "chain_sweep": {
+        "chain_lengths": [
+          2,
+          3,
+          4,
+          6,
+          8
+        ],
+        "m_sets": 4
+      },
+      "m_sweep": {
+        "chain_len": 3,
+        "m_range": [
+          2,
+          7
+        ]
+      }
+    },
+    "scaled_kb": {
+      "chain_len": 4,
+      "discover_recursion": true,
+      "k_shared_rules_values": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        12
+      ],
+      "modes": [
+        "clauses",
+        "bits"
+      ],
+      "note": "clause-count always rejects extraction (delta=+1); bits accepts at K>=K*(L=2)=5. Gap goes 0 -> -1 at K=5."
+    }
+  },
+  "run": {
+    "duration_s": 2.3813,
+    "finished_utc": "2026-06-18T12:26:38.985573+00:00",
+    "run_id": "20260618T122636Z-f924bf7",
+    "started_utc": "2026-06-18T12:26:36.604301+00:00"
+  },
+  "seeds": {
+    "note": "deterministic; no RNG"
+  }
+}

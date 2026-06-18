@@ -1,0 +1,75 @@
+EX30: deeper bits-DL abstraction surfaces
+============================================================
+
+1. EXTRACTION SURFACE  delta_bits(K, L) for K in 2..12, L in 2..8
+   (negative = bits accepts; clause delta = +1 always)
+   EX29 crossover check: L=2->K*5, L=3->3, L=4->3, L=5->2
+   L\K      2      3      4      5      6      7      8      9     10     11     12
+   L=2       15      9      3     -4    -11    -19    -27    -35    -43    -52    -61   K*=5  slope=-7.6 bits/rule
+          (EX29 expected K*=5: OK)
+   L=3        9     -4    -18    -33    -48    -64    -80    -97   -114   -131   -149   K*=3  slope=-15.8 bits/rule
+          (EX29 expected K*=3: OK)
+   L=4        2    -18    -40    -62    -86   -110   -135   -160   -186   -212   -238   K*=3  slope=-24.1 bits/rule
+          (EX29 expected K*=3: OK)
+   L=5       -5    -33    -63    -93   -125   -158   -191   -225   -259   -295   -330   K*=2  slope=-32.6 bits/rule
+          (EX29 expected K*=2: OK)
+   L=6      -12    -48    -86   -125   -165   -206   -248   -291   -335   -379   -424   K*=2  slope=-41.1 bits/rule
+   L=7      -20    -64   -110   -158   -206   -256   -307   -359   -411   -465   -518   K*=2  slope=-49.9 bits/rule
+   L=8      -28    -81   -135   -191   -249   -307   -367   -428   -489   -552   -615   K*=2  slope=-58.7 bits/rule
+
+   Slope (d(delta_bits)/dK) by L -- more negative = richer payoff:
+     L=2  slope=-7.6 bits/rule  (crossover K*=5)
+     L=3  slope=-15.8 bits/rule  (crossover K*=3)
+     L=4  slope=-24.1 bits/rule  (crossover K*=3)
+     L=5  slope=-32.6 bits/rule  (crossover K*=2)
+     L=6  slope=-41.1 bits/rule  (crossover K*=2)
+     L=7  slope=-49.9 bits/rule  (crossover K*=2)
+     L=8  slope=-58.7 bits/rule  (crossover K*=2)
+
+2. INVENTION ON TWO AXES  (dreamer, Op D)
+   (a) M sweep at chain_len=3  -- reproduces EX29 M*=4
+   M     chain   bits        clauses   
+   M=2   C=3     None        None
+   M=3   C=3     rejected/+15  accepted
+   M=4   C=3     accepted/-16  accepted
+   M=5   C=3     accepted/-49  accepted
+   M=6   C=3     accepted/-83  accepted
+   M=7   C=3     accepted/-118  accepted
+
+   (b) chain_len sweep at M=4  -- does depth change crossover?
+   M     chain   bits        clauses   
+   M=4   C=2     accepted/-20  accepted
+   M=4   C=3     accepted/-16  accepted
+   M=4   C=4     accepted/-13  accepted
+   M=4   C=6     accepted/-8  accepted
+   M=4   C=8     accepted/-4  accepted
+
+3. SCALED-KB SWEEP  (K shared-body rules + transitive closure, discover_recursion=True)
+   clause-count rejects extraction always (delta=+1); bits mode accepts at K>=K*(L=2)=5
+   Gap = clauses_accepts - bits_accepts  (negative means bits accepts MORE)
+   K     facts   rules   cl_acc  bi_acc  gap    bi_kinds
+   K=2    f=14     r=2      cl=1      bi=1      gap=0     recursion:1
+   K=3    f=14     r=3      cl=2      bi=1      gap=1     recursion:1
+   K=4    f=14     r=4      cl=2      bi=2      gap=0     extraction:1, recursion:1
+   K=5    f=14     r=5      cl=2      bi=2      gap=0     extraction:1, recursion:1
+   K=6    f=14     r=6      cl=2      bi=2      gap=0     extraction:1, recursion:1
+   K=7    f=14     r=7      cl=2      bi=2      gap=0     extraction:1, recursion:1
+   K=8    f=14     r=8      cl=2      bi=2      gap=0     extraction:1, recursion:1
+   K=12   f=14     r=12     cl=2      bi=2      gap=0     extraction:1, recursion:1
+
+   Clauses-mode kinds (for comparison):
+   K=2    recursion:1
+   K=3    extraction:1, recursion:1
+   K=4    extraction:1, recursion:1
+   K=5    extraction:1, recursion:1
+   K=6    extraction:1, recursion:1
+   K=7    extraction:1, recursion:1
+   K=8    extraction:1, recursion:1
+   K=12   extraction:1, recursion:1
+
+SUMMARY
+  Extraction crossovers match EX29 for L in 2..5: True
+  Slopes more negative with larger L: True
+  Accept gap (clauses-bits) by K=[2, 3, 4, 5, 6, 7, 8, 12]: [0, 1, 0, 0, 0, 0, 0, 0]
+  Interpretation: gap>0 means clause-count accepts prematurely (bits correctly rejects); gap=0 means both modes agree (abstraction mature).
+  Contextual K* in the scaled-KB is ~4 (lower than analytic K*=5 because extra functors in context reduce the new-symbol declaration charge).
