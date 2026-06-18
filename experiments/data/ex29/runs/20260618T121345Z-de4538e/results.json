@@ -1,8 +1,8 @@
 {
-  "git_sha": "9974b61",
   "extraction": [
     {
       "body_len": 2,
+      "crossover_k": 5,
       "delta_bits_by_k": {
         "2": 15.253496664211525,
         "3": 9.367309652504147,
@@ -16,11 +16,11 @@
         "11": -51.93063764721603,
         "12": -60.57873111264371
       },
-      "crossover_k": 5,
       "delta_clauses": 1
     },
     {
       "body_len": 3,
+      "crossover_k": 3,
       "delta_bits_by_k": {
         "2": 9.104275246670355,
         "3": -3.946000788077839,
@@ -34,11 +34,11 @@
         "11": -130.94446108471305,
         "12": -148.53074858920894
       },
-      "crossover_k": 3,
       "delta_clauses": 1
     },
     {
       "body_len": 4,
+      "crossover_k": 3,
       "delta_bits_by_k": {
         "2": 2.416569291306871,
         "3": -18.110323830864047,
@@ -52,11 +52,11 @@
         "11": -211.8789827584685,
         "12": -238.4635776037402
       },
-      "crossover_k": 3,
       "delta_clauses": 1
     },
     {
       "body_len": 5,
+      "crossover_k": 2,
       "delta_bits_by_k": {
         "2": -4.688259064691252,
         "3": -32.96089998269227,
@@ -70,173 +70,219 @@
         "11": -294.5510404449905,
         "12": -330.1995745267552
       },
-      "crossover_k": 2,
       "delta_clauses": 1
-    }
-  ],
-  "invention": [
-    {
-      "param": 2,
-      "clauses": null,
-      "bits": null
-    },
-    {
-      "param": 3,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": 15.46,
-        "delta_clauses": -1
-      },
-      "bits": {
-        "decision": "rejected",
-        "delta_bits": 15.46,
-        "delta_clauses": -1
-      }
-    },
-    {
-      "param": 4,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": -16.47,
-        "delta_clauses": -2
-      },
-      "bits": {
-        "decision": "accepted",
-        "delta_bits": -16.47,
-        "delta_clauses": -2
-      }
-    },
-    {
-      "param": 5,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": -49.49,
-        "delta_clauses": -3
-      },
-      "bits": {
-        "decision": "accepted",
-        "delta_bits": -49.49,
-        "delta_clauses": -3
-      }
-    },
-    {
-      "param": 6,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": -83.34,
-        "delta_clauses": -4
-      },
-      "bits": {
-        "decision": "accepted",
-        "delta_bits": -83.34,
-        "delta_clauses": -4
-      }
-    },
-    {
-      "param": 7,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": -117.84,
-        "delta_clauses": -5
-      },
-      "bits": {
-        "decision": "accepted",
-        "delta_bits": -117.84,
-        "delta_clauses": -5
-      }
     }
   ],
   "generalization": [
     {
-      "param": 3,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": 5.66,
-        "delta_clauses": -1
-      },
       "bits": {
         "decision": "rejected",
         "delta_bits": 5.66,
         "delta_clauses": -1
-      }
+      },
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": 5.66,
+        "delta_clauses": -1
+      },
+      "param": 3
     },
     {
-      "param": 4,
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -10.84,
+        "delta_clauses": -2
+      },
       "clauses": {
         "decision": "accepted",
         "delta_bits": -10.84,
         "delta_clauses": -2
       },
+      "param": 4
+    },
+    {
       "bits": {
         "decision": "accepted",
-        "delta_bits": -10.84,
+        "delta_bits": -45.7,
+        "delta_clauses": -4
+      },
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -45.7,
+        "delta_clauses": -4
+      },
+      "param": 6
+    },
+    {
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -82.43,
+        "delta_clauses": -6
+      },
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -82.43,
+        "delta_clauses": -6
+      },
+      "param": 8
+    },
+    {
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -159.95,
+        "delta_clauses": -10
+      },
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -159.95,
+        "delta_clauses": -10
+      },
+      "param": 12
+    },
+    {
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -241.44,
+        "delta_clauses": -14
+      },
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -241.44,
+        "delta_clauses": -14
+      },
+      "param": 16
+    },
+    {
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -412.72,
+        "delta_clauses": -22
+      },
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -412.72,
+        "delta_clauses": -22
+      },
+      "param": 24
+    }
+  ],
+  "generalization_2d": [
+    {
+      "by_exceptions": {
+        "1": -10.84,
+        "2": 3.0,
+        "3": null,
+        "4": null
+      },
+      "n_pass": 4
+    },
+    {
+      "by_exceptions": {
+        "1": -45.7,
+        "2": -31.9,
+        "3": -17.68,
+        "4": -3.09
+      },
+      "n_pass": 6
+    },
+    {
+      "by_exceptions": {
+        "1": -82.43,
+        "2": -68.6,
+        "3": -54.41,
+        "4": -39.88
+      },
+      "n_pass": 8
+    },
+    {
+      "by_exceptions": {
+        "1": -159.95,
+        "2": -146.0,
+        "3": -131.75,
+        "4": -117.23
+      },
+      "n_pass": 12
+    },
+    {
+      "by_exceptions": {
+        "1": -241.44,
+        "2": -227.34,
+        "3": -212.98,
+        "4": -198.4
+      },
+      "n_pass": 16
+    }
+  ],
+  "invention": [
+    {
+      "bits": null,
+      "clauses": null,
+      "param": 2
+    },
+    {
+      "bits": {
+        "decision": "rejected",
+        "delta_bits": 15.46,
+        "delta_clauses": -1
+      },
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": 15.46,
+        "delta_clauses": -1
+      },
+      "param": 3
+    },
+    {
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -16.47,
         "delta_clauses": -2
-      }
-    },
-    {
-      "param": 6,
+      },
       "clauses": {
         "decision": "accepted",
-        "delta_bits": -45.7,
+        "delta_bits": -16.47,
+        "delta_clauses": -2
+      },
+      "param": 4
+    },
+    {
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -49.49,
+        "delta_clauses": -3
+      },
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -49.49,
+        "delta_clauses": -3
+      },
+      "param": 5
+    },
+    {
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -83.34,
         "delta_clauses": -4
       },
-      "bits": {
+      "clauses": {
         "decision": "accepted",
-        "delta_bits": -45.7,
+        "delta_bits": -83.34,
         "delta_clauses": -4
-      }
+      },
+      "param": 6
     },
     {
-      "param": 8,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": -82.43,
-        "delta_clauses": -6
-      },
       "bits": {
         "decision": "accepted",
-        "delta_bits": -82.43,
-        "delta_clauses": -6
-      }
-    },
-    {
-      "param": 12,
+        "delta_bits": -117.84,
+        "delta_clauses": -5
+      },
       "clauses": {
         "decision": "accepted",
-        "delta_bits": -159.95,
-        "delta_clauses": -10
+        "delta_bits": -117.84,
+        "delta_clauses": -5
       },
-      "bits": {
-        "decision": "accepted",
-        "delta_bits": -159.95,
-        "delta_clauses": -10
-      }
-    },
-    {
-      "param": 16,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": -241.44,
-        "delta_clauses": -14
-      },
-      "bits": {
-        "decision": "accepted",
-        "delta_bits": -241.44,
-        "delta_clauses": -14
-      }
-    },
-    {
-      "param": 24,
-      "clauses": {
-        "decision": "accepted",
-        "delta_bits": -412.72,
-        "delta_clauses": -22
-      },
-      "bits": {
-        "decision": "accepted",
-        "delta_bits": -412.72,
-        "delta_clauses": -22
-      }
+      "param": 7
     }
   ],
   "recursion": [
@@ -289,55 +335,8 @@
       }
     }
   ],
-  "generalization_2d": [
-    {
-      "n_pass": 4,
-      "by_exceptions": {
-        "1": -10.84,
-        "2": 3.0,
-        "3": null,
-        "4": null
-      }
-    },
-    {
-      "n_pass": 6,
-      "by_exceptions": {
-        "1": -45.7,
-        "2": -31.9,
-        "3": -17.68,
-        "4": -3.09
-      }
-    },
-    {
-      "n_pass": 8,
-      "by_exceptions": {
-        "1": -82.43,
-        "2": -68.6,
-        "3": -54.41,
-        "4": -39.88
-      }
-    },
-    {
-      "n_pass": 12,
-      "by_exceptions": {
-        "1": -159.95,
-        "2": -146.0,
-        "3": -131.75,
-        "4": -117.23
-      }
-    },
-    {
-      "n_pass": 16,
-      "by_exceptions": {
-        "1": -241.44,
-        "2": -227.34,
-        "3": -212.98,
-        "4": -198.4
-      }
-    }
-  ],
   "removal_baseline": {
-    "subsumption_delta_bits": -15.0,
-    "pruning_delta_bits": -11.0
+    "pruning_delta_bits": -11.0,
+    "subsumption_delta_bits": -15.0
   }
 }

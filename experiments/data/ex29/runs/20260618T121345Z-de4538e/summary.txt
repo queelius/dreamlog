@@ -1,0 +1,49 @@
+EX29: bits-mode abstraction vs reuse depth
+
+1. EXTRACTION crossover -- K rules sharing an L-goal body
+   (delta_bits; negative = bits accepts; clause delta = +1 always)
+   body L   K=2  K=3  K=4  K=5  K=6  K=7  K=8  K=9  K=10  K=11  K=12
+   L=2        15     9     3    -4   -11   -19   -27   -35   -43   -52   -61   crossover K*=5
+   L=3         9    -4   -18   -33   -48   -64   -80   -97  -114  -131  -149   crossover K*=3
+   L=4         2   -18   -40   -62   -86  -110  -135  -160  -186  -212  -238   crossover K*=3
+   L=5        -5   -33   -63   -93  -125  -158  -191  -225  -259  -295  -330   crossover K*=2
+
+2. INVENTION -- M transitive-closure sets (dreamer)
+   M=2   bits=None  clauses=None
+   M=3   bits=rejected/+15  clauses=accepted
+   M=4   bits=accepted/-16  clauses=accepted
+   M=5   bits=accepted/-49  clauses=accepted
+   M=6   bits=accepted/-83  clauses=accepted
+   M=7   bits=accepted/-118  clauses=accepted
+
+3. GENERALIZATION -- group of N facts under a guard (dreamer)
+   N=3   bits=rejected/+6  clauses=accepted
+   N=4   bits=accepted/-11  clauses=accepted
+   N=6   bits=accepted/-46  clauses=accepted
+   N=8   bits=accepted/-82  clauses=accepted
+   N=12  bits=accepted/-160  clauses=accepted
+   N=16  bits=accepted/-241  clauses=accepted
+   N=24  bits=accepted/-413  clauses=accepted
+
+4. RECURSION -- r = closure(b), sweep chain length (Op I)
+   (always pays once valid; savings grow with closure size)
+   L=3  (closure   6)  accepted/-33
+   L=4  (closure  10)  accepted/-100
+   L=5  (closure  15)  accepted/-186
+   L=6  (closure  21)  accepted/-292
+   L=8  (closure  36)  accepted/-568
+   L=10 (closure  55)  accepted/-929
+
+5. GENERALIZATION 2D -- surface over (N pass, E exceptions)
+   (delta_bits; negative = bits accepts; 'none' = Op C silent)
+   N\E    E=1  E=2  E=3  E=4
+   N=4      -11      3   none   none
+   N=6      -46    -32    -18     -3
+   N=8      -82    -69    -54    -40
+   N=12    -160   -146   -132   -117
+   N=16    -241   -227   -213   -198
+
+6. REMOVAL ops always pay: subsumption=-15  pruning=-11 bits
+
+TAXONOMY: removal + recursion pay immediately; extraction, invention,
+  and generalization require a reuse crossover.

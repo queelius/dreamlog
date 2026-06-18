@@ -25,9 +25,11 @@ No LLM is used anywhere (symbolic only); deterministic.
 Usage: python experiments/ex29_bits_scale.py
 Writes: experiments/data/ex29/results.json
 """
-import json
 import pathlib
-import subprocess
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _harness import experiment_run   # noqa: E402
 
 from dreamlog.compression import dl
 from dreamlog.compression.proposal import Proposal
@@ -210,78 +212,91 @@ def removal_baseline():
 # --------------------------------------------------------------------------
 
 def main():
-    out_dir = pathlib.Path(__file__).parent / "data" / "ex29"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    gp = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
-                        capture_output=True, text=True)
-    git_sha = (gp.stdout.strip() if gp.returncode == 0 else "") or "unknown"
+    params = {
+        "extraction": {"k_range": [2, 12], "body_lengths": [2, 3, 4, 5]},
+        "invention": {"m_sets": list(range(2, 8))},
+        "generalization": {"n_facts": [3, 4, 6, 8, 12, 16, 24], "exceptions": 1},
+        "recursion": {"chain_lengths": [3, 4, 5, 6, 8, 10]},
+        "generalization_2d": {"n_pass": [4, 6, 8, 12, 16],
+                              "exceptions": [1, 2, 3, 4]},
+    }
+    with experiment_run(
+            exp_id="ex29",
+            name="bits-mode abstraction-maturity crossover (taxonomy)",
+            description=("Does the rename-invariant bits-DL gate accept "
+                         "abstraction only once reuse deepens enough to "
+                         "compress? Characterizes all symbolic ops."),
+            script=__file__, params=params,
+            seeds={"note": "fully deterministic; no RNG"}) as run:
 
-    extraction = extraction_sweep()
-    invention = invention_sweep()
-    generalization = generalization_sweep()
-    recursion = recursion_sweep()
-    gen2d = generalization_2d()
-    removal = removal_baseline()
+        out = run.summary_lines.append   # capture + print helper
 
-    results = {"git_sha": git_sha, "extraction": extraction,
-               "invention": invention, "generalization": generalization,
-               "recursion": recursion, "generalization_2d": gen2d,
-               "removal_baseline": removal}
-    (out_dir / "results.json").write_text(json.dumps(results, indent=2))
+        def emit(line=""):
+            print(line)
+            out(line)
 
-    # human-readable summary
-    print("EX29: bits-mode abstraction vs reuse depth  (git %s)" % git_sha)
-    print("\n1. EXTRACTION crossover -- K rules sharing an L-goal body")
-    print("   (delta_bits; negative = bits accepts; clause-count delta = +1 always)")
-    print("   %-8s %s" % ("body L", "  ".join("K=%d" % k for k in range(2, 13))))
-    for row in extraction:
-        series = row["delta_bits_by_k"]
-        cells = "  ".join("%4.0f" % series[k] for k in range(2, 13))
-        print("   L=%-6d %s   crossover K*=%s"
-              % (row["body_len"], cells, row["crossover_k"]))
+        run.results["extraction"] = extraction_sweep()
+        run.results["invention"] = invention_sweep()
+        run.results["generalization"] = generalization_sweep()
+        run.results["recursion"] = recursion_sweep()
+        run.results["generalization_2d"] = generalization_2d()
+        run.results["removal_baseline"] = removal_baseline()
 
-    print("\n2. INVENTION -- M transitive-closure sets (dreamer)")
-    for r in invention:
-        b = r.get("bits"); c = r.get("clauses")
-        print("   M=%-2d  bits=%s  clauses=%s"
-              % (r["param"],
-                 None if b is None else "%s/%+.0f" % (b["decision"], b["delta_bits"]),
-                 None if c is None else c["decision"]))
+        emit("EX29: bits-mode abstraction vs reuse depth")
+        emit("\n1. EXTRACTION crossover -- K rules sharing an L-goal body")
+        emit("   (delta_bits; negative = bits accepts; clause delta = +1 always)")
+        emit("   %-8s %s" % ("body L", "  ".join("K=%d" % k
+                                                 for k in range(2, 13))))
+        for row in run.results["extraction"]:
+            series = row["delta_bits_by_k"]
+            cells = "  ".join("%4.0f" % series[k] for k in range(2, 13))
+            emit("   L=%-6d %s   crossover K*=%s"
+                 % (row["body_len"], cells, row["crossover_k"]))
 
-    print("\n3. GENERALIZATION -- group of N facts under a guard (dreamer)")
-    for r in generalization:
-        b = r.get("bits"); c = r.get("clauses")
-        print("   N=%-2d  bits=%s  clauses=%s"
-              % (r["param"],
-                 None if b is None else "%s/%+.0f" % (b["decision"], b["delta_bits"]),
-                 None if c is None else c["decision"]))
+        emit("\n2. INVENTION -- M transitive-closure sets (dreamer)")
+        for r in run.results["invention"]:
+            b = r.get("bits"); c = r.get("clauses")
+            emit("   M=%-2d  bits=%s  clauses=%s"
+                 % (r["param"],
+                    None if b is None else "%s/%+.0f"
+                    % (b["decision"], b["delta_bits"]),
+                    None if c is None else c["decision"]))
 
-    print("\n4. RECURSION -- r = closure(b), sweep chain length (dreamer, Op I)")
-    print("   (always pays once valid; savings grow with closure size)")
-    for r in recursion:
-        res = r["result"]
-        print("   L=%-2d (closure %3d)  %s"
-              % (r["chain_len"], r["closure_pairs"],
-                 None if res is None else "%s/%+.0f"
-                 % (res["decision"], res["delta_bits"])))
+        emit("\n3. GENERALIZATION -- group of N facts under a guard (dreamer)")
+        for r in run.results["generalization"]:
+            b = r.get("bits"); c = r.get("clauses")
+            emit("   N=%-2d  bits=%s  clauses=%s"
+                 % (r["param"],
+                    None if b is None else "%s/%+.0f"
+                    % (b["decision"], b["delta_bits"]),
+                    None if c is None else c["decision"]))
 
-    print("\n5. GENERALIZATION 2D -- crossover surface over (N pass, E exceptions)")
-    print("   (delta_bits; negative = bits accepts; 'none' = Op C did not fire)")
-    print("   %-6s %s" % ("N\\E", "  ".join("E=%d" % e for e in (1, 2, 3, 4))))
-    for row in gen2d:
-        cells = "  ".join(
-            " none" if row["by_exceptions"][e] is None
-            else "%5.0f" % row["by_exceptions"][e] for e in (1, 2, 3, 4))
-        print("   N=%-4d %s" % (row["n_pass"], cells))
+        emit("\n4. RECURSION -- r = closure(b), sweep chain length (Op I)")
+        emit("   (always pays once valid; savings grow with closure size)")
+        for r in run.results["recursion"]:
+            res = r["result"]
+            emit("   L=%-2d (closure %3d)  %s"
+                 % (r["chain_len"], r["closure_pairs"],
+                    None if res is None else "%s/%+.0f"
+                    % (res["decision"], res["delta_bits"])))
 
-    print("\n6. REMOVAL ops always pay (taxonomy's other end): "
-          "subsumption=%+.0f  pruning=%+.0f bits"
-          % (removal["subsumption_delta_bits"], removal["pruning_delta_bits"]))
+        emit("\n5. GENERALIZATION 2D -- surface over (N pass, E exceptions)")
+        emit("   (delta_bits; negative = bits accepts; 'none' = Op C silent)")
+        emit("   %-6s %s" % ("N\\E", "  ".join("E=%d" % e for e in (1, 2, 3, 4))))
+        for row in run.results["generalization_2d"]:
+            cells = "  ".join(
+                " none" if row["by_exceptions"][e] is None
+                else "%5.0f" % row["by_exceptions"][e] for e in (1, 2, 3, 4))
+            emit("   N=%-4d %s" % (row["n_pass"], cells))
 
-    print("\nTAXONOMY: removal + recursion pay immediately; extraction, "
-          "invention,\n  and generalization require a reuse threshold "
-          "(crossover) to pay.")
-    print("\nWrote %s" % (out_dir / "results.json"))
+        rem = run.results["removal_baseline"]
+        emit("\n6. REMOVAL ops always pay: subsumption=%+.0f  pruning=%+.0f bits"
+             % (rem["subsumption_delta_bits"], rem["pruning_delta_bits"]))
+        emit("\nTAXONOMY: removal + recursion pay immediately; extraction, "
+             "invention,\n  and generalization require a reuse crossover.")
+
+    print("\nWrote run record: %s" % run.run_dir)
+    print("Latest pointer:   %s" % run.latest_path)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,122 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Does the rename-invariant bits-DL gate accept abstraction only once reuse deepens enough to compress? Characterizes all symbolic ops.",
+    "id": "ex29",
+    "name": "bits-mode abstraction-maturity crossover (taxonomy)",
+    "script": {
+      "path": "experiments/ex29_bits_scale.py",
+      "sha256": "bd85c3d6b8ec2583e0b77837a5e9d975cb7fa1903781bd783cc6afad5aab3caa"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "de4538ee1e2f1ae378ba839884178389d1cd4a8c",
+    "commit_short": "de4538e",
+    "describe": "v0.13.0-32-gde4538e-dirty",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 7040,
+      "sha256": "dea7cf5e0465dcd21176d404fca53c5aaa2ab2745417e3306316c3ca8ab3e94c"
+    },
+    "summary.txt": {
+      "bytes": 2165,
+      "sha256": "a78301945d44cf4b85c2cf30ee7e815afe7c3849a86d3015821e5b3a41e8593c"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "extraction": {
+      "body_lengths": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "k_range": [
+        2,
+        12
+      ]
+    },
+    "generalization": {
+      "exceptions": 1,
+      "n_facts": [
+        3,
+        4,
+        6,
+        8,
+        12,
+        16,
+        24
+      ]
+    },
+    "generalization_2d": {
+      "exceptions": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_pass": [
+        4,
+        6,
+        8,
+        12,
+        16
+      ]
+    },
+    "invention": {
+      "m_sets": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    "recursion": {
+      "chain_lengths": [
+        3,
+        4,
+        5,
+        6,
+        8,
+        10
+      ]
+    }
+  },
+  "run": {
+    "duration_s": 1.3225,
+    "finished_utc": "2026-06-18T12:13:46.773233+00:00",
+    "run_id": "20260618T121345Z-de4538e",
+    "started_utc": "2026-06-18T12:13:45.450723+00:00"
+  },
+  "seeds": {
+    "note": "fully deterministic; no RNG"
+  }
+}
