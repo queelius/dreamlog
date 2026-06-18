@@ -3,6 +3,7 @@ from typing import Optional
 
 from ..knowledge import KnowledgeBase
 from .proposal import Proposal
+from .util import filter_recovered_negatives
 
 
 class Policy:
@@ -135,8 +136,6 @@ class ClosurePolicy(BoundedSuitePolicy):
         if self.suite is None:
             return None
 
-        from ..terms import Atom, Compound
-
         # R = the head functor of the synthesized rule (== the removed facts'
         # functor). add[0] is the base rule; remove[0] is an R fact.
         if p.add:
@@ -144,18 +143,12 @@ class ClosurePolicy(BoundedSuitePolicy):
         else:
             r_functor = p.remove[0].term.functor
 
-        def _is_recovered_negative(q):
-            # An S- query R(a, b) whose pair lies inside the predicted closure
-            # is an intended recovery, not an over-derivation: exclude it.
-            if (isinstance(q, Compound) and q.functor == r_functor
-                    and q.arity == 2
-                    and isinstance(q.args[0], Atom)
-                    and isinstance(q.args[1], Atom)):
-                return (q.args[0].value, q.args[1].value) in predicted
-            return False
+        # Use the shared helper: pass a single-element list so the same
+        # filter_recovered_negatives code serves both the per-op gate (here)
+        # and the final pipeline verify in dream().
+        filtered_negatives = filter_recovered_negatives(
+            self.suite.negative_queries, [(r_functor, predicted)])
 
-        filtered_negatives = [q for q in self.suite.negative_queries
-                              if not _is_recovered_negative(q)]
         # Mirror VerificationSuite.verify exactly, on a view with the recovered
         # negatives removed and the same bounded evaluator the parent uses.
         from ..kb_dreamer import VerificationSuite

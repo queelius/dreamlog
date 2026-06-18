@@ -1,9 +1,9 @@
 """Shared helpers for the compression package, moved from kb_dreamer."""
 import re
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 from ..knowledge import KnowledgeBase, Rule
-from ..terms import Compound
+from ..terms import Atom, Compound
 
 # Prefixes used by system-generated predicates.
 _SYSTEM_PREFIXES = ("_invented_", "_extracted_", "exception_")
@@ -88,6 +88,38 @@ def _filter_cyclic_rules(rules: List[Rule]) -> List[Rule]:
             result.append(rule)
 
     return result
+
+
+def filter_recovered_negatives(
+        negatives: List,
+        recovered_closures: List[Tuple[str, frozenset]]) -> List:
+    """Drop S- queries R(a, b) whose pair lies inside a recovered open-world
+    Op I closure for R.
+
+    ``recovered_closures`` is an iterable of (functor, frozenset_of_(a,b)_pairs).
+    Returns ``negatives`` unchanged (same list object) when ``recovered_closures``
+    is empty -- closed-world callers get byte-identical behaviour because the
+    guard short-circuits before building any data structures.
+    """
+    if not recovered_closures:
+        return negatives
+
+    # Build a {functor: set_of_pairs} lookup from the accepted closures.
+    closure_map: Dict[str, set] = {}
+    for functor, pairs in recovered_closures:
+        closure_map.setdefault(functor, set()).update(pairs)
+
+    def _is_recovered(q) -> bool:
+        if not (isinstance(q, Compound) and q.arity == 2
+                and isinstance(q.args[0], Atom)
+                and isinstance(q.args[1], Atom)):
+            return False
+        pairs = closure_map.get(q.functor)
+        if pairs is None:
+            return False
+        return (q.args[0].value, q.args[1].value) in pairs
+
+    return [q for q in negatives if not _is_recovered(q)]
 
 
 def _collect_user_functors(kb: KnowledgeBase) -> Set[str]:

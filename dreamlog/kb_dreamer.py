@@ -29,7 +29,7 @@ from .evaluator import PrologEvaluator
 # (moved to generators) but kept so downstream experiment scripts don't break.
 from .compression.util import (_is_system_predicate, _next_generated_name,
                                _strip_llm_noise, _filter_cyclic_rules,
-                               _collect_user_functors)
+                               _collect_user_functors, filter_recovered_negatives)
 
 
 @dataclass
@@ -238,9 +238,16 @@ class KnowledgeBaseDreamer:
         self.dl_mode = dl_mode
         self.decision_recorder = decision_recorder
         self._rejections: list = []
+        # Tracks (functor, frozenset_of_pairs) for each open-world Op I closure
+        # accepted during the current dream cycle. Reset at the top of dream().
+        # Used by the final pipeline verify to relax the same synthetic negatives
+        # that ClosurePolicy relaxed at the per-op gate. Empty in closed-world
+        # mode (discover_recursion=False or open_world=False) -> zero drift.
+        self._recovered_closures: list = []
 
     def dream(self, kb: KnowledgeBase, verify: bool = True) -> DreamSession:
         self._rejections = []
+        self._recovered_closures = []
         original_size = len(kb)
         if original_size == 0:
             return DreamSession(compressed=False, operations=[],
@@ -302,7 +309,21 @@ class KnowledgeBaseDreamer:
 
         if verify and suite:
             max_calls = 500 if llm_ops else 0
-            result = suite.verify(
+            # Relax the final verify for any open-world Op I closures accepted
+            # during this cycle. filter_recovered_negatives returns the SAME
+            # list object when self._recovered_closures is empty (closed-world
+            # or no open-world Op I fired), so this path is byte-identical in
+            # that common case -- zero drift.
+            final_negatives = filter_recovered_negatives(
+                suite.negative_queries, self._recovered_closures)
+            if final_negatives is suite.negative_queries:
+                # Fast path: no filtering needed -- use the original suite.
+                final_suite = suite
+            else:
+                final_suite = VerificationSuite(
+                    positive_queries=suite.positive_queries,
+                    negative_queries=final_negatives)
+            result = final_suite.verify(
                 kb, lambda k, _mc=max_calls: PrologEvaluator(k, max_total_calls=_mc))
             if not result.passed:
                 kb.restore_from(snapshot)
@@ -411,7 +432,8 @@ class KnowledgeBaseDreamer:
         return closure.run(kb, suite, gate.apply_proposal, policy,
                            self.min_base_facts, self._rejections,
                            open_world=self.open_world,
-                           min_closure_coverage=self.min_closure_coverage)
+                           min_closure_coverage=self.min_closure_coverage,
+                           recovered_closures=self._recovered_closures)
 
     # ── LLM-assisted naming ──
 

@@ -15,7 +15,8 @@ from ..gate import Accepted
 def run(kb: KnowledgeBase, suite, gate_apply, policy,
         min_base_facts: int, rejections: list,
         open_world: bool = False,
-        min_closure_coverage: float = 0.5) -> List:
+        min_closure_coverage: float = 0.5,
+        recovered_closures: list = None) -> List:
     """Discover transitive-closure recursive rules.
 
     For each binary predicate R whose ground extension equals the
@@ -104,6 +105,12 @@ def run(kb: KnowledgeBase, suite, gate_apply, policy,
             if not isinstance(res, Accepted):
                 rejections.append((proposal.kind, res.reason))
                 continue
+            # Track accepted open-world partial closures so the final pipeline
+            # verify in dream() can relax the same synthetic negatives the
+            # per-op gate relaxed via ClosurePolicy.
+            if recovered_closures is not None and notes.get("predicted_closure"):
+                r_functor = proposal.add[0].head.functor
+                recovered_closures.append((r_functor, notes["predicted_closure"]))
             return [res.candidate]
 
     return []
