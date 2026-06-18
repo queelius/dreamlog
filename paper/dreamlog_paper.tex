@@ -153,7 +153,7 @@ When a query references an undefined predicate, the system optionally invokes an
 
 \subsection{Sleep Phase: The Dream Cycle}
 
-The sleep phase compresses the KB through eight operations, executed in sequence. Algorithm~\ref{alg:dream} outlines the overall procedure. Operations that modify the KB (C, D, E, G) perform per-candidate verification against the test suite, accepting each candidate only if it preserves behavioral equivalence. A final pipeline-level verification with atomic rollback provides an additional safety net.
+The sleep phase compresses the KB through nine operations (A--I), executed in sequence. Algorithm~\ref{alg:dream} outlines the overall procedure. Operations that modify the KB (C, D, E, G, I) perform per-candidate verification against the test suite, accepting each candidate only if it preserves behavioral equivalence. Each accepted candidate must also satisfy the description-length criterion of Section~\ref{sec:dl}. A final pipeline-level verification with atomic rollback provides an additional safety net.
 
 \begin{algorithm}[t]
 \caption{Dream Cycle}
@@ -190,7 +190,18 @@ Given a KB $K$, the verification suite $S = (S^+, S^-)$ consists of:
 A compression passes verification if every $q \in S^+$ remains derivable and no $q \in S^-$ becomes derivable.
 \end{definition}
 
-\subsection{Operation A: Subsumption Elimination}
+\subsection{The Description-Length Objective}
+\label{sec:dl}
+
+Every KB-modifying operation routes its candidates through a single gate: a proposal that removes a set of clauses $R$ and adds a set $A$ is accepted only if it both preserves the verification suite (Definition~\ref{def:suite}) and does not increase the knowledge base's description length, $\mathrm{DL}(K \setminus R \cup A) \le \mathrm{DL}(K)$. The choice of $\mathrm{DL}$ is the system's inductive prior. We expose two.
+
+The default, retained for exact reproducibility, is the \emph{clause-count} length $\mathrm{DL}_{\text{c}}(K) = |K|$: every clause costs one unit. This is the criterion under which all earlier results were obtained. It is a coarse proxy for Kolmogorov complexity: it cannot see that one clause is structurally heavier than another, so an abstraction that trades several clauses for one is always favored regardless of how much internal structure the replacement carries.
+
+The refinement is a \emph{bits-based} two-part code, $\mathrm{DL}_{\text{b}}(K) = L(D) + \sum_{c \in K} L(c \mid D)$, that prices a KB the way a prefix code transmitting it would. The dictionary $D$ holds the distinct functors (keyed by name and arity) and constants occurring in $K$. Its cost charges each \emph{distinct symbol} only for its arity, using the Elias~$\gamma$ length of $\mathit{arity}+1$: constants cost $1$ bit, arity-1 and arity-2 functors $3$ bits, arity-3 and arity-4 functors $5$ bits. Each clause then costs a $4$-bit structural header plus, for every symbol occurrence, a $2$-bit type tag and a payload of $\log_2|F|$, $\log_2|C|$, or $\log_2 V_c$ bits for a functor, constant, or variable, where $|F|$ and $|C|$ are the dictionary sizes and $V_c$ the number of distinct variables in the clause. The proposal delta is computed exactly: changing a dictionary size re-prices every occurrence of that symbol class in the KB, and removing a symbol's last occurrence credits its declaration back.
+
+The decisive property of this code is \emph{rename invariance}: because a symbol is charged only for its arity, never for the length of its name, the description length is invariant under any consistent renaming of functors and constants. This is the right invariant for a compression objective over a logic program, whose symbol names are arbitrary labels: an invented predicate named \texttt{ex0} and one named \texttt{exception\_has\_non\_vegan\_ingredient} carry the same information. An earlier formulation that charged a symbol by the byte length of its name violated this invariant and was pathological in practice---a verbose auto-generated name could cost hundreds of bits and swamp the structural savings of the very abstraction that introduced it, so almost no abstraction ever paid. The arity code removes that artifact and is parameter-free.
+
+The two objectives agree on operations that purely remove clauses (subsumption, redundant-fact pruning) and on recursive closure discovery, all of which strictly lower both lengths. They diverge on the abstraction operations---generalization, predicate invention, and body-pattern extraction---which add a definition and rewrite its uses. Clause count accepts such an abstraction whenever it nets even one fewer clause; the bits code accepts it only when the symbol occurrences it removes outweigh the occurrences and the declaration its definition adds. Section~\ref{sec:bitsdl} shows that this difference implements a principled threshold on when an abstraction is mature enough to compress.
 
 Removes clauses subsumed by more general clauses already in the KB. A rule $R_1$ subsumes $R_2$ if there exists a substitution $\theta$ such that $R_1\theta \sqsubseteq R_2$ and both have the same body length. Additionally, bodyless rules (rules with empty bodies) subsume matching facts. This removes redundancy introduced by prior operations or user input.
 
@@ -657,6 +668,31 @@ The generalization experiments (Tables~\ref{tab:novel_generalization} and~\ref{t
 
 \subsubsection{Query Speedup (EX10)} After dreaming, query time drops from 25.0ms to 1.1ms (23.6$\times$ speedup). Operation H caches 15 frequently derived lemma facts, converting multi-step recursive resolutions into direct lookups.
 
+\subsection{The Bits-Based Objective and Abstraction Maturity (EX29--31)}
+\label{sec:bitsdl}
+
+The bits-based description length of Section~\ref{sec:dl} is the realized form of the ``richer MDL metric'' the clause-count proxy left open. We characterize how it changes the system's acceptance decisions, and whether it should replace clause count as the default. All three experiments are symbolic and deterministic; full provenance (git commit, environment, package versions, and output hashes) is recorded per run under the experiment registry.
+
+\textbf{What the two objectives decide differently (EX29).} Replaying every symbolic compression decision across the EX25b, EX28, and benchmark scenarios under both objectives, clause count accepts $24$ abstractions; the bits code accepts $16$. The $8$ it declines (extraction~$\times3$, predicate invention~$\times3$, generalization~$\times2$) are exactly those that lower clause count but raise symbol-occurrence cost. Removal operations and recursive closure discovery are accepted by both: they delete structure outright. Recursion in particular pays immediately and increasingly with the closure it removes---deleting the $O(L^2)$ fact extension of a length-$L$ chain saves from $33$ bits at $L=3$ to $929$ bits at $L=10$. The abstraction operations, by contrast, only pay past a reuse threshold.
+
+\textbf{The maturity threshold is sharp and structure-dependent (EX29--30).} For body-pattern extraction of $K$ rules sharing an $L$-goal body, the crossover $K^*$ at which extraction begins to compress falls as the shared body deepens: $K^*=5$ for $L=2$, then $3, 3, 2$ for $L=3,4,5$, reaching $K^*=2$ for $L\ge 5$ (Table~\ref{tab:extraction-crossover}). The marginal saving per additional sharing rule steepens with $L$, from $7.6$ to $58.7$ bits per rule across $L=2$ to $8$. Predicate invention over $M$ structurally identical closure sets crosses at $M^*=4$, invariant to the base-relation depth. Generalization of a group of $N$ facts crosses at $N^*=4$ with a single exception, and the crossover rises with the exception count: a four-member group pays with one exception but not two. Clause count is blind to all of this---it reports the same $+1$ (extraction) or fixed reduction regardless of $K$, $L$, $M$, $N$, or the exception ratio. The bits code thus implements a quantitative statement the unit-cost proxy cannot express: an abstraction is accepted exactly when its reuse is deep enough to compress. This also explains the EX09 ablation's note that Operation~E \emph{raises} clause count yet ``adds structural clarity''---under the bits objective that clarity is precisely a measurable, and sometimes decisive, saving.
+
+\begin{table}[t]
+\centering
+\caption{Extraction crossover $K^*$ (minimum rules sharing an $L$-goal body for extraction to lower the bits length) and the marginal saving per additional sharing rule. Clause count accepts at every $K$ ($\Delta=+1$ always).}
+\label{tab:extraction-crossover}
+\begin{tabular}{cccccc}
+\toprule
+Shared body $L$ & 2 & 3 & 4 & 5 & 8 \\
+\midrule
+Crossover $K^*$ & 5 & 3 & 3 & 2 & 2 \\
+Bits/rule       & $-7.6$ & $-15.8$ & $-24.1$ & $-32.6$ & $-58.7$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Should the bits objective be the default? (EX31).} We evaluated the flip against three criteria. \emph{Correctness}: across all $15$ scenarios in both modes, every originally derivable fact remains derivable; the verification gate is unchanged, so the two objectives are equally safe. \emph{Compression trade}: each objective wins on its own measure by about half a percentage point---mean clause-compression $0.834$ (clauses) vs.\ $0.838$ (bits), mean bits-compression $0.877$ (clauses) vs.\ $0.872$ (bits)---so adopting the bits objective concedes almost nothing in clause density. \emph{Generalization}: symbolic held-out recovery is identical at $0\%$ in both modes, and is in fact \emph{mode-independent}: Operation~C is conservative, recording a held-out item as an exception (it looks like a counterexample), so the symbolic dreamer never extrapolates to it regardless of the length objective. Recovery that depends on extrapolation requires Operation~G, which the objective does not affect. On this evidence the bits objective is the better default---it is the more faithful Kolmogorov proxy, is correctness-safe, costs negligible clause density, and is recovery-neutral---and we recommend it as such while retaining clause count as the documented default so that all prior results reproduce bit-for-bit.
+
 %%% ===================================================================
 %%% 5. DISCUSSION
 %%% ===================================================================
@@ -705,7 +741,7 @@ In summary, we do not claim that DreamLog is a better ILP system than Popper or 
 
 \subsection{Relation to Solomonoff Induction}
 
-Our results are consistent with the Solomonoff thesis. The compressed KBs generalize better than the uncompressed originals. However, our MDL criterion (clause count) is a coarse proxy for Kolmogorov complexity, and two domains do not establish a predictive relationship between compression ratio and generalization recall. A more faithful implementation would account for clause complexity (number of variables, body length) rather than treating all clauses as unit cost. We leave this refinement to future work.
+Our results are consistent with the Solomonoff thesis: the compressed KBs generalize better than the uncompressed originals. The default acceptance criterion, clause count, is a coarse proxy for Kolmogorov complexity that treats every clause as unit cost. Section~\ref{sec:dl} introduces the more faithful refinement this work had earlier deferred---a rename-invariant, parameter-free bits-based code that prices each clause by its symbol occurrences and each distinct symbol by its arity. Section~\ref{sec:bitsdl} shows the refinement is not cosmetic: it accepts an abstraction exactly when its reuse is deep enough to compress, a structure-dependent threshold the unit-cost proxy cannot represent, while remaining correctness-safe and conceding negligible clause density. Two domains still do not establish a predictive relationship between compression ratio and generalization recall, and connecting the bits-length margin of an accepted abstraction to its downstream generalization value remains open.
 
 %%% ===================================================================
 %%% 6. CONCLUSION
@@ -718,11 +754,11 @@ We have introduced a test protocol for auditing compression-driven generalizatio
 
 The system exhibits meaningful learning dynamics over extended interactions: an invest-then-compress-then-saturate pattern consistent with DreamCoder's convergence behavior, suggesting a general property of compression-based learning systems.
 
-Several directions remain open. Direct comparison with ILP systems (ILASP, Metagol) on shared benchmarks would position DreamLog precisely in the landscape of rule learners. Extending Operation~I beyond exact, right-recursive, single-base closures, to mutual recursion, accumulator patterns, and partial closures under an open-world gate, would broaden recursive discovery. Transfer learning experiments (training on one domain, compressing a combined KB with a second) would test whether compression discovers cross-domain abstractions. Scaling beyond 1000 clauses requires sampled verification. Finally, a richer MDL metric incorporating clause complexity (variable count, body length, nesting depth) would bring the system closer to Solomonoff's theoretical ideal.
+Several directions remain open. Direct comparison with ILP systems (ILASP, Metagol) on shared benchmarks would position DreamLog precisely in the landscape of rule learners. Extending Operation~I beyond exact, right-recursive, single-base closures, to mutual recursion, accumulator patterns, and partial closures under an open-world gate, would broaden recursive discovery. Transfer learning experiments (training on one domain, compressing a combined KB with a second) would test whether compression discovers cross-domain abstractions. Scaling beyond 1000 clauses requires sampled verification. Finally, the bits-based description length of Section~\ref{sec:dl} brings the acceptance criterion closer to Solomonoff's ideal; connecting its per-abstraction bit margin to measured generalization value, and studying the dynamics of the system run under it as the default, are natural next steps.
 
 \section*{Code and Data Availability}
 
-The DreamLog implementation, all experiment scripts (EX23 through EX28), the canonical and crafting domain data, the EX28 $3\times2$ domain generators with their fully synthetic predicate vocabulary, the Popper input files used for the EX26 baseline, and the experiment registry recording the full provenance of each result (including per-run proposal logs for EX28) are available at \url{https://github.com/queelius/dreamlog}. The EX26 Popper baseline was run against pinned commit \texttt{af39e522} of the Popper repository; the pinned hash is recorded in the registry. Anthropic Claude Haiku~4.5 is used for Operation~G in the per-rule-type and Popper experiments; the EX28 capability ablation additionally uses a local \texttt{qwen2.5:3b} (free) and Claude Sonnet~4.6. Total LLM cost across all reported experiments is a few dollars, dominated by the Sonnet ablation (about \$1.6).
+The DreamLog implementation, all experiment scripts (EX23 through EX31), the canonical and crafting domain data, the EX28 $3\times2$ domain generators with their fully synthetic predicate vocabulary, the Popper input files used for the EX26 baseline, the bits-based description-length code and its decision-diff and abstraction-maturity sweeps (EX29--31), and the experiment registry recording the full provenance of each result (including per-run proposal logs for EX28 and full metadata envelopes for EX29--31) are available at \url{https://github.com/queelius/dreamlog}. The EX26 Popper baseline was run against pinned commit \texttt{af39e522} of the Popper repository; the pinned hash is recorded in the registry. Anthropic Claude Haiku~4.5 is used for Operation~G in the per-rule-type and Popper experiments; the EX28 capability ablation additionally uses a local \texttt{qwen2.5:3b} (free) and Claude Sonnet~4.6. Total LLM cost across all reported experiments is a few dollars, dominated by the Sonnet ablation (about \$1.6).
 
 %%% ===================================================================
 %%% REFERENCES
