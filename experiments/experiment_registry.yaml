@@ -1190,3 +1190,53 @@ experiments:
       MDL-correct behavior and a distinction clause-count cannot express. The 8
       decision-diff flips are scenarios sitting below their crossover.
     depends_on: [EX25, EX25b, EX28]
+
+  EX30_bits_surfaces:
+    title: "Deeper bits-DL abstraction surfaces (extraction grid, 2-axis invention, scaled KB)"
+    date: 2026-06-18
+    script: experiments/ex30_bits_surfaces.py
+    status: complete
+    motivation: >
+      EX29 reported a single crossover K*(L) for extraction (L in 2..5) and a
+      single M* for invention, but stopped at L=5 and did not explore whether the
+      invention crossover shifts with the BASE-RELATION DEPTH, nor whether the
+      bits-vs-clauses accept gap changes in a realistic mixed KB. EX30 surfaces
+      three finer-grained views: the complete extraction grid, the 2-axis invention
+      surface, and the gap dynamics in a KB with both extraction and recursion.
+    method: >
+      (1) Extraction analytic: build the proposal directly (same EX29 construction)
+      for K in 2..12 x L in 2..8 and read delta_bits; report the full grid,
+      crossovers K*(L), and slope d(delta_bits)/dK per L. (2) Invention on two
+      axes: (a) fix chain_len=3 and sweep M in 2..7 (reproduces EX29 M*=4);
+      (b) fix M=4 and sweep chain_len in {2,3,4,6,8} to test whether base-relation
+      depth shifts the crossover. (3) Scaled-KB sweep: a mixed KB with K rules
+      sharing a 2-goal body (Op E target) plus a transitive-closure relation (Op I
+      target); sweep K in {2,3,4,5,6,7,8,12} in both dl_modes with
+      discover_recursion=True, recording per-kind accept counts and the
+      bits-vs-clauses accept gap. All symbolic, no LLM, deterministic.
+    key_result: |
+      (1) EXTRACTION GRID: All EX29 crossovers reproduced (L=2->K*5, L=3->K*3,
+      L=4->K*3, L=5->K*2). Extended to L=6,7,8: all converge to K*=2 (L=6
+      slope=-41.1, L=7=-49.9, L=8=-58.7 bits/rule). Slope monotonically more
+      negative with L, confirming deeper shared bodies yield richer payoff per
+      additional sharing rule. At K=12: L=2 delta=-61, L=8 delta=-615 bits.
+
+      (2) INVENTION 2-AXIS:
+      (a) M sweep (chain_len=3, reproduces EX29): M=2 no proposal (Op D silent),
+      M=3 rejected/+15 bits, M>=4 accepted (-16, -49, -83, -118 bits). M*=4 confirmed.
+      (b) Chain-length sweep (M=4): M*=4 holds at ALL chain lengths tested (C=2..8).
+      Savings DECREASE with deeper chains (C=2: -20, C=3: -16, C=4: -13, C=6: -8,
+      C=8: -4 bits). Deeper base relations inflate the symbol table, raising the
+      marginal cost of the invented predicate. The crossover M* does not shift with
+      chain depth (M*=4 universally at these K=4 base facts), but the savings margin
+      narrows -- at C=8, the -4 bits saving is near the detection threshold.
+
+      (3) SCALED-KB SWEEP: Clause-count always rejects extraction (delta_clauses=+1);
+      bits mode accepts extraction at the contextual K* which is ~4 (not 5) because
+      extra functors in the KB reduce the new-symbol declaration charge. Gap
+      (clauses - bits) by K: K=2: 0 (both accept only recursion), K=3: +1 (clauses
+      prematurely accepts extraction, bits correctly rejects), K>=4: 0 (both agree,
+      abstraction mature). Both modes accept Op I (recursion) uniformly at all K.
+      Accept gap is zero at K=2 and K>=4, peaks at +1 at K=3, then collapses as
+      abstraction matures past the contextual crossover.
+    depends_on: [EX29]
