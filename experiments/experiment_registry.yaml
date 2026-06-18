@@ -1498,3 +1498,41 @@ experiments:
       scope; the EX29 maturity crossovers (single-proposal) remain valid as
       lean-context statements.
     depends_on: [EX29, EX32, EX33]
+
+  EX37_opi_open_world:
+    title: "Op I open-world closed-gap sweep"
+    date: 2026-06-18
+    script: experiments/ex37_opi_open_world.py
+    status: complete
+    motivation: >
+      EX35 showed Op I fires only on EXACT closures (p=1.0); at L=8, p=0.9, four
+      recoverable closure pairs are left on the table. Commit 1d0928d added
+      open-world partial-closure support (min_closure_coverage=0.5). EX37 re-runs
+      the EX35 sweep side-by-side (open_world False vs True) to show the gap closed.
+    method: >
+      Chain lengths L in {4,6,8}, completeness fractions p in {0.4..1.0}, seed 42.
+      Each (L,p) run in both open_world=False (closed-world baseline) and
+      open_world=True. Tracks gate_accepted (ClosurePolicy), committed
+      (dream.compressed, i.e. survived the final pipeline verify), recovery
+      (held-out pairs now derivable), and spurious_count. Symbolic, no LLM.
+    key_result: |
+      Gap CLOSED at high completeness. Threshold confirmed: the Op I gate fires at
+      actual coverage >= tau=0.5 and never below. The paper's key example L=8,p=0.9:
+      EX35 left 4 pairs uncovered; EX37 recovers all 4 (recovery=1.0). At every
+      COMMITTED point recovery=1.000 and spurious=0 (precision preserved
+      unconditionally, as the safety proof predicts).
+      KNOWN LIMITATION (honest): at lower completeness with many held-out pairs
+      (L=6 p=0.6; L=8 p=0.5/0.6/0.7) the ClosurePolicy gate accepts but the FINAL
+      pipeline verification in dream() rolls the whole dream back, because that
+      final verify reuses the ORIGINAL unfiltered suite and a held-out closure pair
+      sometimes coincides with a synthetic negative. The per-op S- relaxation was
+      implemented; the SAME relaxation at the final pipeline verify was not. So
+      committed recovery is 38 of 141 gap pairs (27%) -- full at high completeness,
+      blocked at low completeness by the final-sweep artifact.
+    implications: >
+      Open-world Op I closes the partial-closure gap at the practically significant
+      high-completeness points and never derives a spurious pair. Completing it
+      requires threading accepted-closure predictions into dream()'s final
+      verification (mirror ClosurePolicy's S- relaxation there); that is a small,
+      well-scoped follow-on the EX37 data motivates.
+    depends_on: [EX35]

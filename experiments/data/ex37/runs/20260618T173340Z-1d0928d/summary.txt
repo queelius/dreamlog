@@ -1,0 +1,75 @@
+EX37: Op I open-world closed-gap sweep
+========================================================================
+
+1. COMPLETENESS SWEEP -- side-by-side CW vs OW for each (L, p)
+   tau=0.5; seed=42
+
+   L     p      total    held_out  | CW fired  CW rec  | OW fired  OW rec  OW spur
+   --------------------------------------------------------------------------
+   4     0.40   10       6         | False     --      | False     --      0   
+   4     0.50   10       5         | False     --      | True      1.000   0   
+   4     0.60   10       4         | False     --      | True      1.000   0   
+   4     0.70   10       3         | False     --      | True      1.000   0   
+   4     0.80   10       2         | False     --      | True      1.000   0   
+   4     0.90   10       1         | False     --      | True      1.000   0   
+   4     1.00   10       0         | True      1.000   | True      1.000   0   
+   6     0.40   21       13        | False     --      | False     --      0   
+   6     0.50   21       11        | False     --      | False     --      0   
+   6     0.60   21       8         | False     --      | True      0.000   0   
+   6     0.70   21       6         | False     --      | True      1.000   0   
+   6     0.80   21       4         | False     --      | True      1.000   0   
+   6     0.90   21       2         | False     --      | True      1.000   0   
+   6     1.00   21       0         | True      1.000   | True      1.000   0   
+   8     0.40   36       22        | False     --      | False     --      0   
+   8     0.50   36       18        | False     --      | True      0.000   0   
+   8     0.60   36       14        | False     --      | True      0.000   0   
+   8     0.70   36       11        | False     --      | True      0.000   0   
+   8     0.80   36       7         | False     --      | True      1.000   0   
+   8     0.90   36       4         | False     --      | True      1.000   0   
+   8     1.00   36       0         | True      1.000   | True      1.000   0   
+
+2. THRESHOLD CONFIRMATION
+   tau = 0.5
+   fires_below_tau: False (expected: False)
+   fires_at_or_above_tau (all L): False (expected: True)
+   threshold_confirmed: False
+   L=4 : first fire at p=0.5 , matches_tau=True
+   L=6 : first fire at p=0.6 , matches_tau=True
+   L=8 : first fire at p=0.5 , matches_tau=True
+
+3. PRECISION GUARANTEE
+   Firing points checked: 20
+   Zero spurious at all firing points: True
+   Max spurious observed: 0
+   No violations -- precision property holds.
+
+4. GAP-CLOSED SUMMARY
+   Pairs EX35 left on the table vs EX37 recovered (p < 1.0 rows):
+   L     p      total_C   held_out  | EX35 gap   | EX37 rec     | closed? 
+   ------------------------------------------------------------------------
+   4     0.40   10        6         | 6          | 0            | NO
+   4     0.50   10        5         | 5          | 5            | YES
+   4     0.60   10        4         | 4          | 4            | YES
+   4     0.70   10        3         | 3          | 3            | YES
+   4     0.80   10        2         | 2          | 2            | YES
+   4     0.90   10        1         | 1          | 1            | YES
+   6     0.40   21        13        | 13         | 0            | NO
+   6     0.50   21        11        | 11         | 0            | NO
+   6     0.60   21        8         | 8          | 0            | partial
+   6     0.70   21        6         | 6          | 6            | YES
+   6     0.80   21        4         | 4          | 4            | YES
+   6     0.90   21        2         | 2          | 2            | YES
+   8     0.40   36        22        | 22         | 0            | NO
+   8     0.50   36        18        | 18         | 0            | partial
+   8     0.60   36        14        | 14         | 0            | partial
+   8     0.70   36        11        | 11         | 0            | partial
+   8     0.80   36        7         | 7          | 7            | YES
+   8     0.90   36        4         | 4          | 4            | YES
+
+   KEY EXAMPLE (L=8, p=0.9):
+   EX35 left 4 pairs on the table; EX37 recovers 4.
+
+   TOTAL: EX35 gap = 141 pairs; EX37 recovers 38 (fraction=0.270)
+
+========================================================================
+EX37 complete. Zero library changes (symbolic only, no LLM).
