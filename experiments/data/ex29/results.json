@@ -1,0 +1,242 @@
+{
+  "git_sha": "9afcdea",
+  "extraction": [
+    {
+      "body_len": 2,
+      "delta_bits_by_k": {
+        "2": 15.253496664211525,
+        "3": 9.367309652504147,
+        "4": 2.8613541339797592,
+        "5": -4.110323830864047,
+        "6": -11.451124978365328,
+        "7": -19.095647417203395,
+        "8": -26.99707352318805,
+        "9": -35.120441188062756,
+        "10": -43.438761504389504,
+        "11": -51.93063764721603,
+        "12": -60.57873111264371
+      },
+      "crossover_k": 5,
+      "delta_clauses": 1
+    },
+    {
+      "body_len": 3,
+      "delta_bits_by_k": {
+        "2": 9.104275246670355,
+        "3": -3.946000788077839,
+        "4": -17.91767875292166,
+        "5": -32.62104997980762,
+        "6": -47.927350516417704,
+        "7": -63.744217521374765,
+        "8": -80.00256178197037,
+        "9": -96.6489762268576,
+        "10": -113.64107059626122,
+        "11": -130.94446108471305,
+        "12": -148.53074858920894
+      },
+      "crossover_k": 3,
+      "delta_clauses": 1
+    },
+    {
+      "body_len": 4,
+      "delta_bits_by_k": {
+        "2": 2.416569291306871,
+        "3": -18.110323830864047,
+        "4": -39.790974981249946,
+        "5": -62.41920361274737,
+        "6": -85.8475053297868,
+        "7": -109.96581913860345,
+        "8": -134.68926594788329,
+        "9": -159.95062410902426,
+        "10": -185.69548121266723,
+        "11": -211.8789827584685,
+        "12": -238.4635776037402
+      },
+      "crossover_k": 3,
+      "delta_clauses": 1
+    },
+    {
+      "body_len": 5,
+      "delta_bits_by_k": {
+        "2": -4.688259064691252,
+        "3": -32.96089998269227,
+        "4": -62.57120670619241,
+        "5": -93.3069369484241,
+        "6": -125.01021325796188,
+        "7": -157.5596306674667,
+        "8": -190.85929818550514,
+        "9": -224.83179149650613,
+        "10": -259.41343573651113,
+        "11": -294.5510404449905,
+        "12": -330.1995745267552
+      },
+      "crossover_k": 2,
+      "delta_clauses": 1
+    }
+  ],
+  "invention": [
+    {
+      "param": 2,
+      "clauses": null,
+      "bits": null
+    },
+    {
+      "param": 3,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": 15.46,
+        "delta_clauses": -1
+      },
+      "bits": {
+        "decision": "rejected",
+        "delta_bits": 15.46,
+        "delta_clauses": -1
+      }
+    },
+    {
+      "param": 4,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -16.47,
+        "delta_clauses": -2
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -16.47,
+        "delta_clauses": -2
+      }
+    },
+    {
+      "param": 5,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -49.49,
+        "delta_clauses": -3
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -49.49,
+        "delta_clauses": -3
+      }
+    },
+    {
+      "param": 6,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -83.34,
+        "delta_clauses": -4
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -83.34,
+        "delta_clauses": -4
+      }
+    },
+    {
+      "param": 7,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -117.84,
+        "delta_clauses": -5
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -117.84,
+        "delta_clauses": -5
+      }
+    }
+  ],
+  "generalization": [
+    {
+      "param": 3,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": 5.66,
+        "delta_clauses": -1
+      },
+      "bits": {
+        "decision": "rejected",
+        "delta_bits": 5.66,
+        "delta_clauses": -1
+      }
+    },
+    {
+      "param": 4,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -10.84,
+        "delta_clauses": -2
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -10.84,
+        "delta_clauses": -2
+      }
+    },
+    {
+      "param": 6,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -45.7,
+        "delta_clauses": -4
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -45.7,
+        "delta_clauses": -4
+      }
+    },
+    {
+      "param": 8,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -82.43,
+        "delta_clauses": -6
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -82.43,
+        "delta_clauses": -6
+      }
+    },
+    {
+      "param": 12,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -159.95,
+        "delta_clauses": -10
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -159.95,
+        "delta_clauses": -10
+      }
+    },
+    {
+      "param": 16,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -241.44,
+        "delta_clauses": -14
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -241.44,
+        "delta_clauses": -14
+      }
+    },
+    {
+      "param": 24,
+      "clauses": {
+        "decision": "accepted",
+        "delta_bits": -412.72,
+        "delta_clauses": -22
+      },
+      "bits": {
+        "decision": "accepted",
+        "delta_bits": -412.72,
+        "delta_clauses": -22
+      }
+    }
+  ]
+}

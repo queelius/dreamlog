@@ -1134,3 +1134,47 @@ experiments:
       (parent:-father,male), substituting world-knowledge for KB-inductive
       extraction, a clean illustration of a weak model's failure mode.
     depends_on: [EX25, EX25b, EX27]
+
+  EX29_bits_scale:
+    title: "Bits-mode DL favors abstraction as reuse deepens (crossover)"
+    date: 2026-06-18
+    script: experiments/ex29_bits_scale.py
+    status: complete
+    motivation: >
+      P3b made the bits-based description length rename-invariant (dictionary
+      charge = Elias gamma of arity+1 per unique symbol). The decision-diff then
+      showed bits mode rejecting 8 of 24 symbolic abstractions that clause-count
+      accepts. Test whether bits mode is anti-abstraction or only
+      anti-PREMATURE-abstraction: an abstraction reused a few times barely moves
+      the symbol-occurrence count, but reused deeply it pays, so the rejections
+      should flip to acceptances at a crossover as reuse deepens.
+    method: >
+      Three sweeps, symbolic only (no LLM), deterministic. (1) Extraction
+      analytic: K rules sharing an L-goal body; construct the exact extraction
+      proposal and read proposal_delta in bits mode; report crossover K*(L).
+      (2) Invention via the dreamer: M structurally identical transitive-closure
+      sets; sweep M, read the invention proposal's bits delta and bits-mode
+      decision. (3) Generalization via the dreamer: a group of N facts under a
+      guard; sweep N. Dream OUTCOMES were cross-checked against recorder
+      decisions at each crossover.
+    key_result: |
+      Run 2026-06-18 (git 9afcdea). Bits mode implements a sharp abstraction-
+      maturity threshold; clause-count is blind to it (delta = +1 / "accept"
+      for every reuse depth).
+      (1) EXTRACTION crossover K* falls as the shared body L deepens:
+          L=2 -> K*=5, L=3 -> K*=3, L=4 -> K*=3, L=5 -> K*=2. delta_bits is
+          monotonically more negative in both K and L (e.g. L=2,K=2 = +15;
+          L=5,K=12 = -330).
+      (2) INVENTION (M transitive-closure sets): M=2 no proposal (Op D does not
+          fire), M=3 rejected (+15 bits), M>=4 accepted (-16, -49, -83, -118).
+          Crossover M*=4. Clause-count accepts every M>=3.
+      (3) GENERALIZATION (group of N facts): N=3 rejected (+6 bits), N>=4
+          accepted (-11 down to -413 at N=24). Crossover N*=4. Clause-count
+          accepts every N (incl. N=3, where it adds the rule the bits gate
+          correctly declines as premature).
+      Interpretation: the bits-DL gate accepts an abstraction exactly when its
+      reuse depth makes it compress, which is the MDL-correct behavior and a
+      distinction clause-count cannot express. The 8 decision-diff flips are
+      scenarios sitting below their crossover; deepening reuse reverts them to
+      accepts.
+    depends_on: [EX25, EX25b, EX28]
