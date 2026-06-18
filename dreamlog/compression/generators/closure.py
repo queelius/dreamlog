@@ -13,7 +13,9 @@ from ..gate import Accepted
 
 
 def run(kb: KnowledgeBase, suite, gate_apply, policy,
-        min_base_facts: int, rejections: list) -> List:
+        min_base_facts: int, rejections: list,
+        open_world: bool = False,
+        min_closure_coverage: float = 0.5) -> List:
     """Discover transitive-closure recursive rules.
 
     For each binary predicate R whose ground extension equals the
@@ -22,6 +24,20 @@ def run(kb: KnowledgeBase, suite, gate_apply, policy,
     the suite with a bounded evaluator, and replace R's facts with the
     two rules. Returns at most one candidate per call (re-run on the next
     dream cycle to find further closures).
+
+    Closed-world (``open_world=False``, default): only the EXACT path runs --
+    accept iff ``r_ext == transitive_closure(b_ext)``. Byte-for-byte identical
+    to the original gate; the subset branch below is never entered.
+
+    Open-world (``open_world=True``): the exact path is still tried first; if
+    it does not fire for an (R, B) pair, a relaxed SUBSET path may accept R as a
+    PARTIAL closure of B when (spec 2026-06-18 Section 3):
+      - r_ext is a strict subset of C = transitive_closure(b_ext) (soundness),
+      - |r_ext| / |C| >= min_closure_coverage (confidence, tau default 0.5),
+      - |b_ext| >= min_base_facts (base-size guard).
+    On the subset path the synthesized clauses are identical to the exact path,
+    but the Proposal carries ``notes={"predicted_closure": frozenset(C)}`` so the
+    ClosurePolicy can relax the suite's negative check for the recovered pairs.
 
     ``suite`` lives in the policy; parameter kept for interface uniformity.
     """
@@ -46,7 +62,20 @@ def run(kb: KnowledgeBase, suite, gate_apply, policy,
         for B, b_ext in ext.items():
             if R == B or len(b_ext) < min_base_facts:
                 continue
-            if r_ext != transitive_closure(b_ext):
+
+            C = transitive_closure(b_ext)
+            notes: dict = {}
+            if r_ext == C:
+                # Exact path (closed or open world): unchanged. notes stays empty.
+                pass
+            elif (open_world and r_ext != C and r_ext.issubset(C)
+                  and len(r_ext) >= 1 and len(C) > 0
+                  and len(r_ext) / len(C) >= min_closure_coverage):
+                # Open-world subset path: R is a strict, sufficiently complete
+                # subset of B's closure. Same clauses; carry C so the policy can
+                # relax S- for the recovered pairs.
+                notes = {"predicted_closure": frozenset(C)}
+            else:
                 continue
 
             X, Y, Z = Variable("X"), Variable("Y"), Variable("Z")
@@ -69,7 +98,8 @@ def run(kb: KnowledgeBase, suite, gate_apply, policy,
             # experiment domains well under that depth.
             proposal = Proposal(kind="recursion",
                                 remove=tuple(r_facts),
-                                add=tuple(new_clauses))
+                                add=tuple(new_clauses),
+                                notes=notes)
             res = gate_apply(kb, proposal, policy)
             if not isinstance(res, Accepted):
                 rejections.append((proposal.kind, res.reason))

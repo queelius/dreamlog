@@ -105,6 +105,69 @@ class BoundedSuitePolicy(SuiteVerifyPolicy):
         return None if result.passed else "verify_failed"
 
 
+class ClosurePolicy(BoundedSuitePolicy):
+    """Operation I acceptance. In closed-world mode (``open_world=False``) this
+    is byte-identical to BoundedSuitePolicy -- ``verify`` delegates straight to
+    the parent and the suite is unfiltered.
+
+    In open-world mode, when the proposal carries a predicted closure (the
+    subset path in closure.run), the negative check is relaxed exactly as in
+    spec 2026-06-18 Section 4: any synthetic S- query of the form ``R(a, b)``
+    with ``(a, b)`` inside the predicted closure is the analog of Op G's
+    open-world false-positive relaxation -- those pairs are the ones we intend
+    to recover -- so they are excluded from the negative check. Negatives for
+    other functors, and R-negatives genuinely outside the closure, stay
+    enforced. ``R`` is the proposal's head functor. The positive check and the
+    bounded evaluator are unchanged, so the relaxation mirrors
+    VerificationSuite.verify on a filtered view rather than inventing new
+    semantics."""
+
+    def __init__(self, suite, operation, max_calls, open_world: bool = False):
+        super().__init__(suite, operation, max_calls)
+        self.open_world = open_world
+
+    def verify(self, trial_kb, p):
+        predicted = p.notes.get("predicted_closure") if p.notes else None
+        if not (self.open_world and predicted):
+            # Closed-world, or exact open-world path (empty notes): identical to
+            # BoundedSuitePolicy.
+            return super().verify(trial_kb, p)
+        if self.suite is None:
+            return None
+
+        from ..terms import Atom, Compound
+
+        # R = the head functor of the synthesized rule (== the removed facts'
+        # functor). add[0] is the base rule; remove[0] is an R fact.
+        if p.add:
+            r_functor = p.add[0].head.functor
+        else:
+            r_functor = p.remove[0].term.functor
+
+        def _is_recovered_negative(q):
+            # An S- query R(a, b) whose pair lies inside the predicted closure
+            # is an intended recovery, not an over-derivation: exclude it.
+            if (isinstance(q, Compound) and q.functor == r_functor
+                    and q.arity == 2
+                    and isinstance(q.args[0], Atom)
+                    and isinstance(q.args[1], Atom)):
+                return (q.args[0].value, q.args[1].value) in predicted
+            return False
+
+        filtered_negatives = [q for q in self.suite.negative_queries
+                              if not _is_recovered_negative(q)]
+        # Mirror VerificationSuite.verify exactly, on a view with the recovered
+        # negatives removed and the same bounded evaluator the parent uses.
+        from ..kb_dreamer import VerificationSuite
+        filtered = VerificationSuite(
+            positive_queries=self.suite.positive_queries,
+            negative_queries=filtered_negatives)
+        result = filtered.verify(
+            trial_kb,
+            lambda k: self._PrologEvaluator(k, max_total_calls=self.max_calls))
+        return None if result.passed else "verify_failed"
+
+
 class LlmPolicy(Policy):
     """Operation G's acceptance battery, lifted verbatim from _llm_compress
     Phase 4 (per-item) and Phase 5 (combined). Items are verified against

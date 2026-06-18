@@ -204,6 +204,7 @@ class KnowledgeBaseDreamer:
                  open_world: bool = False,
                  discover_recursion: bool = False,
                  min_base_facts: int = 3,
+                 min_closure_coverage: float = 0.5,
                  disable_op_c: bool = False,
                  dl_mode: str = "clauses",
                  decision_recorder=None):
@@ -221,6 +222,12 @@ class KnowledgeBaseDreamer:
         # standard compression pipeline is unchanged (zero drift).
         self.discover_recursion = discover_recursion
         self.min_base_facts = min_base_facts
+        # Operation I open-world partial-closure coverage threshold (tau). Only
+        # consulted when open_world=True AND discover_recursion=True: a binary R
+        # that is a strict subset of B's transitive closure is accepted as a
+        # partial closure iff |r_ext|/|closure(b_ext)| >= this. Default 0.5
+        # (spec 2026-06-18). Ignored in closed-world mode (zero drift).
+        self.min_closure_coverage = min_closure_coverage
         # Skip Operation C (fact generalization). Off by default; used by the
         # EX28 within-predicate LLM-only ablation condition.
         self.disable_op_c = disable_op_c
@@ -391,13 +398,20 @@ class KnowledgeBaseDreamer:
                             suite: Optional['VerificationSuite'] = None,
                             max_calls: int = 5000
                             ) -> List[CompressionCandidate]:
-        """Operation I: thin orchestrator - delegates to closure.run."""
+        """Operation I: thin orchestrator - delegates to closure.run.
+
+        ClosurePolicy carries open_world; in closed-world mode it behaves
+        identically to BoundedSuitePolicy (verify delegates to super) and
+        closure.run takes only the exact path."""
         from .compression import gate
         from .compression.generators import closure
-        from .compression.policies import BoundedSuitePolicy
-        return closure.run(kb, suite, gate.apply_proposal,
-                           self._configure_policy(BoundedSuitePolicy(suite, "recursion", max_calls)),
-                           self.min_base_facts, self._rejections)
+        from .compression.policies import ClosurePolicy
+        policy = self._configure_policy(
+            ClosurePolicy(suite, "recursion", max_calls, self.open_world))
+        return closure.run(kb, suite, gate.apply_proposal, policy,
+                           self.min_base_facts, self._rejections,
+                           open_world=self.open_world,
+                           min_closure_coverage=self.min_closure_coverage)
 
     # ── LLM-assisted naming ──
 
