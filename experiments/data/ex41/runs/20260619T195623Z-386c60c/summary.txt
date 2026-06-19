@@ -1,0 +1,32 @@
+EX41: ILASP ILP baseline -- family-tree domain
+
+TARGET: father/2
+  status        : ok
+  learned rules : ['father(V1,V2) :- parent(V1,V2); male(V1).']
+  new-entity    : recall=100% precision=100%
+  elapsed       : 1.16s
+  mode decls    : ['#modeh(father(var(p), var(p))).', '#modeb(1, parent(var(p), var(p))).', '#modeb(1, male(var(p))).', '#maxv(2).']
+  n_pos/n_neg   : 19/9
+
+TARGET: ancestor/2
+  status        : ok
+  learned rules : ['ancestor(V1,V2) :- parent(V1,V2).', 'ancestor(V1,V2) :- parent(V1,V3); ancestor(V3,V2).']
+  new-entity    : recall=100% precision=100%
+  elapsed       : 19.63s
+  mode decls    : ['#modeh(ancestor(var(p), var(p))).', '#modeb(1, parent(var(p), var(p))).', '#modeb(1, ancestor(var(p), var(p))).']
+  n_pos/n_neg   : 10/4 (5-node chain, not full 29-person tree)
+
+BIAS SUPPLIED:
+  father  : modeh(father/2), modeb(parent/2), modeb(male/1), #maxv(2)
+  ancestor: modeh(ancestor/2), modeb(parent/2), modeb(ancestor/2) [self-ref allows recursion]
+
+METHODOLOGICAL NOTE (prior-knowledge spectrum):
+  DreamLog (no labels, no templates)
+  < Popper / ILASP (labeled examples + language bias,
+                    no clause-shape templates)
+  < Metagol (labeled examples + metarule templates)
+  ILASP learned ancestor recursion in ~31s on 5-node chain;
+  full family-tree closure would require hundreds of positive
+  examples and is prohibitively slow (scales with |closure|).
+  DreamLog Op I discovers recursion from the full tree with
+  zero labels and zero templates -- the stronger result.

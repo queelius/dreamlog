@@ -1,0 +1,142 @@
+{
+  "ancestor": {
+    "chain_note": "Reduced 5-node chain (a->b->c->d->e); holdout eval uses standard new-entity protocol.",
+    "elapsed_s": 19.63230349193327,
+    "eval": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "per_check": [
+        {
+          "args": "new_dad,new_son",
+          "desc": "ancestor depth-1",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "ancestor"
+        },
+        {
+          "args": "new_gfather,new_son",
+          "desc": "ancestor depth-2",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "ancestor"
+        },
+        {
+          "args": "new_gmother,new_daughter",
+          "desc": "ancestor depth-2 (female line)",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "ancestor"
+        },
+        {
+          "args": "new_son,new_dad",
+          "desc": "reverse direction not ancestor",
+          "expected": false,
+          "got": false,
+          "outcome": "TN",
+          "pred": "ancestor"
+        },
+        {
+          "args": "new_son,new_gfather",
+          "desc": "deep reverse not ancestor",
+          "expected": false,
+          "got": false,
+          "outcome": "TN",
+          "pred": "ancestor"
+        }
+      ],
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 2,
+      "tp": 3
+    },
+    "learned_rules": [
+      "ancestor(V1,V2) :- parent(V1,V2).",
+      "ancestor(V1,V2) :- parent(V1,V3); ancestor(V3,V2)."
+    ],
+    "status": "ok"
+  },
+  "bias_supplied": {
+    "ancestor": {
+      "extra_constraints": [],
+      "modeb": [
+        "parent(var(p), var(p))",
+        "ancestor(var(p), var(p))"
+      ],
+      "modeh": [
+        "ancestor(var(p), var(p))"
+      ],
+      "n_neg": 4,
+      "n_pos": 10,
+      "note": "Reduced 5-node chain (a->b->c->d->e) to keep ILASP tractable; full family-tree transitive closure caused prohibitive runtimes."
+    },
+    "father": {
+      "extra_constraints": [
+        "#maxv(2)"
+      ],
+      "modeb": [
+        "parent(var(p), var(p))",
+        "male(var(p))"
+      ],
+      "modeh": [
+        "father(var(p), var(p))"
+      ],
+      "n_neg": 9,
+      "n_pos": 19
+    }
+  },
+  "father": {
+    "elapsed_s": 1.1606163899414241,
+    "eval": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "per_check": [
+        {
+          "args": "new_dad,new_son",
+          "desc": "father from parent+male",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "father"
+        },
+        {
+          "args": "new_dad,new_daughter",
+          "desc": "father from parent+male",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "father"
+        },
+        {
+          "args": "new_mom,new_son",
+          "desc": "female not father",
+          "expected": false,
+          "got": false,
+          "outcome": "TN",
+          "pred": "father"
+        },
+        {
+          "args": "new_gmother,new_dad",
+          "desc": "female not father (grandparent level)",
+          "expected": false,
+          "got": false,
+          "outcome": "TN",
+          "pred": "father"
+        }
+      ],
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 2,
+      "tp": 2
+    },
+    "learned_rules": [
+      "father(V1,V2) :- parent(V1,V2); male(V1)."
+    ],
+    "status": "ok"
+  },
+  "methodological_note": "ILASP learns Answer Set Programs from labeled positive/negative examples plus mode declarations (language bias specifying allowed head/body predicates).  This requires MORE supervision than DreamLog (unannotated facts only, no labels, no mode bias) but the structural bias is WEAKER than Metagol (which requires fixed metarule templates that pre-specify the clause shape).  An honest prior-knowledge spectrum for the three ILP baselines: DreamLog (no labels, no templates) < Popper / ILASP (labeled examples + language bias, but no clause-shape templates) < Metagol (labeled examples + metarule templates that fix the clause shape).  ILASP's key advantage over Popper is native support for Answer Set Programming semantics -- enabling it to learn recursive rules with non-Herbrand semantics -- but at the cost of longer runtimes; the ancestor/2 task ran on a reduced 5-node chain because ILASP recursive learning scales poorly with KB size (conflict analysis grows with the transitive-closure witness set).  DreamLog's Operation I discovers recursive transitive-closure structure with no labels or templates, from the full 29-person tree, which is the stronger result."
+}

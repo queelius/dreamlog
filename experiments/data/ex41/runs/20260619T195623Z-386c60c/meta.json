@@ -1,0 +1,85 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "ILASP (Learning from Answer Sets) ILP baseline on the EX25/EX27 family-tree domain.  Two targets: father/2 (cross-predicate, parent+male mode bias) and ancestor/2 (recursion, ancestor mode bias allowing self-referential body).  New-entity held-out evaluation matches EX25/EX26/EX27/EX40 protocol.  No LLM.  Third ILP comparison after Popper (EX26) and Metagol (EX40).  Ancestor task uses a reduced 5-node chain for tractability.",
+    "id": "ex41",
+    "name": "ILASP ILP baseline (recursion + cross-predicate)",
+    "script": {
+      "path": "experiments/ex41_ilasp_baseline.py",
+      "sha256": "a62c6ef59d63eeb33e7a1ef56a2360588065917fa51ec9cc6d8d031e1ceb9f0d"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "386c60c96c191596354cc47d1027ecfc270eb71a",
+    "commit_short": "386c60c",
+    "describe": "v0.13.0-57-g386c60c",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 4624,
+      "sha256": "1b5102c20e61c186214cfe0261866d9562c81e5965bdaeb10710e586b5e0e1a4"
+    },
+    "summary.txt": {
+      "bytes": 1513,
+      "sha256": "cb8a86e5875c96c72071be4ae12011280c9051d4c24114e5afbf207191e36b6b"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "ancestor_chain_note": "Ancestor task uses 5-node linear chain (a->b->c->d->e) instead of 29-person family tree for tractability.",
+    "ilasp_bin": "/home/spinoza/.local/bin/ILASP",
+    "ilasp_ld_library_path": "/home/spinoza/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib",
+    "ilasp_pythonhome": "/home/spinoza/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu",
+    "ilasp_pythonpath": "/home/spinoza/github/beta/dreamlog/experiments/vendor/ilasp310/lib/python3.10/site-packages",
+    "ilasp_version": "ILASP version 4.4.1 (release built on Nov 11 2024)",
+    "mode_declarations": {
+      "ancestor": [
+        "#modeh(ancestor(var(p), var(p))).",
+        "#modeb(1, parent(var(p), var(p))).",
+        "#modeb(1, ancestor(var(p), var(p)))."
+      ],
+      "father": [
+        "#modeh(father(var(p), var(p))).",
+        "#modeb(1, parent(var(p), var(p))).",
+        "#modeb(1, male(var(p))).",
+        "#maxv(2)."
+      ]
+    },
+    "targets": [
+      "father",
+      "ancestor"
+    ],
+    "timeout_s_per_target": 120
+  },
+  "run": {
+    "duration_s": 20.8565,
+    "finished_utc": "2026-06-19T19:56:44.844635+00:00",
+    "run_id": "20260619T195623Z-386c60c",
+    "started_utc": "2026-06-19T19:56:23.988150+00:00"
+  },
+  "seeds": {}
+}

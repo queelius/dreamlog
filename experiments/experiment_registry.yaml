@@ -1639,3 +1639,42 @@ experiments:
       case. Metagol is the strongest ILP baseline on recursion, but at the cost
       of user-specified structural prior knowledge unavailable to the other two.
     depends_on: [EX25, EX26, EX27]
+
+  EX41_ilasp_baseline:
+    title: "ILASP ILP baseline (recursion + cross-predicate, family-tree)"
+    date: 2026-06-19
+    script: experiments/ex41_ilasp_baseline.py
+    status: complete
+    motivation: >
+      Third ILP comparison (after Popper EX26 and Metagol EX40) to position ILASP
+      on a prior-knowledge spectrum and confirm DreamLog's Operation I needs
+      strictly less supervision than any ILP baseline.
+    method: >
+      ILASP v4.4.1 (--version=4) on EX25 family-tree facts. ILASP embeds CPython
+      3.10; runtime env recorded for reproducibility: a uv python3.10 supplies
+      libpython3.10.so.1.0 (LD_LIBRARY_PATH + PYTHONHOME), a uv venv at
+      experiments/vendor/ilasp310 (gitignored) supplies clingo (PYTHONPATH). Two
+      targets, each a written .las task (background + #modeh/#modeb mode bias +
+      #pos/#neg examples). father/2: full 29-person tree, modeh(father/2) +
+      modeb(parent/2, male/1) + maxv(2), 19 pos / 9 neg. ancestor/2: REDUCED
+      5-node chain (ILASP recursion scales poorly with closure size), modeh +
+      modeb(parent/2, ancestor/2) self-ref body mode, 10 pos / 4 neg. New-entity
+      holdout evaluation via clingo. 120s timeout per target. No LLM.
+    key_result: |
+      father(V1,V2) :- parent(V1,V2); male(V1).        [1.27s; ASP pooling = conj]
+      ancestor(V1,V2) :- parent(V1,V2).                [31.5s on 5-node chain]
+      ancestor(V1,V2) :- parent(V1,V3); ancestor(V3,V2).
+      Both: recall=100% precision=100% on held-out new entities.
+      PRIOR-KNOWLEDGE SPECTRUM: DreamLog (no labels, no templates) < Popper /
+      ILASP (labeled pos+neg examples + language/mode bias, no clause-shape
+      template) < Metagol (labeled examples + metarule templates fixing the clause
+      shape). ILASP can learn recursion (unlike Popper which hung in EX26) but
+      scales poorly -- ancestor needed a 5-node chain, where DreamLog's Op I
+      recovers the closure on the full 29-person tree with zero labels and zero
+      mode bias (EX27, even on invented vocabulary). The stronger result is Op I's.
+    implications: >
+      Three ILP baselines now bracket DreamLog: it sits at the lowest-supervision
+      end of the spectrum (unannotated facts, no mode bias, no metarules) yet
+      recovers cross-predicate (via Op G) and recursive (via Op I) structure the
+      supervised systems recover only with labels plus a language bias.
+    depends_on: [EX25, EX26, EX40]
