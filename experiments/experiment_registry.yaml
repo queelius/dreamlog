@@ -642,13 +642,16 @@ experiments:
       check 9 derived facts (6 positive, 3 negative). Compare against family
       tree as canonical baseline.
     key_result: |
-      Novel domain recall: 0% → 50% (symbolic) → 67% (full pipeline).
-      Canonical baseline: 0% → 0% (symbolic) → 80% (full pipeline).
+      (Numbers below refreshed 2026-06-19 to match committed
+      data/ex25b/results.json and the manuscript; earlier prose here was stale.)
+      Novel domain recall: 0% -> 52.6% (symbolic) -> 63.2% (full pipeline),
+      mean over 5 runs (the 5 runs were identical under Haiku 4.5, std 0).
+      Canonical baseline: 0% -> 0% (symbolic) -> 80% (full pipeline).
 
-      Crafting domain (novel, invented terms):
-        No dream:  Acc=33%, Recall=0%,  Rules=0
-        Symbolic:  Acc=56%, Recall=50%, Precision=75%, Rules=5
-        Full:      Acc=67%, Recall=67%, Precision=80%, Rules=16
+      Crafting domain (novel, invented terms), 5-run means:
+        No dream:  Acc=33%, Recall=0%,    Rules=0
+        Symbolic:  Recall=52.6%, Precision=58.8%, Rules=5
+        Full:      Recall=63.2%, Precision=63.2%, Rules=18.6
 
       Key rules discovered:
       - master_artisan(X) :- artisan(X), not(exception...) [symbolic Op C]
