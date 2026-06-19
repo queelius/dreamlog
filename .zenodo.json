@@ -2,7 +2,7 @@
   "title": "Compression Enables Generalization: Wake-Sleep Cycles for Logic Programming with LLM Integration",
   "upload_type": "publication",
   "publication_type": "preprint",
-  "description": "Knowledge bases in logic programming grow through fact accumulation but do not learn. We present DreamLog, a system that compresses its knowledge base through wake-sleep cycles, discovering rules that generalize to unseen entities. On a synthetic crafting domain with invented terms unknown to the LLM, compression enables 64% recall on unseen entities (up from 0%), with symbolic compression alone achieving 53%. A raw LLM baseline achieves 0%, confirming that the compression pipeline is genuinely necessary. On a canonical family tree, the full pipeline achieves 80% recall with 100% precision. A holdout sweep shows 100% recovery of held-out facts at up to 20% holdout in open-world verification mode, with the data density threshold appearing around 30%. These results are consistent with the Solomonoff induction thesis: shorter programs generalize better.",
+  "description": "Knowledge bases in logic programming grow through fact accumulation but do not learn. We present DreamLog, a system that compresses its knowledge base through wake-sleep cycles, discovering rules that generalize to unseen entities, together with a test protocol that makes the compression-versus-memorization distinction auditable by pairing fact bases over invented vocabulary with a raw-LLM baseline on identical inputs. On a synthetic crafting domain with invented terms unknown to the LLM, symbolic compression alone recovers 53% of held-out generalizations and the full pipeline 63%, while a raw LLM recovers 0%; recursive transitive closures are recovered at 100% even over invented vocabulary. On a canonical family tree the full pipeline reaches 80% recall at 100% precision. Refining the acceptance criterion from clause count to a rename-invariant, parameter-free bits-based description length makes it structure-sensitive, and across twenty-two synthetic domains the degree of compression predicts held-out recovery (Pearson r=0.52, n=22, p=0.014). Compared against three inductive-logic-programming paradigms (Popper, Metagol, ILASP), DreamLog sits at the low-supervision end of a prior-knowledge spectrum, recovering cross-predicate and recursive rules from an unannotated fact base that the baselines reach only with labeled examples, a mode bias, or metarule templates. These results are consistent with the Solomonoff induction thesis: shorter programs generalize better.",
   "creators": [
     {
       "name": "Towell, Alexander",
@@ -42,5 +42,5 @@
     }
   ],
   "communities": [],
-  "notes": "Code and experiment registry available at https://github.com/queelius/dreamlog. All experiment scripts (EX23-EX25c) with full provenance and reproducible results."
+  "notes": "Code and experiment registry available at https://github.com/queelius/dreamlog. All experiment scripts (EX01-EX41) with full provenance and reproducible results; per-run metadata envelopes record git commit, environment, package versions, seeds, and output hashes."
 }

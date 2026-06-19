@@ -10,7 +10,7 @@ DreamLog is a Prolog-like logic programming language with S-expression syntax an
 
 ### Testing
 ```bash
-# Run all tests (~671 passing + ~11 skipped, 80% coverage enforced by pyproject.toml)
+# Run all tests (~931 collected, 80% coverage enforced by pyproject.toml)
 python -m pytest tests/ -v
 
 # Run specific test file, class, or method
@@ -85,7 +85,7 @@ When an undefined predicate is queried, the LLM pipeline activates:
 ### Layer 5: Sleep Cycle (the core innovation)
 `kb_dreamer.py`, `anti_unification.py`, `skeleton.py`
 
-`KnowledgeBaseDreamer().dream(kb)` runs eight compression operations (A-H) in sequence:
+`KnowledgeBaseDreamer().dream(kb)` runs eight compression operations (A-H) in sequence, with a ninth (Operation I, recursive closure discovery) available behind the `discover_recursion` flag:
 
 - **Operation A (Subsumption elimination)**: Remove rules subsumed by more general rules (same-body-length restriction). Remove facts subsumed by bodyless rules.
 - **Operation B (Redundant fact pruning)**: Remove facts derivable from rules + other facts. Batch removal with one-at-a-time fallback for mutual dependencies.
@@ -95,6 +95,7 @@ When an undefined predicate is queried, the LLM pipeline activates:
 - **Operation F (Dead clause pruning)**: Remove facts/rules with 0 usage after sufficient wake-phase queries. Uses per-clause frequency counters from the evaluator.
 - **Operation G (LLM-assisted compression)**: Ask LLM (default: Anthropic Haiku) to propose cross-functor rules the symbolic operations can't discover. Pipeline: (1) build prompt with facts + predicate counts + directionality constraints, (2) parse JSON response with nested term support (including `not/1`), (3) filter cyclic rules via DFS on functor dependency graph, (4) separate helper predicates from main rules, (5) evaluate each main rule (with helpers) against original KB, (6) false-positive check: reject rules that derive ground terms absent from KB, (7) verify combined set. Supports `not/1` via helper predicate pattern (e.g., `has_non_vegan(X) :- uses(X,Y), vegan(Y,false)` + `vegan_recipe(X) :- recipe(X), not(has_non_vegan(X))`).
 - **Operation H (Lemma caching)**: Add frequently-derived terms as facts for faster resolution.
+- **Operation I (Recursive closure discovery)**: Synthesize a right-recursive transitive-closure rule (e.g., `ancestor`) from base-relation facts, replacing the stored closure with a two-clause recursive definition. Flag-gated (`discover_recursion`, default off) so the default pipeline keeps zero drift; an open-world subset gate (`min_closure_coverage`, tau=0.5) lifts the exact-match restriction to recover partial closures.
 
 All operations use MDL (Minimum Description Length) scoring and are verified against a test suite of positive/negative queries with atomic rollback on failure. Post-Op-G verification uses bounded evaluators (`max_total_calls`, scaled with KB size) to prevent combinatorial explosion from LLM-proposed rules that create resolution loops. `VerificationSuite.verify()` creates a fresh evaluator per query so one slow transitive query cannot starve the budget for subsequent ones.
 
@@ -112,7 +113,7 @@ All operations use MDL (Minimum Description Length) scoring and are verified aga
 - `anti_unification.py`: Plotkin's algorithm (dual of unification). `anti_unify`, `anti_unify_many`, `node_count`, `shared_structure` scoring.
 - `skeleton.py`: Rule-set structural fingerprinting. `extract_skeleton` normalizes variable names, classifies functors as SELF/PARAM, produces hashable `RuleSetSkeleton`.
 - `kb_dreamer.py`: the dreamer facade: schedule, verification suite, thin per-op orchestrators (method names preserved for tests/monkeypatching).
-- `compression/`: the MDL machinery. `dl.py` (description length, clause count in P1), `proposal.py` (Proposal), `gate.py` (the single trial/verify/commit gate: apply_proposal, apply_batch_with_fallback, apply_batch_staged_combined), `policies.py` (per-op acceptance lifted verbatim), `generators/` (reduce=A+B, generalize=C, factor=D+E, closure=I, llm=G proposal stage), `maintenance.py` (F+H: cache pair outside the MDL objective).
+- `compression/`: the MDL machinery. `dl.py` (description length: the clause-count default plus a rename-invariant, parameter-free bits-based two-part code, selected via `dl_mode`; the bits code prices each clause by its symbol occurrences and each distinct symbol by its arity via an Elias gamma length), `proposal.py` (Proposal), `gate.py` (the single trial/verify/commit gate: apply_proposal, apply_batch_with_fallback, apply_batch_staged_combined), `policies.py` (per-op acceptance lifted verbatim), `generators/` (reduce=A+B, generalize=C, factor=D+E, closure=I, llm=G proposal stage), `maintenance.py` (F+H: cache pair outside the MDL objective).
 
 ### Layer 6: High-Level APIs
 - `engine.py`: `DreamLogEngine` combines all components. Entry point for most operations.
@@ -129,7 +130,7 @@ All operations use MDL (Minimum Description Length) scoring and are verified aga
 - `integrations/mcp/knowledge_store.py`: `KnowledgeStore` class wrapping `DreamLogEngine` with disk persistence (atomic writes via envelope format `{"version": 1, "kb": [...], "metadata": {...}}`), LLM budget tracking, dream-readiness advisory, and session metadata. Both `query()` and `explain()` accept a `max_total_calls` parameter (default 5000) to bound resolution after dreams discover broad-head rules.
 
 ### Experiments and paper
-- `experiments/experiment_registry.yaml`: single source of truth for experimental provenance. Each entry has `title`, `date`, `script`, `status`, `motivation`, `method`, `key_result`, `implications`, and optional `depends_on`. Update it when adding a new experiment or revising an old one.
+- `experiments/experiment_registry.yaml`: single source of truth for experimental provenance. Each entry has `title`, `date`, `script`, `status`, `motivation`, `method`, `key_result`, `implications`, and optional `depends_on`. Update it when adding a new experiment or revising an old one. The registry spans EX01-EX41; per-run records (meta/results/summary JSON capturing git commit, environment, package versions, seeds, LLM accounting, and output hashes) are written under `experiments/data/exNN/runs/<id>/` by the `experiments/_harness.py` `experiment_run` context manager (`data/` is gitignored).
 - `experiments/ex25_generalization.py`: canonical generalization test on a family tree. Defines shared helpers (`build_kb`, `is_derivable`, `dream_kb`, `holdout_split`, `get_llm_client`) that sibling experiments (ex25b, ex25c) import rather than duplicate.
 - `experiments/ex25b_novel_generalization.py`: same protocol on a synthetic crafting domain with invented terms (lumite, vexal, etc.) the LLM has never seen, plus a raw-LLM baseline.
 - `experiments/ex25c_holdout_sweep.py`: holdout ratio sweep; uses `dream_kb(..., open_world=True)`.
@@ -159,7 +160,7 @@ Python >=3.8, Black (88 chars), mypy strict mode on `dreamlog/`. Protocols in de
 - Tests focus on **behavior, not implementation** (no testing private attributes)
 - Mark with `@pytest.mark.slow`, `@pytest.mark.integration`, or `@pytest.mark.llm` as appropriate
 - Coverage must stay above 80% (`--cov-fail-under=80` in pyproject.toml)
-- Sleep cycle tests in `tests/test_sleep_cycle.py` cover all eight operations (A through H) with integration tests
+- Sleep cycle tests in `tests/test_sleep_cycle.py` cover the sleep operations (A through I) with integration tests
 
 ### Design Specs and Plans
 - Design specs in `docs/superpowers/specs/`
