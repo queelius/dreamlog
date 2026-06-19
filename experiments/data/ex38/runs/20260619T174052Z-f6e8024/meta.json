@@ -1,0 +1,87 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Multi-seed symbolic generalization across a family of 22 synthetic domains. Protocol: new-entity recoverable holdout (dream full KB, add new guard-only entities, measure derivability of expected prop facts). Each domain evaluated under 5 holdout seeds (subsampled check sets). Reports per-domain recovery distributions and aggregate mean+/-std across the family. Symbolic only, no LLM. Tests whether SYMBOLIC compression (Op C) recovers held-out generalizations across a domain family, turning the n=2 paper result into n-many with error bars.",
+    "id": "ex38",
+    "name": "domain-family symbolic generalization",
+    "script": {
+      "path": "experiments/ex38_domain_family.py",
+      "sha256": "79e43ab20381ca00be0727e178afba4743bed4c51a711756fafaeed9117c9e8b"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "f6e80240988793117e08302e941c025c21d4d335",
+    "commit_short": "f6e8024",
+    "describe": "v0.13.0-50-gf6e8024",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "notes": [
+    "headline: 100.0% +/- 0.0% recovery, N=22 domains, M=5 seeds",
+    "clause_compression Spearman r=nan  Pearson r=nan"
+  ],
+  "outputs": {
+    "results.json": {
+      "bytes": 21358,
+      "sha256": "b3bf27c61a52603b1f2c0f62d63e7e4b933e3e150e3ea5c8930564b434d9852e"
+    },
+    "summary.txt": {
+      "bytes": 4290,
+      "sha256": "cffafb1e46c9c2fbd2876774d8fb7a208fd5b132a3d8ad8a240ed69c26af58f9"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "dl_mode": "clauses",
+    "llm": false,
+    "max_subsample": 6,
+    "min_group_size_for_op_c": 3,
+    "min_subsample": 3,
+    "n_domains": 22,
+    "n_exc_cl_only": 1,
+    "n_holdout_seeds": 5,
+    "n_new_base_per_group": 6,
+    "open_world": true,
+    "protocol": "new_entity_recoverable_holdout_multi_seed",
+    "subfamilies": {
+      "A": "GOOD+INCOMP: recovery = n_good/(n_good+n_incomp)",
+      "B": "CL_ONLY+INCOMP: recovery = n_cl_only/(n_cl_only+n_incomp)",
+      "C": "GOOD+CL_ONLY: clauses mode recovers all groups (100%)"
+    },
+    "sz_cl_only": 3,
+    "sz_good": 5,
+    "sz_incomp": 2
+  },
+  "run": {
+    "duration_s": 0.4394,
+    "finished_utc": "2026-06-19T17:40:52.587352+00:00",
+    "run_id": "20260619T174052Z-f6e8024",
+    "started_utc": "2026-06-19T17:40:52.147971+00:00"
+  },
+  "seeds": {
+    "holdout_subsampling": "per_domain_derived",
+    "master": 42
+  }
+}

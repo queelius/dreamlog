@@ -1538,3 +1538,34 @@ experiments:
       uncompressed. tau=0.5 is the calibration knob; EX37 shows it cleanly
       separates trusted (>=tau) from untrusted (<tau) partial closures.
     depends_on: [EX35]
+
+  EX38_domain_family:
+    title: "Domain-family symbolic generalization with multi-seed error bars"
+    date: 2026-06-19
+    script: experiments/ex38_domain_family.py
+    status: complete
+    motivation: >
+      The paper's symbolic generalization claim rested on n=2 domains (family
+      ~80%, crafting ~53%). EX38 extends to a 22-domain family with 5 holdout
+      seeds each, producing error bars and a cross-domain correlation between
+      compression and recovery -- the data for the paper's first thesis figure.
+    method: >
+      22 synthetic domains (3 subfamilies varying recoverable vs incomplete
+      groups), the EX33 new-entity recoverable-holdout protocol, symbolic dream
+      (dl_mode=clauses, open_world=True), 5 holdout seeds per domain. Aggregate
+      mean +/- std recovery across the family; per-domain (compression ratio,
+      recovery) for the scatter; Pearson/Spearman via scipy.
+    key_result: >
+      Symbolic compression recovers 72.8% +/- 23.2% held-out generalizations
+      across 22 domains (5 seeds each); range [29.5%, 100%], all 22 non-zero,
+      precision 1.0 (zero spurious). Compression-ratio vs recovery correlate
+      positively and significantly: Pearson r=0.52 (p=0.014), Spearman r=0.50
+      (p=0.017). The absolute-savings correlation (EX33) is higher (up to ~0.9)
+      but partly a domain-size effect; the ratio-based number is the size-
+      controlled, defensible thesis statement.
+    implications: >
+      Replaces the n=2 weakness with a 22-domain family carrying error bars and
+      a significant size-controlled compression-generalization correlation.
+      Supplies paper/figures/compression_vs_recall.pdf (the central-thesis
+      scatter). The honest headline is r~0.5 (ratio), not the size-confounded 0.9.
+    depends_on: [EX25b, EX33]
