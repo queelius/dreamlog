@@ -1569,3 +1569,37 @@ experiments:
       Supplies paper/figures/compression_vs_recall.pdf (the central-thesis
       scatter). The honest headline is r~0.5 (ratio), not the size-confounded 0.9.
     depends_on: [EX25b, EX33]
+
+  EX39_llm_multidomain:
+    title: "LLM-augmented cross-predicate recall across n=6 family-tree domains"
+    date: 2026-06-19
+    script: experiments/ex39_llm_multidomain.py
+    status: complete
+    motivation: >
+      The paper's full-pipeline cross-predicate result (the LLM's job: rules like
+      father = male + parent) rested on a single family-tree domain. EX39 extends
+      to six structurally varied family-tree variants to get a mean +/- std and
+      isolate the LLM's contribution at n>1.
+    method: >
+      Six deterministic family-tree variants (seeds 42/123/456/789/1024/2048,
+      varied size/branches). Two conditions per domain with ONE shared Haiku
+      client (claude-haiku-4-5): symbolic-only (no LLM) and full (Op G). New-entity
+      protocol: dream the full KB, add fresh individuals with base facts only
+      (person/gender/parent), check derivation of held-out cross-predicate facts
+      (father/mother/grandfather/grandmother). Hard in-script cost guard (abort
+      above USD 2); total cost recorded in the harness llm field.
+    key_result: >
+      Cross-predicate recall: symbolic 0.0% +/- 0.0% (it cannot build cross-functor
+      rules from facts), full-pipeline 54.2% +/- 22.4%, precision 100% +/- 0%
+      (no spurious derivations) across n=6. The LLM reliably proposes father/mother;
+      grandparent (multi-hop) rules are recovered in some runs but not all, the
+      source of the variance. NOTE this is cross-predicate-ONLY recall, a different
+      and stricter metric than the paper's single-domain 80% OVERALL recall
+      (within + cross); the two are complementary. Total Haiku cost USD 0.0133
+      (6 calls, 10605 in / 1213 out tokens).
+    implications: >
+      The division of labor holds at n>1: the LLM's cross-predicate contribution
+      is real and consistent in direction (always beats the 0% symbolic baseline)
+      with 100% precision, but its coverage of multi-hop relations is variable.
+      Confirms the n=1 result generalizes while honestly quantifying the spread.
+    depends_on: [EX25, EX28]

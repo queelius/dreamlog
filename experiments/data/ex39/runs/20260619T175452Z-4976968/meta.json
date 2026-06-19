@@ -1,0 +1,88 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Extends the single-domain (n=1) full-pipeline cross-predicate generalization result from EX25 to n=6 distinct family-tree variants. Measures symbolic vs full-pipeline (Haiku) cross-predicate recall using new-entity protocol: add unseen individuals with base facts only, check whether the dreamed KB derives their father/mother/grandfather/grandmother relations.",
+    "id": "ex39",
+    "name": "LLM-augmented cross-predicate recall across domains",
+    "script": {
+      "path": "experiments/ex39_llm_multidomain.py",
+      "sha256": "0e8fa3e08cdaa9f162f8e30b64c1e927a84e657646e60a26625daae5428f0331"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "49769682d9c5eef30d852c975bbb4a24269472c3",
+    "commit_short": "4976968",
+    "describe": "v0.13.0-52-g4976968",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 6,
+    "est_cost_usd": 0.013336,
+    "input_tokens": 10605,
+    "output_tokens": 1213
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 7407,
+      "sha256": "5d15948eb17b4c5ab6660310304d3194dbf25e5fa803ed16e7ef4030d6284f17"
+    },
+    "summary.txt": {
+      "bytes": 1122,
+      "sha256": "8cd39f75236751675aa50e5e283c18d169b029f62efda3bda101629816ce0375"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "budget_usd": 2.0,
+    "conditions": [
+      "symbolic",
+      "full"
+    ],
+    "domain_seeds": [
+      42,
+      123,
+      456,
+      789,
+      1024,
+      2048
+    ],
+    "metric": "cross_predicate_recall",
+    "model": "claude-haiku-4-5-20251001",
+    "n_domains": 6,
+    "new_entity_protocol": true,
+    "temperature": 0.1
+  },
+  "run": {
+    "duration_s": 13.7104,
+    "finished_utc": "2026-06-19T17:55:06.647136+00:00",
+    "run_id": "20260619T175452Z-4976968",
+    "started_utc": "2026-06-19T17:54:52.936753+00:00"
+  },
+  "seeds": {
+    "domain_seeds": [
+      42,
+      123,
+      456,
+      789,
+      1024,
+      2048
+    ]
+  }
+}

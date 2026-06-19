@@ -1,0 +1,26 @@
+
+========================================================================
+  EX39 SUMMARY
+========================================================================
+  Domains completed: 6/6
+
+  Per-domain cross-predicate recall (new-entity protocol):
+    Domain    Seed    Symbolic        Full   Precision   Rules
+  --------  ------  ----------  ----------  ----------  ------
+         1      42       0.0%      50.0%     100.0%       5
+         2     123       0.0%      25.0%     100.0%       4
+         3     456       0.0%     100.0%     100.0%       5
+         4     789       0.0%      50.0%     100.0%       5
+         5    1024       0.0%      50.0%     100.0%       4
+         6    2048       0.0%      50.0%     100.0%       4
+
+  AGGREGATE (6 domains):
+    Symbolic recall:       0.0% +/- 0.0%
+    Full-pipeline recall:  54.2% +/- 22.4%
+    Full-pipeline precision: 100.0% +/- 0.0%
+
+  n=1 -> n=6: full-pipeline recall 54.2% +/- 22.4% vs symbolic 0.0% +/- 0.0%
+  (LLM non-determinism note: temperature=0.1; small residual variance expected)
+
+  LLM: 6 calls, 10,605 in / 1,213 out
+  Total cost: $0.0133 / $2.00 budget
