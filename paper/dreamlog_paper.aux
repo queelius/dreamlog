@@ -163,27 +163,35 @@
 \newlabel{sec:bitsdl}{{\mbox  {IV-K}}{13}{The Bits-Based Objective and Abstraction Maturity (EX29--31)}{subsection.4.11}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {IX}{\ignorespaces Extraction crossover $K^*$ (minimum rules sharing an $L$-goal body for extraction to lower the bits length) and the marginal saving per additional sharing rule. Clause count accepts at every $K$ ($\Delta =+1$ always).}}{14}{table.9}\protected@file@percent }
 \newlabel{tab:extraction-crossover}{{IX}{14}{Extraction crossover $K^*$ (minimum rules sharing an $L$-goal body for extraction to lower the bits length) and the marginal saving per additional sharing rule. Clause count accepts at every $K$ ($\Delta =+1$ always)}{table.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The abstraction-maturity threshold for body-pattern extraction (EX30). Cell color is the bits-length change of extracting a body shared by $K$ rules of length $L$: blue where extraction compresses (and the bits gate accepts), red where it does not. The black contour is the break-even ($\Delta =0$) line and stars mark the per-$L$ crossover $K^*$. Clause count accepts every cell ($\Delta =+1$), blind to the surface.}}{14}{figure.1}\protected@file@percent }
+\newlabel{fig:extraction-crossover}{{1}{14}{The abstraction-maturity threshold for body-pattern extraction (EX30). Cell color is the bits-length change of extracting a body shared by $K$ rules of length $L$: blue where extraction compresses (and the bits gate accepts), red where it does not. The black contour is the break-even ($\Delta =0$) line and stars mark the per-$L$ crossover $K^*$. Clause count accepts every cell ($\Delta =+1$), blind to the surface}{figure.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Compression predicts generalization (EX38). Each point is one of twenty-two synthetic domains; the horizontal axis is the clause compression a symbolic dream achieves ($1-$ratio), the vertical axis is the mean fraction of held-out generalizations the compressed rules recover, and error bars span five held-out splits. The size-controlled correlation is significant (Pearson $r=0.52$, $p=0.01$).}}{15}{figure.2}\protected@file@percent }
+\newlabel{fig:compression-recall}{{2}{15}{Compression predicts generalization (EX38). Each point is one of twenty-two synthetic domains; the horizontal axis is the clause compression a symbolic dream achieves ($1-$ratio), the vertical axis is the mean fraction of held-out generalizations the compressed rules recover, and error bars span five held-out splits. The size-controlled correlation is significant (Pearson $r=0.52$, $p=0.01$)}{figure.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Open-world recursive discovery closes the partial-closure gap (EX35--37). Fraction of held-out closure pairs recovered as a function of how complete the observed relation is, for three chain lengths. The closed-world exact-match gate (solid) fires only at full completeness; the open-world subset gate (dashed) fires and recovers at every coverage at or above $\tau =0.5$ (vertical line), with zero spurious derivations throughout.}}{15}{figure.3}\protected@file@percent }
+\newlabel{fig:opi-coverage}{{3}{15}{Open-world recursive discovery closes the partial-closure gap (EX35--37). Fraction of held-out closure pairs recovered as a function of how complete the observed relation is, for three chain lengths. The closed-world exact-match gate (solid) fires only at full completeness; the open-world subset gate (dashed) fires and recovers at every coverage at or above $\tau =0.5$ (vertical line), with zero spurious derivations throughout}{figure.3}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {V}Discussion}{15}{section.5}\protected@file@percent }
 \newlabel{sec:discussion}{{V}{15}{Discussion}{section.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}What Symbolic vs. LLM Operations Contribute}{15}{subsection.5.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}The Novel Domain Isolates Compression from LLM Memorization}{15}{subsection.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Limitations}{15}{subsection.5.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}1}Multi-hop rules}{15}{subsubsection.5.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}2}Recursion scope}{15}{subsubsection.5.3.2}\protected@file@percent }
 \citation{cropper2021learning}
-\citation{muggleton2014meta}
-\citation{olausson2023linc}
-\citation{muggleton1994inductive}
-\citation{mitchell2018never}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}The Novel Domain Isolates Compression from LLM Memorization}{16}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Limitations}{16}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}1}Multi-hop rules}{16}{subsubsection.5.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}2}Recursion scope}{16}{subsubsection.5.3.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}3}Minimum data threshold}{16}{subsubsection.5.3.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}4}Scaling}{16}{subsubsection.5.3.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-C}5}LLM dependence for cross-predicate rules}{16}{subsubsection.5.3.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Relation to Inductive Logic Programming}{16}{subsection.5.4}\protected@file@percent }
 \newlabel{sec:ilp_discussion}{{\mbox  {V-D}}{16}{Relation to Inductive Logic Programming}{subsection.5.4}{}}
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0a}Popper~\cite  {cropper2021learning}}{16}{paragraph.5.4.0.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0b}Metagol~\cite  {muggleton2014meta}}{16}{paragraph.5.4.0.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0c}LINC~\cite  {olausson2023linc}}{16}{paragraph.5.4.0.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-E}}Relation to Solomonoff Induction}{16}{subsection.5.5}\protected@file@percent }
+\citation{muggleton2014meta}
+\citation{olausson2023linc}
+\citation{muggleton1994inductive}
+\citation{mitchell2018never}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0a}Popper~\cite  {cropper2021learning}}{17}{paragraph.5.4.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0b}Metagol~\cite  {muggleton2014meta}}{17}{paragraph.5.4.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-D}0c}LINC~\cite  {olausson2023linc}}{17}{paragraph.5.4.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-E}}Relation to Solomonoff Induction}{17}{subsection.5.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{17}{section.6}\protected@file@percent }
+\newlabel{sec:conclusion}{{VI}{17}{Conclusion}{section.6}{}}
 \bibstyle{IEEEtran}
 \bibdata{references}
 \bibcite{solomonoff1964formal}{1}
@@ -194,9 +202,6 @@
 \bibcite{deletang2024language}{6}
 \bibcite{lotfi2022pac}{7}
 \bibcite{dumancic2021knowledge}{8}
-\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{17}{section.6}\protected@file@percent }
-\newlabel{sec:conclusion}{{VI}{17}{Conclusion}{section.6}{}}
-\@writefile{toc}{\contentsline {section}{References}{17}{section*.2}\protected@file@percent }
 \bibcite{cropper2020forgetting}{9}
 \bibcite{evans2021making}{10}
 \bibcite{ellis2023dreamcoder}{11}
@@ -211,6 +216,7 @@
 \bibcite{rocktaschel2017end}{20}
 \bibcite{olausson2023linc}{21}
 \bibcite{plotkin1970note}{22}
+\@writefile{toc}{\contentsline {section}{References}{18}{section*.2}\protected@file@percent }
 \bibcite{reynolds1970transformational}{23}
 \bibcite{robinson1965machine}{24}
 \bibcite{stahl1995predicate}{25}
@@ -231,4 +237,4 @@
 \bibcite{mitchell2018never}{40}
 \bibcite{lloyd1987foundations}{41}
 \bibcite{clark1978negation}{42}
-\gdef \@abspage@last{18}
+\gdef \@abspage@last{19}
