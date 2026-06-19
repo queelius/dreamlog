@@ -70,7 +70,7 @@ This paper makes two interlocked contributions: a test protocol that makes the c
 \item \textbf{A canonical family tree.} On a 29-person, 4-generation family tree, the full pipeline achieves 80\% recall on newly introduced individuals with 100\% precision, compressing the KB from 300 to 184 clauses.
 \end{enumerate}
 
-The novel domain result is the stronger validation. Because the LLM has never seen the invented terms, it cannot retrieve memorized rules from training data. The symbolic operations discover generalizations through MDL-driven compression of structural regularities in the data, without any labeled training examples or domain-specific inductive bias.
+The novel domain result is the stronger validation. Because the LLM has never seen the invented terms, it cannot retrieve memorized rules from training data. The symbolic operations discover generalizations through MDL-driven compression of structural regularities in the data, without any labeled training examples or domain-specific inductive bias. These two domains anchor the protocol with its full raw-LLM controls and per-rule-type division-of-labor measurement; the central compression-generalization claim is then tested at scale on a family of twenty-two synthetic domains (Section~\ref{sec:bitsdl}), where the degree of compression a dream achieves predicts the fraction of held-out structure its rules recover, confirming that the relationship is not an artifact of two hand-built cases.
 
 Our contributions are:
 \begin{itemize}

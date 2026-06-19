@@ -8,6 +8,14 @@ authors:
     email: lex@metafunctor.com
     affiliation: Southern Illinois University Edwardsville
     orcid: "https://orcid.org/0000-0001-6443-9897"
+  - family-names: Fujinoki
+    given-names: Hiroshi
+    email: hfujino@siue.edu
+    affiliation: Southern Illinois University Edwardsville
+  - family-names: Gultepe
+    given-names: Eren
+    email: egultep@siue.edu
+    affiliation: Southern Illinois University Edwardsville
 repository-code: "https://github.com/queelius/dreamlog"
 url: "https://github.com/queelius/dreamlog"
 abstract: >-
@@ -48,6 +56,14 @@ preferred-citation:
       email: lex@metafunctor.com
       affiliation: Southern Illinois University Edwardsville
       orcid: "https://orcid.org/0000-0001-6443-9897"
+    - family-names: Fujinoki
+      given-names: Hiroshi
+      email: hfujino@siue.edu
+      affiliation: Southern Illinois University Edwardsville
+    - family-names: Gultepe
+      given-names: Eren
+      email: egultep@siue.edu
+      affiliation: Southern Illinois University Edwardsville
   year: 2026
   month: 4
   abstract: >-
