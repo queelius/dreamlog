@@ -1,0 +1,23 @@
+EX40: Metagol ILP baseline -- family-tree domain
+
+TARGET: father/2
+  status        : ok
+  learned rules : ['father(A,B):-parent(A,B),male(A).']
+  new-entity    : recall=100% precision=100%
+  elapsed       : 0.02s
+  metarules     : ['conjunction: P(A,B) :- Q(A,B), R(A)  [Metagol standard]']
+
+TARGET: ancestor/2
+  status        : ok
+  learned rules : ['ancestor(A,B):-parent(A,B).', 'ancestor(A,B):-parent(A,C),ancestor(C,B).']
+  new-entity    : recall=100% precision=100%
+  elapsed       : 0.03s
+  metarules     : ['ident:   P(A,B) :- Q(A,B)             [Metagol standard]', 'tailrec: P(A,B) :- Q(A,C), P(C,B)    [Metagol standard]']
+
+METHODOLOGICAL NOTE:
+  Metagol requires hand-supplied metarule templates (extra inductive
+  bias). DreamLog (Ops C/I) and Popper discover rule structure from
+  data without templates. Count: 1 metarule for father, 2 for ancestor.
+  Metagol's recursion success is guaranteed-by-design once tailrec
+  is supplied; DreamLog's Operation I discovers recursion with no
+  template -- the stronger result.

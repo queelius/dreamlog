@@ -1603,3 +1603,39 @@ experiments:
       with 100% precision, but its coverage of multi-hop relations is variable.
       Confirms the n=1 result generalizes while honestly quantifying the spread.
     depends_on: [EX25, EX28]
+
+  EX40_metagol_baseline:
+    title: "Metagol ILP baseline (recursion + cross-predicate, family-tree)"
+    date: 2026-06-19
+    script: experiments/ex40_metagol_baseline.py
+    status: complete
+    motivation: >
+      The paper compares DreamLog only against Popper (EX26), a constraint-driven
+      ILP system. Metagol (meta-interpretive learning) is a second ILP paradigm
+      that handles recursion naturally but REQUIRES user-supplied metarule
+      templates -- additional inductive bias neither DreamLog nor Popper needs.
+      EX40 adds it as a second baseline and makes the bias asymmetry explicit.
+    method: >
+      SWI-Prolog 10.0.2 + Metagol commit 7b617992 (cloned to experiments/vendor/,
+      gitignored; pin the hash to reproduce). Two targets on the EX25/EX27
+      family-tree facts. father/2 (cross-predicate): background parent/2 + male/1,
+      positives + female-parent negatives, 1 conjunction metarule P(A,B):-Q(A,B),
+      R(A). ancestor/2 (recursion): background parent/2, transitive-closure
+      positives + reversed negatives, 2 metarules (ident + tailrec). Evaluated
+      with the EX25/EX26/EX27 new-entity held-out protocol via a separate Prolog
+      eval program. No LLM.
+    key_result: |
+      Metagol succeeds on both targets at 100% recall / 100% precision on the
+      new-entity holdout:
+        father(A,B) :- parent(A,B), male(A).            [1 clause, ~0.02s]
+        ancestor(A,B) :- parent(A,B).                   [2 clauses, ~0.03s]
+        ancestor(A,B) :- parent(A,C), ancestor(C,B).
+      Metarules supplied: 3 total (1 father + 2 ancestor).
+      METHODOLOGICAL NOTE: Metagol's recursion success is guaranteed-by-design
+      once the tailrec template is given -- it cannot fail to find the only
+      2-clause program consistent with the metarule and examples. DreamLog's
+      Operation I discovers the same recursive rule with NO template (EX27,
+      including on invented vocabulary), and Popper (EX26) hung on the recursive
+      case. Metagol is the strongest ILP baseline on recursion, but at the cost
+      of user-specified structural prior knowledge unavailable to the other two.
+    depends_on: [EX25, EX26, EX27]

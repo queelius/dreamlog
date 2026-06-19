@@ -1,0 +1,122 @@
+{
+  "ancestor": {
+    "elapsed_s": 0.02462159004062414,
+    "eval": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "per_check": [
+        {
+          "args": "new_dad,new_son",
+          "desc": "ancestor depth-1",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "ancestor"
+        },
+        {
+          "args": "new_gfather,new_son",
+          "desc": "ancestor depth-2",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "ancestor"
+        },
+        {
+          "args": "new_gmother,new_daughter",
+          "desc": "ancestor depth-2 (female line)",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "ancestor"
+        },
+        {
+          "args": "new_son,new_dad",
+          "desc": "reverse direction not ancestor",
+          "expected": false,
+          "got": false,
+          "outcome": "TN",
+          "pred": "ancestor"
+        },
+        {
+          "args": "new_son,new_gfather",
+          "desc": "deep reverse not ancestor",
+          "expected": false,
+          "got": false,
+          "outcome": "TN",
+          "pred": "ancestor"
+        }
+      ],
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 2,
+      "tp": 3
+    },
+    "learned_rules": [
+      "ancestor(A,B):-parent(A,B).",
+      "ancestor(A,B):-parent(A,C),ancestor(C,B)."
+    ],
+    "status": "ok"
+  },
+  "father": {
+    "elapsed_s": 0.02407220099121332,
+    "eval": {
+      "accuracy": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "per_check": [
+        {
+          "args": "new_dad,new_son",
+          "desc": "father from parent+male",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "father"
+        },
+        {
+          "args": "new_dad,new_daughter",
+          "desc": "father from parent+male",
+          "expected": true,
+          "got": true,
+          "outcome": "TP",
+          "pred": "father"
+        },
+        {
+          "args": "new_mom,new_son",
+          "desc": "female not father",
+          "expected": false,
+          "got": false,
+          "outcome": "TN",
+          "pred": "father"
+        },
+        {
+          "args": "new_gmother,new_dad",
+          "desc": "female not father (grandparent level)",
+          "expected": false,
+          "got": false,
+          "outcome": "TN",
+          "pred": "father"
+        }
+      ],
+      "precision": 1.0,
+      "recall": 1.0,
+      "tn": 2,
+      "tp": 2
+    },
+    "learned_rules": [
+      "father(A,B):-parent(A,B),male(A)."
+    ],
+    "status": "ok"
+  },
+  "metarules_supplied": {
+    "ancestor": [
+      "ident:   P(A,B) :- Q(A,B)             [Metagol standard]",
+      "tailrec: P(A,B) :- Q(A,C), P(C,B)    [Metagol standard]"
+    ],
+    "father": [
+      "conjunction: P(A,B) :- Q(A,B), R(A)  [Metagol standard]"
+    ],
+    "total_count": 3
+  },
+  "methodological_note": "Metagol requires the user to supply METARULES (rule templates) that define the allowed clause structure before learning begins. For father/2 we supplied 1 metarule (conjunction: P(A,B):-Q(A,B),R(A)); for ancestor/2 we supplied 2 metarules (ident and tailrec). These metarules constitute additional inductive bias that is NOT available to DreamLog (Ops C/I discover structure from data) or Popper (Popper searches over clause shapes without pre-specified templates). An honest comparison must account for this asymmetry: Metagol's success on the recursive case is guaranteed-by-design once the tailrec metarule is supplied, whereas DreamLog's Operation I and Popper must discover the recursive structure from examples alone."
+}

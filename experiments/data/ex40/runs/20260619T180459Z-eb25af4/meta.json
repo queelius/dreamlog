@@ -1,0 +1,74 @@
+{
+  "env": {
+    "hostname": "bilbo",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3"
+  },
+  "experiment": {
+    "description": "Metagol meta-interpretive learning baseline on the EX25/EX27 family-tree domain. Two targets: father/2 (cross-predicate, conjunction metarule) and ancestor/2 (recursion, ident+tailrec metarules). New-entity held-out evaluation matches EX25/EX26/EX27 protocol. No LLM. Key methodological point: Metagol requires user-supplied metarule templates (extra inductive bias absent from DreamLog and Popper).",
+    "id": "ex40",
+    "name": "Metagol ILP baseline (recursion + cross-predicate)",
+    "script": {
+      "path": "experiments/ex40_metagol_baseline.py",
+      "sha256": "32dfbb47fbe1a938d0791377ecd8fa8c3493fe17d855e04e5ae824b25e03b1a9"
+    }
+  },
+  "git": {
+    "branch": "master",
+    "commit": "eb25af4c47ffb0aa4c26f23ee1bbc3241fb7fc70",
+    "commit_short": "eb25af4",
+    "describe": "v0.13.0-54-geb25af4",
+    "dirty": true
+  },
+  "llm": {
+    "calls": 0,
+    "est_cost_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "outputs": {
+    "results.json": {
+      "bytes": 1741,
+      "sha256": "5d6e1cda21b949b8743aab313d24934513e064256d0f43736d4c42d0410da45b"
+    },
+    "summary.txt": {
+      "bytes": 1029,
+      "sha256": "9975a9dcfdf19ff2c630c10c6d6d49a563878bdbe2798f22de154fd3141e404b"
+    }
+  },
+  "packages": {
+    "anthropic": "0.83.0",
+    "dreamlog": "0.9.0",
+    "numpy": "2.2.6",
+    "openai": "2.29.0",
+    "pytest": "8.4.1",
+    "pyyaml": "6.0.2",
+    "scipy": "1.16.1",
+    "sympy": "1.13.3"
+  },
+  "params": {
+    "metagol_commit": "7b617992d30d3cee37a6f4bb8667f717a46cc6a3",
+    "metarules_ancestor": [
+      "ident:   P(A,B) :- Q(A,B)             [Metagol standard]",
+      "tailrec: P(A,B) :- Q(A,C), P(C,B)    [Metagol standard]"
+    ],
+    "metarules_father": [
+      "conjunction: P(A,B) :- Q(A,B), R(A)  [Metagol standard]"
+    ],
+    "targets": [
+      "father",
+      "ancestor"
+    ],
+    "timeout_s_per_target": 60
+  },
+  "run": {
+    "duration_s": 0.0803,
+    "finished_utc": "2026-06-19T18:04:59.430417+00:00",
+    "run_id": "20260619T180459Z-eb25af4",
+    "started_utc": "2026-06-19T18:04:59.350170+00:00"
+  },
+  "seeds": {}
+}
